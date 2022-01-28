@@ -1,0 +1,11 @@
+--- dftd4.f90	2021-06-21 12:23:22.869735613 +0200
++++ dftd4.f90	2021-06-21 12:23:25.996418259 +0200
+@@ -4918,6 +4918,8 @@
+ 
+    if (present(lattice)) then
+       self%lattice = lattice
++   else
++      allocate(self%lattice(0, 0))
+    end if
+ 
+    if (present(periodic)) then

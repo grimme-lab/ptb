@@ -1,0 +1,357 @@
+!! ------------------------------------------------------------------------
+! model Hamiltonian to provide atomic shell populations
+! fitted to Mulliken/Loewdin DFT populations
+! SG, 2020-2021
+! last change on global fit parameters Sun Apr 11 11:11:37 CEST 2021
+! HCNO FIT RMSD 10.24
+!! ------------------------------------------------------------------------
+
+subroutine shellq(n,ndim,nel,nopen,homo,chrg,at,aoat,xyz,z,rab,S,psh,pa)
+   use iso_fortran_env, only : wp => real64
+   use parcom
+   use bascom
+   use com
+   implicit none
+
+!! ------------------------------------------------------------------------
+!  Input
+!! ------------------------------------------------------------------------
+   integer, intent(in)    :: n                  ! number of atoms 
+   integer, intent(in)    :: ndim               ! number of AOs       
+   integer, intent(in)    :: nel                ! number of electrons 
+   integer, intent(in)    :: nopen              ! number of open shells
+   integer, intent(in)    :: homo               ! as the name says...
+   real(wp),intent(in)    :: chrg               ! system charge           
+   integer, intent(in)    :: at(n)              ! ordinal number of atoms
+   integer, intent(in)    :: aoat(ndim)         ! AO-to-atom index array
+   real(wp),intent(in)    :: xyz(3,n)           ! coordinates (not used)
+   real(wp),intent(in)    :: z(n)               ! nuclear charges          
+   real(wp),intent(in)    :: rab(n*(n+1)/2)     ! distances  
+   real(wp),intent(in)    :: S(ndim*(ndim+1)/2) ! overlap maxtrix in SAO
+!! ------------------------------------------------------------------------
+!  Output
+!! ------------------------------------------------------------------------
+   real(wp),intent(out)   :: psh(10,n)          ! shell populations 
+   real(wp),intent(out)   :: pa(n)              ! atom      "
+
+!! ------------------------------------------------------------------------
+!  charge model, local
+!! ------------------------------------------------------------------------
+   real(wp),allocatable :: Amat (:,:)                ! Hamiltonian matrix
+   real(wp),allocatable :: Adiag(:)                  ! diagonal
+   real(wp),allocatable :: D(:,:)                    ! density matrix (ZDO basis)
+   real(wp),allocatable :: e(:)                      ! eigenvalues
+   real(wp),allocatable :: focca(:),foccb(:),focc(:) ! occupations
+
+!  global fit para
+   real(wp),parameter   :: erfs   =-2.65_wp     ! erf expo CN -2.6
+   real(wp),parameter   :: gpar5  = 2.132_wp     ! diag/off-diag scaling
+   real(wp),parameter   :: gpol   = 1.018_wp     ! polarity factor Hij
+   real(wp),parameter   :: gamscal= 1.084_wp    ! global gamma scaling
+   real(wp) :: rowfak(6)                        ! row scaling 2nd = 1
+   real(wp) :: laafak(4,4)                      ! A=B inter shell scaling
+
+
+!! ------------------------------------------------------------------------
+!  local variables
+!! ------------------------------------------------------------------------
+   integer  :: i,j,k,l,ish,ati,ia,ib,jsh,ii,jj,lin,ij,li,ihomoa,ihomob
+   integer  :: ns, iter, itabrow6, ab
+   integer  :: llao(4)
+   data llao /1,3,5,7 /
+   real(wp) :: r,rcovij,arg,tmp,tmp2,et,efa,efb,nfoda,nfodb
+   real(wp) :: ga,gb,hi,hj,hij,pol,fha,fhb,eh1,xk
+   real(wp) :: t0,t1,w1,w0
+   real(wp),allocatable :: cn(:), gab(:,:), h1(:), gq(:)
+   character*2 asym
+   logical  :: pr    
+
+!! ------------------------------------------------------------------------
+!  Lapack work variables
+!! ------------------------------------------------------------------------
+   integer, allocatable :: iwork(:),isuppz(:)
+   real(wp),allocatable :: work(:)
+   real(wp),allocatable :: u(:,:)    
+   integer  :: lwork, info, ifail, iu, liwork
+
+!! ------------------------------------------------------------------------
+!  initizialization
+!! ------------------------------------------------------------------------
+
+!  global fit para
+   rowfak =1.0_wp          ! 3rd and higher row not fitted, 2nd=1.0
+   laafak =1.0_wp
+   rowfak(1)  =0.900_wp    
+   laafak(1,1)=6.57_wp    ! s-s intershell scaling (s-p,s-d = 0)      
+   laafak(2,2)=5.39_wp    ! p-p intershell scaling                   
+   laafak(3,3)=4.20_wp    ! d-d intershell scaling not fitted yet
+
+   allocate( Amat(ndim,ndim), Adiag(ndim), e(ndim),           source = 0.0_wp )
+   allocate( D(ndim,ndim),focc(ndim),focca(ndim),foccb(ndim), source = 0.0_wp )
+   allocate( gq(n*(n+1)/2),h1(ndim), gab(n,n), cn(n),         source = 0.0_wp )
+
+! for fit
+!  gpar5    = glob_par(5)
+!  gpol     = glob_par(6)
+!  rowfak(1)= glob_par(5)
+!  laafak(1,1)=glob_par(5)
+!  laafak(2,2)=glob_par(6)
+
+!  CN
+   do i = 2, n
+      do j = 1, i-1 
+         r = rab(lin(i,j))
+!        rcovij=(4./3.)*(rcov(at(i))+rcov(at(j)))
+         rcovij=1.889725949_wp*(4./3.)*(shell_cnf4(3,at(i))+shell_cnf4(3,at(j)))
+         arg = (r-rcovij)/rcovij
+         tmp = 0.5_wp * (1_wp + erf(erfs*arg)) 
+         cn(i) = cn(i) + tmp      
+         cn(j) = cn(j) + tmp 
+      enddo
+   enddo
+
+!  DFTB second order term
+   do i=1, n
+      do j=1,i
+         r = rab(lin(i,j))
+         xk=2_wp/(gamscal*gam(at(i))+gamscal*gam(at(j))) ! hardness, scaled standard values
+         gab(j,i)=1_wp/sqrt(r**2+xk**2)  ! damped Coulomb
+!        gab(j,i)=1_wp/(r+xk)  ! damped Coulomb, about the same performance
+         gab(i,j)=gab(j,i)
+      enddo
+   enddo
+
+   pr = .false.
+   pa = 0
+
+   do iter=1, 2
+
+!! ------------------------------------------------------------------------
+!  set up the H matrix 
+!! ------------------------------------------------------------------------
+   if(iter.gt.1)then
+   pr = .true. 
+   k = 0
+   do i=1, n
+      do j=1,i
+         eh1 = 0_wp
+         do l=1,n
+            eh1=eh1+pa(l)*(gab(l,i)+gab(l,j)) ! contraction with charge
+         enddo
+         k = k + 1
+         gq(k) = eh1
+      enddo
+   enddo
+   endif
+
+   ! diagonal
+   ii = 0
+   do i = 1, n
+      ati = at(i)
+      do ish=1,bas_nsh(ati)
+          l = bas_lsh(ish,ati)+1
+          tmp = shell_xi(ish,ati) +   cn(i)*shell_cnf1(ish,ati) &         ! shell-wise + shell-wise CN
+ &                                +   pa(i)*shell_cnf2(ish,ati) &         ! shell-wise 
+ &                                +pa(i)**2*shell_cnf4(1,ati)/float(l)**2 ! element-wise with l correction
+          do j=1,llao(l) ! AO loop
+             ii = ii + 1
+             Adiag(ii) = tmp
+             h1   (ii) = shell_cnf3(ish,ati) ! DFTB2 term scal
+          enddo
+      enddo
+   enddo
+
+   ! full H            
+   ij = 0
+   Amat=0
+   do i=1,ndim
+      ia = aoat(i)
+      ish= shell2ao(i)
+      li = bas_lsh(ish,at(ia))+1
+      hi = Adiag(i)
+      fha= rowfak(itabrow6(at(ia)))
+      do j=1,i  
+         ij = ij + 1
+         if(abs(S(ij)).lt.1.d-7) cycle
+         ib = aoat(j)
+         ab = lin(ia,ib)
+         hj = Adiag(j)
+         hij= hi+hj
+         fhb= rowfak(itabrow6(at(ib)))
+         if(ia.ne.ib) then            ! different atoms
+            r   = rab(ab)
+            pol = ((hi-hj)/hij)**2
+            xk  = shell_cnf4(2,at(ia))+shell_cnf4(2,at(ib))
+            tmp = S(ij) * hij * gpar5 * (1_wp-pol*gpol) * fha * fhb * (1_wp+xk/r)
+         else
+            tmp = S(ij) * hij         ! same atom 
+            jsh = shell2ao(j)
+            if(ish.ne.jsh) tmp = tmp * laafak(li,bas_lsh(jsh,at(ib))+1) ! inter-shell s-s, p-p, zero (S=0) for s-p,p-d ...
+         endif
+!        add DFTB2 term
+         tmp = tmp + gq(ab) * S(ij) * (h1(i)+h1(j)) 
+         Amat(j,i) = tmp 
+         Amat(i,j) = tmp 
+      enddo
+   enddo
+   if(pr) write(*,*) 'shellQ H matrix done.'
+!  call prmat(6,Amat,ndim,ndim,'test')
+!  stop
+
+!! ------------------------------------------------------------------------
+!  solve 
+!! ------------------------------------------------------------------------
+
+                                          call timing(t0,w0)           
+   if(ndim.lt.50) then
+    lwork  = 1 + 6*ndim + 2*ndim**2
+    if(iter.eq.1) allocate(work(lwork))
+    call dsyev ('V','U',ndim,Amat,ndim,e,work,lwork,info)
+   else ! faster for large systems
+    iu=min(homo+5,ndim)
+    lwork  = 1 + 6*ndim + 2*ndim**2
+    liwork = 10*ndim
+    if(iter.eq.1) allocate(iwork(liwork),work(lwork),isuppz(2*iu))
+    call dsyevr('V','I','U', ndim, Amat, ndim, ga, gb, 1, IU, &
+  &            1d-7, ii, e, D, ndim, isuppz, WORK, LWORK, IWORK, &
+  &            LIWORK, INFO )
+                                          call timing(t1,w1)           
+    Amat = D ! copy eigenvectors for dmat
+    e(iu+1:ndim)=100d0
+   endif
+
+   if(info.ne.0) stop 'diag error'
+
+! Fermi smearing                                          
+! convert restricted occ first to alpha/beta             
+   if(nel.gt.0) then
+      call occu(ndim,nel,nopen,ihomoa,ihomob,focca,foccb)
+   else
+      focca=0.0d0
+      foccb=0.0d0
+      ihomoa=0
+      ihomob=0
+   endif
+   et = 300_wp
+   if(ihomoa+1.le.ndim) then 
+      call FERMISMEAR(.false.,ndim,ihomoa,et,e,focca,nfoda,efa,ga)
+   endif
+   if(ihomob+1.le.ndim.and.nel.gt.1) then
+      call FERMISMEAR(.false.,ndim,ihomob,et,e,foccb,nfodb,efb,gb)
+   endif
+   focc = focca + foccb
+
+!  ZDO density matrix
+   call dmat(ndim,focc,Amat,D)   
+
+   if(pr)then
+   write(*,*) 'shellQ Hamiltonian results'
+   ii=max(homo-3,1)
+   jj=min(homo+3,ndim)
+   write(*,'('' frontier occ.: '',10f8.3)') focc(ii:jj)
+   write(*,'('' gap          : '',  f8.3)') e(homo+1)-e(homo)
+   if(e(homo+1)-e(homo).lt.0.02) write(*,*) 'WARNING: small HL gap!'
+   write(*,*) '          CN       q(1st)    q(2nd)'
+   endif
+
+   ii = 0
+   do i = 1, n
+      ati = at(i)
+      ns = bas_nsh(ati)
+      psh(1:ns,i) = 0_wp
+      do ish=1,ns           
+          l = bas_lsh(ish,ati)+1
+          do j=1,llao(l)
+             ii = ii + 1
+             psh(ish,i) = psh(ish,i) + D(ii,ii) ! av. over shell components
+          enddo
+      enddo
+      tmp = sum(psh(1:ns,i)) ! condensed to atomic populations
+      if(pr)write(*,'(i4,2x,a2,3f9.3)')i,asym(at(i)),cn(i),pa(i),z(i)-tmp
+      if(iter.eq.1) then
+         pa(i) = z(i) - tmp  ! charges in iteration
+      else
+         pa(i) = tmp         ! population for output
+      endif
+   enddo
+
+   enddo ! iter
+
+!  if(pr) call wiberg(.true.,n,ndim,at,xyz,D,S,gab)  ! WBO are ok
+
+
+   end
+
+!! ------------------------------------------------------------------------
+!! neutral atomic shell occupations from r2SCAN-3c opt hydrides
+!! ------------------------------------------------------------------------
+
+subroutine shellocc_ML(at,socc) ! shellQ based on wB97X-D3 ML              
+      use bascom
+      implicit none
+      integer at
+      real*8 socc(*)
+
+      socc(1:bas_nsh(at))=0
+
+      select case (at)
+
+      case (1) 
+      socc( 1)= 0.466889750
+      socc( 2)= 0.533110250
+      socc( 3)= 0.000000000
+! R2
+!     socc( 1)= 0.552195718
+!     socc( 2)= 0.401549130
+!     socc( 3)= 0.046255152
+!     socc( 1)= 0.554654210
+!     socc( 2)= 0.399324564
+!     socc( 3)= 0.046021227
+      case (3) 
+      case (4) 
+      case (5) 
+      case (6) 
+      socc( 1)= 1.126765965
+      socc( 2)= 0.873234035
+      socc( 3)= 1.203983009
+      socc( 4)= 0.796016991
+      socc( 5)= 0.000000000
+! R2
+!     socc( 1)= 0.649965910
+!     socc( 2)= 0.304568403
+!     socc( 3)= 1.881307928
+!     socc( 4)= 1.106571641
+!     socc( 5)= 0.057586118
+!     socc( 1)= 0.650821894
+!     socc( 2)= 0.304807292
+!     socc( 3)= 1.877144797
+!     socc( 4)= 1.109625441
+!     socc( 5)= 0.057600575
+      case (7)
+      case (8)
+      case (9)
+      end select
+
+      end
+
+!! ------------------------------------------------------------------------
+!  normalize shell occ. to q_atom = 0, just to make shell_occ_ML 
+!! ------------------------------------------------------------------------
+subroutine qshnorm(z,nsh,qshref)
+      implicit none
+      integer nsh
+      real*8  z,qshref(10)
+
+      integer i
+      real*8  norm, pol, val
+      real*8  qshnew(10)     
+      
+      norm = sum(qshref(1:nsh))
+
+      qshnew(1:nsh) = qshref(1:nsh) * z / norm
+
+      do i=1,nsh
+         write(*,'(6x,''socc('',i2,'')='',F12.9)') i, qshnew(i)
+      enddo
+
+end

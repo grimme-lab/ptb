@@ -1,0 +1,102 @@
+!------------------------------------------------------------------
+! compute Fock and H0 matrix using RI ints on file 
+! and S and pa as further input
+!------------------------------------------------------------------
+subroutine fock(n,nao,at,xyz,rab,aoat,z,pa,S,qaux_Q,qaux_N,P,F,H0)
+      use bascom
+      use parcom
+      use com
+      implicit none
+      integer n,nao
+      integer,intent(in)     :: at(n)       
+      integer,intent(in)     :: aoat(nao)     
+      real*8, intent(in)     :: xyz(3,n)
+      real*8, intent(in)     :: rab(n*(n+1)/2) 
+      real*8, intent(in)     :: z (n)
+      real*8, intent(in)     :: pa(n)                     ! shellQ populations
+      real*8, intent(in)     :: S (nao*(nao+1)/2)         ! overlap
+      real*8, intent(in)     :: qaux_Q(naux)              ! aux charges
+      real*8, intent(in)     :: qaux_N(naux)              ! aux pop
+      real*8, intent(in)     :: P (nao*(nao+1)/2)         ! ZDO density matrix
+      real*8, intent(inout)  :: F (nao*(nao+1)/2)         ! estimated F (contains T on input)
+      real*8, intent(out)    :: H0(nao*(nao+1)/2)         ! H0 = F - J for energy calc
+
+      real*8, parameter      :: erfs   = -2.750d0         ! CN, same as in shellQ
+      real*8, parameter      :: glob1  =  1.115d0         ! rho2 A=B vs. two-c scaling
+      real*8, parameter      :: gpol   =  0.900d0         ! EHT polarity
+
+      integer i,j,k,ij,ia,ib,lin,ish,jsh,ata,atb,ati,atj
+      real*8  Jij,rho2,ddot,hi,hj,hij,polh,term1,term2,ri,rj,rij,polr,r1
+      real*8, allocatable :: vtmp(:), qXa1(:), qXa2(:), cns(:)
+
+      allocate( cns(n), vtmp(2*naux), qXa2(naux), qXa1(naux), source = 0d0 )
+
+!     local CN (H radius changed)
+      call ncoord_erf(n,at,rab,erfs,cns)
+
+      do ish=1,naux
+         ata=at(aux_at(ish))
+         rij=1d0+fock_par(3,ata)*cns(aux_at(ish))
+         qXa1(ish)=qaux_N(ish)*fock_par(7,ata)*rij*glob1        ! A=B
+         qXa2(ish)=qaux_N(ish)*fock_par(7,ata)*rij              ! two center (just a bit smaller than A=B because glob_par(1) is about 1.05)
+      enddo
+
+!     Fock matrix XC1
+      ij = 0
+      do i=1,nao 
+         ia  = aoat(i)
+         ata = at(ia)
+         ish = shell2ao(i)
+         hi  = fock_lev (ish,ata) * (1d0+cns(ia)*fock_par(4,ata)) ! +U term
+         ri  = fock_lev2(ish,ata) * (1d0+cns(ia)*fock_par(8,ata)) ! EHT term
+         do j=1,i  
+            ij  =ij + 1       
+            if(abs(P(ij)).lt.1d-7) cycle
+            ib  = aoat(j)
+            atb = at(ib)
+            jsh = shell2ao(j)
+            hj  = fock_lev (jsh,atb) * (1d0+cns(ib)*fock_par(4,atb))
+            rj  = fock_lev2(jsh,atb) * (1d0+cns(ib)*fock_par(8,atb))
+            hij = hi + hj
+            rij = ri + rj
+            polr= ((ri-rj)/rij)**2
+            if(ia.ne.ib) then ! A ne B
+               r1    = 1d0/rab(lin(ia,ib))
+               term2 = 0.5d0*(fock_par(6,ata)+fock_par(6,atb))
+               F(ij) = F(ij) + hij * P(ij)                                         ! +U term
+               F(ij) = F(ij) + rij * S(ij) * (1d0+gpol *polr) *(1d0-term2*r1)      ! +EHT term
+            else              ! A=B
+               if(ish.ne.jsh) then ! different shells
+               F(ij) = F(ij) + hij * P(ij) *                   fock_par(1,ata)     ! +U term
+               F(ij) = F(ij) + rij * S(ij) * (1d0+gpol *polr)* fock_par(9,ata)     ! +EHT term
+               else                ! same
+               F(ij) = F(ij) + hij * P(ij) *                   fock_par(2,ata)     ! +U term
+               F(ij) = F(ij) + rij * S(ij) *                   fock_par(10,ata)    ! +EHT term (polr=0)
+               endif
+               if(i.eq.j) F(ij) = F(ij) + fock_lev2(10,ata)                        ! diagonal shift, i=j
+            endif
+         enddo
+      enddo
+
+      H0 = F
+
+!     RI part XC2 and J
+      open(unit=42,file='gtb_3idx',form='unformatted')
+  10  read(42,end=100)i,j,vtmp
+      ia  = aoat(i)
+      ib  = aoat(j)
+      Jij = -ddot(naux, vtmp(1),1,qaux_Q,1)               ! Ves
+      if(ia.ne.ib) then                                   ! A ne B
+         rho2 = ddot(naux,vtmp(naux+1),1,qXa2,1)          ! XC2
+      else
+         rho2 = ddot(naux,vtmp(naux+1),1,qXa1,1)          
+      endif
+      ij  = lin(i,j)
+      F (ij) = F(ij) + Jij - rho2  
+      H0(ij) = F(ij) - Jij + rho2*glob_par(17)
+      goto 10
+ 100  close(42)
+
+!     call prmat(6,F,nao,0,'F')
+!     stop
+end

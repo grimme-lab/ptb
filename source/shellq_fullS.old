@@ -1,0 +1,1442 @@
+!! ------------------------------------------------------------------------
+! model Hamiltonian to provide atomic shell populations and density matrix
+! fitted to Mulliken DFT populations/q/BO/dipole/alpha/Raman/Ekin
+! SG, 2020-2021
+! last change on method Fri Oct 22 07:47:04 CEST 2021
+!! ------------------------------------------------------------------------
+
+subroutine shellq(pr,prop,n,ndim,nel,nopen,homo,at,chrg,xyz,z,rab, & 
+&                 pnt,norm,S,D,efield,qeeq,S1,S2,psh,pa,gapa,&
+&                 P,H,eps,eel,wbo,dip,alp)
+   use iso_fortran_env, only : wp => real64
+   use parcom
+   use bascom
+   use com
+   implicit none
+
+!! ------------------------------------------------------------------------
+!  Input
+!! ------------------------------------------------------------------------
+   logical, intent(in)    :: pr                 ! print
+   integer, intent(in)    :: prop               ! type of property calc (0: p,q,P,WBO  1/-1: +dip  2/-2: + alpha  
+                                                !                        3: beta       4   : stda write (if < 0, no WBO)
+   integer, intent(in)    :: n                  ! number of atoms 
+   integer, intent(in)    :: ndim               ! number of AOs       
+   integer, intent(in)    :: nel                ! number of electrons 
+   integer, intent(in)    :: nopen              ! number of open shells
+   integer, intent(in)    :: homo               ! as the name says...
+   integer, intent(in)    :: at(n)              ! ordinal number of atoms
+   real(wp),intent(in)    :: chrg               ! system charge           
+   real(wp),intent(in)    :: xyz(3,n)           ! coordinates (not used)
+   real(wp),intent(in)    :: z(n)               ! nuclear charges          
+   real(wp),intent(in)    :: rab(n*(n+1)/2)     ! distances  
+   real(wp),intent(in)    :: pnt(3)             ! property reference point
+   real(wp),intent(in)    :: norm(ndim)         ! SAO normalization factors
+   real(wp),intent(in)    :: S(ndim*(ndim+1)/2) ! exact overlap maxtrix in SAO
+   real(wp),intent(in)    :: D(ndim*(ndim+1)/2,3)!dipole integrals
+   real(wp),intent(in)    :: efield(3)          ! electric field
+!! ------------------------------------------------------------------------
+!  Output
+!! ------------------------------------------------------------------------
+   real(wp),intent(out)   :: qeeq(n)            ! EEQ charges       
+   real(wp),intent(out)   :: S1(ndim,ndim)      ! Mull-Loew trafo   
+   real(wp),intent(out)   :: S2(ndim,ndim)      !   "   "    "
+   real(wp),intent(out)   :: psh(10,n)          ! shell populations 
+   real(wp),intent(inout) :: pa(n)              ! atom      "
+   real(wp),intent(inout) :: gapa(n)            ! local atomic gap 
+   real(wp),intent(inout) :: P(ndim*(ndim+1)/2) ! density matrix
+   real(wp),intent(inout) :: H(ndim*(ndim+1)/2) ! unperturbed Hamilton Matrix
+   real(wp),intent(out)   :: eps(ndim)          ! eigenvalues
+   real(wp),intent(out)   :: eel                ! electronic energy
+   real(wp),intent(out)   :: wbo(n,n)           ! WBOs                 
+   real(wp),intent(out)   :: dip(3)             ! dipole moment
+   real(wp),intent(out)   :: alp(6)             ! dipole polarizability tensor
+
+!! ------------------------------------------------------------------------
+!  local
+!! ------------------------------------------------------------------------
+   real(wp),allocatable :: focc(:)              ! occupations
+   real(wp),allocatable :: Hdiag(:)             ! diagonal
+   real(wp),allocatable :: SS(:)                ! scaled overlap/perturbed H
+   real(wp),allocatable :: Htmp(:)              ! modified H                    
+   real(wp),allocatable :: P1  (:)              ! perturbed P     
+   real(wp)             :: alpha(3,3)         
+   real(wp)             :: dip1(3),dip2(3)
+
+   real(wp),parameter   :: eT     = 300.00_wp   ! electronic temp. 
+   real(wp),parameter   :: ffs    = 0.0005_wp   ! finite field step
+!  global fit para
+   real(wp),parameter   :: erfs   =-1.6000_wp   ! erf expo for CN (about 1/5 orig. value)
+!  real(wp),parameter   :: presp2 = 1.0922_wp   ! response correction
+!  real(wp),parameter   :: presp3 = 0.6887_wp   !   "
+!  real(wp),parameter   :: presp4 = 0.9351_wp   !   "
+!  real(wp) :: presp2,presp3,presp4,presp5,presp6
+   real(wp) :: presp(5) 
+   real(wp) :: presprow(6) 
+
+   integer  :: i,j,k,l,ish,ati,atj,ia,ib,jsh,ii,jj,lin,ij,li,lj
+   integer  :: ns, iter, nsh, ibeta, shmap(10,n), itabrow6
+   integer  :: llao(4)
+   data llao /1,3,5,7 /
+   real(wp) :: r,r2,rcovij,arg,tmp,hi,hj,hij,pol,t8,t9,xk
+   real(wp) :: scfpar(10)
+   real(wp) :: xiscal(86)
+   real(wp) :: scal(10,n)
+   real(wp),allocatable :: cn(:), cns(:), xnrm(:), Sfull(:,:)
+   logical fail
+
+!! ------------------------------------------------------------------------
+!  initizialization
+!! ------------------------------------------------------------------------
+   if(pr)then
+   write(*,*) '----------------'
+   write(*,*) '| shellQ model |'
+   write(*,*) '| SG 2020-2021 |'
+   write(*,*) '----------------'
+   write(*,*) 'prop :',prop
+   endif
+
+   ibeta = 1
+   if(prop.eq.3.or.prop.eq.102) ibeta = 2  ! different correction (parameters) for beta (1:5 for alpha, 6:10 for beta)
+   presp(5) = glob_par(5+(ibeta-1)*5)
+
+   allocate( SS(ndim*(ndim+1)/2), Sfull(ndim,ndim), focc(ndim), Hdiag(ndim), &
+  &          cn(n), cns(n), source = 0.0_wp )
+
+   call blowsym(ndim,S,Sfull)! full matrix is used several times
+
+   if(prop.gt.100) goto 999  ! just property evaluation for given H,P,pa,gapa....
+                             ! this saves twoscf step in beta evaluation
+
+!! ------------------------------------------------------------------------
+!  shellQ calculation of P,q,... starts here
+!! ------------------------------------------------------------------------
+
+   if(pr)write(*,*) 'ML setup ...'
+!  if(prop.eq.0)then
+!  the ML can be done in real*4 without loss in accuracy
+   call mlpop14(ndim,S,S1,S2) ! ML precalc, x=1/4
+!  else
+!  call mlpop1 (ndim,S,S1,S2) ! ML precalc, x=1/4
+!  endif
+   if(pr)write(*,*) 'done.'
+
+   xiscal = 1_wp
+   do i=1,86
+      xiscal(i)=shell_cnf1(9,i) 
+   enddo
+
+!  def CN
+   call ncoord_erf(n,at,rab,erfs,cns) ! the org. EEQ was parameterized with erfs=-7.5, same expo. here for both CN
+   
+!  slightly modified EEQ charges (xiscal) qeeq for first iter Ves
+   call eeq(n,at,rab,chrg,cns,xiscal,qeeq)
+
+   if(pr)then
+   write(*,*) 'EEQ done.'
+   write(*,'(''sum q : '',f8.3)') sum(qeeq)
+   write(*,'(''    atom   Zeff    EEQ charge     srCN      noHCN'')')
+   endif
+
+!  special CN
+   cn = 0_wp
+   do i = 2, n
+      do j = 1, i-1 
+         r = rab(lin(i,j))
+         rcovij=abs(shell_cnf4(3,at(i)))+abs(shell_cnf4(3,at(j))) ! to avoid num. problems in fit if radius -> 0
+         arg = (r-rcovij)/rcovij
+         tmp = 0.5_wp * (1_wp + erf(erfs*arg)) 
+         cn(i) = cn(i) + tmp      
+         cn(j) = cn(j) + tmp 
+      enddo
+   enddo
+   if(pr)then
+   do i=1,n
+       write(*,'(2i5,f5.1,4f12.4)') i,at(i),z(i),qeeq(i),cns(i),cn(i) 
+   enddo
+   endif
+
+   nsh = 0
+   jsh = 0
+   do i=1, n
+      ati = at(i)
+      nsh = nsh + bas_nsh(ati)
+      do ish=1,bas_nsh(ati)
+         jsh = jsh + 1
+         shmap(ish,i) = jsh  ! needed for shell ES
+      enddo
+   enddo
+
+   call modbas(n,at,3) 
+   call sint(n,ndim,at,xyz,rab,SS,eps)    ! scaled S 
+   call modbas(n,at,4) 
+
+   ! atomic H0        
+   ii = 0
+   do i = 1, n
+      ati = at(i)
+      t9  =         cns(i)*shell_cnf4( 9,ati) ! shift
+      t8  = cn(i) + cns(i)*shell_cnf4(10,ati) ! shell-wise
+      do ish=1,bas_nsh(ati)
+          tmp = shell_xi(ish,ati) + shell_cnf1(ish,ati) * t8 + t9 
+          l = bas_lsh(ish,ati)+1
+          do j=1,llao(l) ! AO loop
+             ii = ii + 1
+             Hdiag(ii) = tmp
+          enddo
+      enddo
+   enddo
+
+!! ------------------------------------------------------------------------
+!  set up the H matrix twice
+!! ------------------------------------------------------------------------
+
+   pa = qeeq ! initialization of atomic charges, true pa on output
+   scfpar(1) = glob_par(11)  !gpol
+   scfpar(2) = glob_par(12)
+   scfpar(3) = glob_par(15)  !qscal2
+   scfpar(4) = erfs   
+   scfpar(5) = presp(5)      !gappar
+   scfpar(6) = glob_par(13)  !CN dep. of +U damping radius
+   scfpar(7) = glob_par(14)  !Vp off-diag
+   scfpar(8) = glob_par(18)  !Vp diag
+   call twoscf(pr,prop,n,ndim,nsh,nel,nopen,homo,at,shmap,xyz,z,rab,cns,Sfull,SS,Hdiag,focc,&
+               norm,eT,scfpar,S1,S2,psh,pa,gapa,P,H,eps,eel)  
+
+!! ------------------------------------------------------------------------
+!  done
+!! ------------------------------------------------------------------------
+
+!! ------------------------------------------------------------------------
+!  properties   
+!! ------------------------------------------------------------------------
+
+999 continue  ! entry point for beta calcs when only a field is added
+
+   allocate(Htmp(ndim*(ndim+1)/2),xnrm(ndim))
+
+   Htmp = H 
+   if(sum(abs(efield)).gt.1.d-6) then
+      do j=1,3
+         Htmp(:)=Htmp(:)-efield(j)*D(:,j)  ! the field perturbation on unperturbed H
+      enddo
+      if(prop.ne.102) then  ! if this is not a beta calc, p,q,mu... are computed with field P
+         call solve2(2,ndim,nel,nopen,homo,eT,presp(5),focc,Htmp,Sfull,P,SS,eps,eel,fail) ! solve with efield
+         call mlpop3(n,ndim, SS, S1, S2, cn)
+         gapa =  cn / pa             
+      endif
+   endif
+
+  call wiberg(n,ndim,at,rab,P,S,wbo)
+
+! dipole moment 
+   if(abs(prop).gt.0)then
+     call dipmom2(n,ndim,xyz,z,norm,P,D,pnt,dip) ! get dipole moment at point pnt
+   endif
+
+! polarizability by simple perturbative treatment 
+! this is only done in alpha,beta cases
+! presp paramters depend on pert. (second- (ibeta=1) or third-derivative (ibeta=2))
+   if(abs(prop).eq.2.or.prop.eq.102)then
+     presp(1)=glob_par(1+(ibeta-1)*5)
+     presp(2)=glob_par(2+(ibeta-1)*5)
+     call responscal(n,at,ibeta,z,pa,gapa,presp(1),presp(2),scal) ! determine scaling factors for shells from q and q^2
+     call modbasd(n,at,scal)                                      ! scale exponents shell-wise 
+     call sint(n,ndim,at,xyz,rab,SS,xnrm)                         ! special overlap ints
+     presp(3)=glob_par(3+(ibeta-1)*5)
+     presp(4)=glob_par(4+(ibeta-1)*5)
+     presprow(1)  =glob_par(16) !0.908_wp                                      ! PSE row wise diagonal scaling
+     presprow(2:6)=glob_par(17) !0.442_wp                                      ! row 1-2 fitted
+!    response correction added on Htmp (contains at this point final field free H + field (beta))
+     ij=0
+     do i=1,ndim
+        ia = aoat(i)
+        ati= at(ia)
+        hi = shell_xi(shell2ao(i),ati) * (shell_resp(9,ati,ibeta)+presp(3)*gapa(ia)) ! modified H0 diagonal
+        do j=1,i-1
+           ij = ij + 1
+           ib = aoat(j)
+           atj= at(ib)
+           hj = shell_xi(shell2ao(j),atj) * (shell_resp(9,atj,ibeta)+presp(3)*gapa(ib)) ! but without CN terms
+           pol= 1_wp+presp(4)*((hi-hj)/(hi+hj))**2 ! stan asym term
+           xk = (hi+hj)*SS(ij)*pol*sqrt(shell_resp(10,ati,ibeta)*shell_resp(10,atj,ibeta))
+           Htmp(ij) = Htmp(ij) + xk
+        enddo
+        ij = ij + 1
+        Htmp(ij) = Htmp(ij) + 2_wp*hi*shell_resp(10,ati,ibeta)*presprow(itabrow6(ati)) ! scaled diagonal
+     enddo
+! six perturbed dipole moment calcs H = H_final + H_resp + field1 + field2
+     allocate(P1(ndim*(ndim+1)/2))
+     do k=1,3
+        call addsym(ndim, ffs,Htmp,D(1,k),SS)                         ! perturb H
+        call solve2(1,ndim,nel,nopen,homo,eT,presp(5),focc,SS,Sfull,P1,Htmp,eps,tmp,fail) ! solve
+        call dipmom2(n,ndim,xyz,z,norm,P1,D,pnt,dip1)                 ! get dipole moment
+        call addsym(ndim,-ffs,Htmp,D(1,k),SS)                         ! other direction
+        call solve2(1,ndim,nel,nopen,homo,eT,presp(5),focc,SS,Sfull,P1,Htmp,eps,tmp,fail) ! 
+        call dipmom2(n,ndim,xyz,z,norm,P1,D,pnt,dip2)                 !
+        alpha(k,1:3)=-(dip1(1:3)-dip2(1:3))/(2_wp*ffs)                ! numerical diff. dmu/dfield
+     enddo
+     alp(1)=alpha(1,1)
+     alp(2)=0.5*(alpha(2,1)+alpha(1,2))
+     alp(3)=alpha(2,2)
+     alp(4)=0.5*(alpha(3,1)+alpha(1,3))
+     alp(5)=0.5*(alpha(3,2)+alpha(2,3))
+     alp(6)=alpha(3,3)
+   endif
+
+   call modbas(n,at,4) 
+
+end
+
+!! ------------------------------------------------------------------------
+!  set up and diag the H matrix twice
+!! ------------------------------------------------------------------------
+
+subroutine twoscf(pr,prop,n,ndim,nsh,nel,nopen,homo,at,shmap,xyz,z,rab,cn,S,SS,Hdiag,focc,&
+                  norm,eT,scfpar,S1,S2,psh,pa,gapa,P,Hmat,eps,eel)
+   use iso_fortran_env, only : wp => real64
+   use bascom
+   use parcom
+   use com
+   implicit none 
+!! ------------------------------------------------------------------------
+!  Input
+!! ------------------------------------------------------------------------
+   logical, intent(in)    :: pr                    ! print
+   integer, intent(in)    :: prop                  ! calc type
+   integer, intent(in)    :: n                     ! number of atoms 
+   integer, intent(in)    :: ndim                  ! number of AOs       
+   integer, intent(in)    :: nsh                   ! number of shells    
+   integer, intent(in)    :: nel                   ! number of electrons 
+   integer, intent(in)    :: nopen                 ! number of open shells
+   integer, intent(in)    :: homo                  ! as the name says...
+   integer, intent(in)    :: at(n)                 ! ordinal number of atoms
+   integer, intent(in)    :: shmap(10,n)           ! 
+   real(wp),intent(in)    :: xyz(3,n)              ! coordinates
+   real(wp),intent(in)    :: z(n)                  ! nuclear charges          
+   real(wp),intent(in)    :: rab(n*(n+1)/2)        ! distances  
+   real(wp),intent(in)    :: cn(n)                 ! CN           
+   real(wp),intent(in)    :: S(ndim,ndim)          ! exact overlap maxtrix in SAO
+   real(wp),intent(in)    :: SS(ndim*(ndim+1)/2)   ! scaled overlap maxtrix in SAO
+   real(wp),intent(in)    :: Hdiag(ndim)           ! diagonal of H0
+   real(wp),intent(in)    :: focc (ndim)           ! fractional occ.
+   real(wp),intent(in)    :: norm (ndim)           ! SAO normalization factors
+   real(wp),intent(in)    :: eT                    ! el. temp.
+   real(wp),intent(in)    :: scfpar(10)            ! parameters
+   real(wp),intent(in)    :: S1(ndim,ndim)         ! ML trafo
+   real(wp),intent(in)    :: S2(ndim,ndim)         ! "   "          
+
+!! ------------------------------------------------------------------------
+!  Output
+!! ------------------------------------------------------------------------
+   real(wp),intent(inout)   :: psh(10,n)             ! shell populations 
+   real(wp),intent(inout)   :: pa(n)                 ! atom      "
+   real(wp),intent(inout)   :: gapa(n)               ! gap weigthed atom   "
+   real(wp),intent(inout)   :: P   (ndim*(ndim+1)/2) ! density matrix
+   real(wp),intent(inout)   :: Hmat(ndim*(ndim+1)/2) ! Hamiltonian matrix
+   real(wp),intent(out)     :: eps (ndim)            ! orbital energies
+   real(wp),intent(out)     :: eel                   ! electronic energy = sum eps (not used)
+
+!  local
+   logical  :: fail
+   integer  :: i,j,k,l,ish,ati,atj,ia,ib,jsh,ii,jj,lin,ij,li,iter,iish,jjsh,mode
+   real(wp) :: r,tmp,pol,hi,hj,hij,xk,t8,t9,qa,qb,keav,eh1,dmp
+   real(wp) :: t0,t1,w0,w1
+   real(wp) :: ves(nsh), gab(nsh,nsh), gq(n), geff(n)
+   real(wp),allocatable :: Vecp(:)
+
+!  simple ECP
+   if(pr)write(*,*) 'computing Vecp ...'
+   allocate(Vecp(ndim*(ndim+1)/2))
+   call calcvecp (n,ndim,at,xyz,rab,norm,Vecp)
+
+   do iter=1, 2         ! two "iterations": in the first, q (=pa) = q(EEQ) and NO P (=+U)
+
+   if(iter.eq.1) then   ! atom-wise ES, no shell pop available
+      do i=1, n
+         geff(i) = 1_wp / gam(at(i))
+      enddo
+      do i=1, n
+         eh1 = 0_wp
+         do l=1,n
+            k=lin(l,i)
+            xk =2_wp /(geff(i) + geff(l))  ! harm. av.
+            tmp=1_wp/sqrt(rab(k)**2+1_wp/xk**2)             !  + cmn/(rab(k)+1_wp/xk)  
+            eh1=eh1+pa(l)*tmp                               ! contraction with charge (DFTB2 atomic term)
+         enddo
+         gq(i) = eh1 * 0.5_wp 
+      enddo
+   else                  ! shell-wise xTB like
+      call setgab  (n,nsh,at,rab,pa,gab)  ! the gab contain q as higher order effect on Ves
+      call setespot(n,nsh,at,psh,gab,ves) 
+      ves = ves * 0.5_wp
+   endif    
+
+! H0 +  third-order (atomic charge exists in 1. AND 2. iter)
+   do i=1, n
+      geff(i) = pa(i)**2*shell_cnf4(1,at(i)) ! geff is temp.
+   enddo
+
+   Hmat = 0 ! Vecp ! initialize H 
+   ij = 0
+   do i=1,ndim
+      ia = aoat(i)
+      ati= at(ia)
+      ish= shell2ao(i)
+      li = bas_lsh(ish,ati)+1
+      hi = Hdiag(i)
+      do j=1,i  
+         ij = ij + 1
+         ib = aoat(j)
+         r  = rab(lin(ia,ib))
+         if(r.gt.50d0) cycle
+         hj = Hdiag(j)
+         hij= hi+hj
+         atj= at(ib)
+         if(ia.ne.ib) then            ! different atoms
+            xk  = shell_cnf4(2,ati)+shell_cnf4(2,atj)
+            pol = ((hi-hj)/hij)**2
+            keav= 0.5_wp*(shell_xi(10,ati) + shell_xi(10,atj))
+            tmp = keav * SS(ij) * hij * (1_wp-pol*scfpar(iter)) * (1_wp+xk/r) + Vecp(ij)
+         else                         ! same atoms
+            jsh = shell2ao(j)
+            tmp = SS(ij) * hij
+            if(ish.ne.jsh) then       ! s-s', p-p', d-d' off-diagonal, li=lj because S=0 otherwise
+               tmp = tmp * shell_cnf4(3+li,ati)
+            endif
+            tmp = tmp + Vecp(ij)*shell_cnf2(10,ati)
+         endif
+         Hmat(ij) = Hmat(ij) + tmp - S(j,i)*(geff(ia)+geff(ib)) ! third order diagonal
+      enddo
+   enddo
+
+! H1
+   if(iter.eq.1)then ! atom-wise, no +U (no P exists)
+    call calcpauli(n,ndim,nsh,at,z,pa,S,Hdiag,scfpar(7),scfpar(8),Hmat)
+    ij = 0
+    do i=1,ndim
+      ia = aoat(i)
+      do j=1,i  
+         ib = aoat(j)
+         ij = ij + 1
+         Hmat(ij) = Hmat(ij) - (gq(ia)+gq(ib)) * S(j,i)
+      enddo
+    enddo
+   else ! shell-wise ES + U terms with density from 1. iter
+!   for +U LR damping
+    k = 0
+    do i=1,n
+      gq(i) = 1_wp - (pa(i) + scfpar(3)*pa(i)**2)*shell_cnf2(9,at(i)) ! gq is temp., important charge scaling (even the quad term has a good effect)
+      hi = shell_cnf3(10,at(i)) * (1d0+cn(i)*scfpar(6))
+      do j=1,i
+         k = k + 1
+         r = hi + shell_cnf3(10,at(j)) * (1d0+cn(j)*scfpar(6))
+         t8= (rab(k)-r)/r
+         gab(j,i) = 0.5_wp*(1_wp+erf(scfpar(4)*t8)) ! gab not used anymore after this point in iter 2
+         gab(i,j) = gab(j,i)
+      enddo
+    enddo
+    k = 0
+    do i=1,ndim
+      ia = aoat(i)
+      ati= at(ia)
+      ish= shell2ao(i)
+      iish=shmap(ish,ia)
+      hi = shell_cnf2(ish,ati)*gq(ia)
+      do j=1,i
+         k  = k + 1
+         ib = aoat(j)
+         atj= at(ib)
+         jsh= shell2ao(j)
+         jjsh=shmap(jsh,ib)
+         hj = shell_cnf2(jsh,atj)*gq(ib)
+!                            this part is INDO two-c like         shell ES
+         Hmat(k) = Hmat(k) + P(k) * (hi + hj) * gab(ib,ia) - S(j,i)*(ves(iish)+ves(jjsh)) 
+      enddo
+    enddo
+   endif
+
+   if(pr)write(*,*) 'gTB H matrix iteration ',iter, ' done. Now diag ...'
+
+!  solve 
+   mode = iter
+   if(iter.eq.2.and.prop.eq.4) mode = 3 ! stda write
+   if(prop.eq.0)then
+   call solve24(mode,ndim,nel,nopen,homo,eT,scfpar(5),focc,Hmat,S,P,SS,eps,eel,fail) ! + gap weigthed P on SS (destroyed) if iter=2
+   else
+   call solve2 (mode,ndim,nel,nopen,homo,eT,scfpar(5),focc,Hmat,S,P,SS,eps,eel,fail) ! + gap weigthed P on SS (destroyed) if iter=2
+   endif
+   if(fail) stop 'diag error'
+
+   if(iter.eq.2.and.pr)then
+     ii=max(homo-2,1)
+     jj=min(homo+2,ndim)
+     xk=eps(homo+1)-eps(homo)
+     write(*,'('' frontier MO occupations   : '',10f8.4)') focc(ii:jj)
+     write(*,'('' (shifted) level energies  : '',10f8.4)')  eps(ii:jj)
+     write(*,'('' gap (au/eV)               : '',f9.5,f9.3)') xk,xk*27.212
+     write(*,'('' sum occ*eps               : '',f12.6)') eel           
+     if(xk.lt.0.05) then
+        write(*,*) 'WARNING WARNING WARNING WARNING'
+        write(*,*) ':::::::   small HL gap  :::::::'
+        write(*,*) 'WARNING WARNING WARNING WARNING'
+     endif
+   endif
+
+!  pop
+   call mlpop2(n,ndim, P, S1, S2, pa, psh)
+   if(iter.eq.1) pa = z - pa  ! output are populations but here q is used for convenience
+
+   enddo
+
+   call mlpop3(n,ndim, SS, S1, S2, gq)  ! energy weighted populations on gq()
+   gapa = gq / pa                       ! local (atomic) average gap
+
+end
+
+!! ------------------------------------------------------------------------
+!  add Pauli Term to H
+!! ------------------------------------------------------------------------
+
+subroutine calcpauli(n,nao,nsh,at,z,q,S,Hdiag,scal1,scal2,Hmat)
+      use  bascom
+      use  parcom
+      implicit none          
+      integer, intent(in)   :: nsh,nao,n,at(n)
+      real*8,  intent(in)   :: z(n),q(n)
+      real*8,  intent(in)   :: S(nao,nao)    
+      real*8,  intent(in)   :: Hdiag(nao)    
+      real*8,  intent(in)   :: scal1,scal2
+      real*8,  intent(inout):: Hmat(nao*(nao+1)/2)    
+
+      integer i,j,k,l,m,atn,jsh,llao2(0:3)
+      data llao2/1,3,5,7 /
+      real*8 ddot, atocc(10), f1,f2
+      real*8,allocatable :: stmp(:,:)
+
+      allocate(stmp(nao,nao))
+
+!     N^2 step
+      do i=1,nao                          
+         m=0 
+         do k=1,n                           ! all atoms
+            f1=(z(k)-q(k))/z(k)             ! Nel factor
+            atn=at(k)
+            call shellocc_ref(atn,atocc)     ! ref. atomic pop.
+            do jsh=1,bas_nsh(atn)            ! shells of atom nn
+               l =llao2(bas_lsh(jsh,atn))
+               f2=f1*1d0/dble(l)             ! AO degen
+               do l=1,l                      ! AOs of shell jsh
+                  m = m + 1
+                  stmp(m,i)= Hdiag(m) * S(m,i) * atocc(jsh)*f2
+               enddo
+            enddo
+         enddo
+      enddo
+
+!     N^3 step
+      k = 0 
+      do i=1, nao 
+         do j=1, i-1
+            k = k + 1 
+            Hmat(k) = Hmat(k) - scal1 * ddot(nao,stmp(1,i),1,S(1,j),1)
+         enddo
+         k = k + 1 
+         Hmat(k) = Hmat(k) - scal2 * ddot(nao,stmp(1,i),1,S(1,i),1)
+      enddo
+
+      end
+
+!! ------------------------------------------------------------------------
+!  set up Coulomb potential due to 2nd order fluctuation shell-wise
+!! ------------------------------------------------------------------------
+
+subroutine setgab(n,nsh,at,rab,q,gab)
+   use bascom
+   use parcom
+   use com
+      implicit none 
+      integer, intent(in)  :: n
+      integer, intent(in)  :: nsh
+      integer, intent(in)  :: at(n)
+      real*8,  intent(in)  :: rab(n*(n+1)/2)  
+      real*8,  intent(in)  :: q(n)
+      real*8,  intent(out) :: gab(nsh,nsh)
+
+      integer i,j,k,ati,atj,ish,jsh,ii,jj,lin
+      real*8 gish,gjsh,xk,r2,geff(n),ff
+      real*8,parameter :: gamscal= 0.082d0 ! similar for all elements
+
+      do i=1,n
+         geff(i) = (1d0 - gamscal*q(i))*gam(at(i))
+      enddo
+
+!     DFTB second order term J matrix
+      ii = 0
+      do i=1, n
+      ati = at(i)
+      do ish=1, bas_nsh(ati)
+         ii = ii + 1
+         gish = shell_cnf3(ish,ati) * geff(i) ! important higher-order effect
+         jj = 0
+         do j=1,n
+            k = lin(j,i)
+            r2= rab(k)**2
+            atj = at(j)
+            do jsh=1, bas_nsh(atj)
+               jj = jj + 1
+               if (jj.gt.ii) cycle
+               gjsh = shell_cnf3(jsh,atj) * geff(j)
+               xk   = 2d0 /(1d0/gish + 1d0/gjsh)    ! harm. av.
+               gab(jj,ii)= 1d0/sqrt(r2+1d0/xk**2)   ! + cmn/(rab(k)+1d0/xk) !Ohno-Klopman-Mataga average
+               gab(ii,jj)=gab(jj,ii)
+            enddo
+         enddo
+      enddo
+      enddo
+
+end
+
+subroutine setespot(n,nsh,at,qsh,gab,ves)
+   use iso_fortran_env, only : wp => real64
+   use bascom
+      implicit none 
+      integer, intent(in)  :: n
+      integer, intent(in)  :: nsh
+      integer, intent(in)  :: at(n)
+      real*8,  intent(in)  :: qsh(10,n)
+      real*8,  intent(in)  :: gab(nsh,nsh)
+      real*8,  intent(out) :: ves(nsh) 
+
+      integer i,j,ati,ish,iish
+      real*8  vesi,qshi
+      real*8  atocc(10)
+      real*8  qshtmp(nsh)
+
+      iish = 0
+      do i=1,n
+         ati = at(i)
+         do ish=1,bas_nsh(ati)
+            iish = iish + 1
+            call shellocc_ref(ati,atocc) ! ref. atomic pop.
+            qshtmp(iish)=atocc(ish)-qsh(ish,i)
+         enddo
+      enddo
+
+!     taken from xtb GFN1 part
+      ves = 0.0_wp
+      do i=1,nsh
+         qshi=qshtmp(i)
+         vesi=0.0_wp
+         do j=1,i-1
+            ves(j)=ves(j)+qshi*gab(j,i) 
+            vesi=vesi+qshtmp(j)*gab(j,i)
+         enddo
+         vesi=vesi+qshi*gab(i,i)
+         ves(i)=ves(i)+vesi
+      enddo
+
+end  
+
+!! ------------------------------------------------------------------------
+!! neutral atomic shell occupations from r2SCAN-3c opt 
+!! C2H6, CH3NH2, CH3OH
+!! ------------------------------------------------------------------------
+
+subroutine shellocc_ML(at,socc) ! shellQ based on wB97X-D3 ML(x=1/4)              
+      use bascom
+      implicit none
+      integer at
+      real*8 socc(*)
+
+      socc(1:bas_nsh(at))=0
+
+      select case (at)
+
+      case (1) 
+      socc( 1)=  0.534480053175
+      socc( 2)=  0.405818421323
+      socc( 3)=  0.059701525502
+      case (3) 
+      case (4) 
+      case (5) 
+      case (6) 
+      socc( 1)=  0.578446469175
+      socc( 2)=  0.324052365218
+      socc( 3)=  1.820045889629
+      socc( 4)=  1.208313837682
+      socc( 5)=  0.069141438297
+      case (7)
+      socc( 1)=  0.694358181161
+      socc( 2)=  0.488055901112
+      socc( 3)=  2.234490331290
+      socc( 4)=  1.539185424727
+      socc( 5)=  0.043910161710
+      case (8)
+      socc( 1)=  0.882602145531
+      socc( 2)=  0.590942331986
+      socc( 3)=  2.708428625644
+      socc( 4)=  1.786865163528
+      socc( 5)=  0.031161733311
+      case (9)
+      end select
+
+      end
+
+!! ------------------------------------------------------------------------
+!! neutral atomic shell occupations from r2SCAN-3c opt 
+!! gtb coord -apo -qref
+!! ------------------------------------------------------------------------
+
+subroutine shellocc_ref(at,socc) 
+      use bascom
+      implicit none
+      integer at
+      real*8 socc(*)
+
+      socc(1:bas_nsh(at))=0
+
+      select case (at)
+
+      case (1) ! c2h6
+!     socc( 1)=  0.533047627235
+!     socc( 2)=  0.408579869489
+!     socc( 3)=  0.058372503276
+      socc( 1)=  0.54171868318898
+      socc( 2)=  0.37572247192700
+      socc( 3)=  0.08255884488402
+      case (2) ! heh+   
+!     socc( 1)=  1.282001843565
+!     socc( 2)=  0.713205130335
+!     socc( 3)=  0.004793026100
+      socc( 1)=  1.13449540897416
+      socc( 2)=  0.85017001928095
+      socc( 3)=  0.01533457174489
+      case (3) ! li2h2
+!     socc( 1)=  0.262446310100
+!     socc( 2)=  0.084135697730
+!     socc( 3)=  0.513068550668
+!     socc( 4)=  0.024872324853
+!     socc( 5)=  0.115477116650
+      socc( 1)=  0.29906114479951
+      socc( 2)=  0.13367293653358
+      socc( 3)=  0.31849822720549
+      socc( 4)=  0.06433694384003
+      socc( 5)=  0.18443074762139
+      case (4) ! be2h4
+!     socc( 1)=  0.496110555006
+!     socc( 2)=  0.182402438608
+!     socc( 3)=  0.780508750758
+!     socc( 4)=  0.408618570500
+!     socc( 5)=  0.132359685129
+      socc( 1)=  0.40934532999860
+      socc( 2)=  0.15404807861960
+      socc( 3)=  0.70842936022120
+      socc( 4)=  0.39731471967301
+      socc( 5)=  0.33086251148759
+      case (5) ! b2h6
+!     socc( 1)=  0.552106361608
+!     socc( 2)=  0.233899678096
+!     socc( 3)=  1.345854343178
+!     socc( 4)=  0.762030308127
+!     socc( 5)=  0.106109308991
+      socc( 1)=  0.55082540596225
+      socc( 2)=  0.21330796567816
+      socc( 3)=  1.29343665854652
+      socc( 4)=  0.67581934698347
+      socc( 5)=  0.26661062282959
+      case (6) ! c2h6
+!     socc( 1)=  0.571201906704
+!     socc( 2)=  0.323220026328
+!     socc( 3)=  1.827270260662
+!     socc( 4)=  1.206087153721
+!     socc( 5)=  0.072220652586
+      socc( 1)=  0.60674172915233
+      socc( 2)=  0.29412668907506
+      socc( 3)=  1.88050750272044
+      socc( 4)=  1.06840799940421
+      socc( 5)=  0.15021607964795
+      case (7) ! n2h4
+!     socc( 1)=  0.720109002669
+!     socc( 2)=  0.484216257374
+!     socc( 3)=  2.229217660006
+!     socc( 4)=  1.496949883845
+!     socc( 5)=  0.069507196105
+      socc( 1)=  0.72646258889873
+      socc( 2)=  0.44913209657719
+      socc( 3)=  2.30542395042428
+      socc( 4)=  1.43379535742926
+      socc( 5)=  0.08518600667054
+      case (8) ! h2o2
+!     socc( 1)=  0.957139137702
+!     socc( 2)=  0.638574629300
+!     socc( 3)=  2.666173232804
+!     socc( 4)=  1.692500432213
+!     socc( 5)=  0.045612567981
+      socc( 1)=  0.91683638566794
+      socc( 2)=  0.60553531427406
+      socc( 3)=  2.70245225107823
+      socc( 4)=  1.73296663234618
+      socc( 5)=  0.04220941663360
+      case (9) ! ch3f
+!     socc( 1)=  1.051971178725
+!     socc( 2)=  0.684361487116
+!     socc( 3)=  3.174539628061
+!     socc( 4)=  2.071040667688
+!     socc( 5)=  0.018087038410
+      socc( 1)=  1.07513170274916
+      socc( 2)=  0.68035425442939
+      socc( 3)=  3.20273213466235
+      socc( 4)=  2.01836264817541
+      socc( 5)=  0.02341925998368
+      case (10) ! neh+
+!     socc( 1)=  1.449532093700
+!     socc( 2)=  0.540041401881
+!     socc( 3)=  4.797300865611
+!     socc( 4)=  1.208058297698
+!     socc( 5)=  0.005067341109
+      socc( 1)=  1.41912937987610
+      socc( 2)=  0.57535208635542
+      socc( 3)=  4.65545890200938
+      socc( 4)=  1.34525707239503
+      socc( 5)=  0.00480255936407
+      case (11) ! na2h2 
+!     socc( 1)=  0.009675490513
+!     socc( 2)=  0.289323826566
+!     socc( 3)=  0.476934680002
+!     socc( 4)=  0.038464070683
+!     socc( 5)=  0.185601932237
+      socc( 1)=  0.01197871842334
+      socc( 2)=  0.33109264926095
+      socc( 3)=  0.30042140962973
+      socc( 4)=  0.05415471933915
+      socc( 5)=  0.30235250334683
+      case (12) ! mgh2  
+!     socc( 1)=  0.658325322782
+!     socc( 2)=  0.396018507733
+!     socc( 3)=  0.703816562424
+!     socc( 4)=  0.138982936940
+!     socc( 5)=  0.102856670121
+      socc( 1)=  0.46992506648609
+      socc( 2)=  0.20997157732786
+      socc( 3)=  0.64509322325618
+      socc( 4)=  0.19821738618554
+      socc( 5)=  0.47679274674433
+      case (13) ! al2h6
+!     socc( 1)=  0.633418917174
+!     socc( 2)=  0.336953861007
+!     socc( 3)=  1.372801277879
+!     socc( 4)=  0.424269888354
+!     socc( 5)=  0.232556055585
+      socc( 1)=  0.57355021667969
+      socc( 2)=  0.22540252858855
+      socc( 3)=  1.23410112457665
+      socc( 4)=  0.38246431111148
+      socc( 5)=  0.58448181904363
+      case (14) ! si2h6
+!     socc( 1)=  0.668726898902
+!     socc( 2)=  0.458688273846
+!     socc( 3)=  1.980924392864
+!     socc( 4)=  0.728999352795
+!     socc( 5)=  0.162661081593
+      socc( 1)=  0.67148651606035
+      socc( 2)=  0.41830218153943
+      socc( 3)=  1.89292271862022
+      socc( 4)=  0.67326898330443
+      socc( 5)=  0.34401960047557
+      case (15) ! p2h4
+!     socc( 1)=  0.803207509565
+!     socc( 2)=  0.748576826399
+!     socc( 3)=  2.527289576203
+!     socc( 4)=  0.793490898340
+!     socc( 5)=  0.127435189492
+      socc( 1)=  0.81750302370489
+      socc( 2)=  0.69289315047590
+      socc( 3)=  2.44161874592356
+      socc( 4)=  0.72815855178868
+      socc( 5)=  0.31982652810697
+      case (16) ! h2s2
+!     socc( 1)=  0.856202102739
+!     socc( 2)=  0.838272107562
+!     socc( 3)=  2.586129191291
+!     socc( 4)=  1.622224170289
+!     socc( 5)=  0.097172428119
+      socc( 1)=  0.85203872432353
+      socc( 2)=  0.78021870663378
+      socc( 3)=  2.59044921246611
+      socc( 4)=  1.51920248118519
+      socc( 5)=  0.25809087539138
+      case (17) ! ch3cl
+!     socc( 1)=  0.874525032096
+!     socc( 2)=  0.935365214155
+!     socc( 3)=  3.306491164323
+!     socc( 4)=  1.839156337669
+!     socc( 5)=  0.044462251758
+      socc( 1)=  0.89091255644443
+      socc( 2)=  0.93516232190382
+      socc( 3)=  3.33355947196704
+      socc( 4)=  1.78843147599252
+      socc( 5)=  0.05193417369219
+      case (18) ! arh+
+!     socc( 1)=  1.487563937078
+!     socc( 2)=  0.569656304564
+!     socc( 3)=  4.575072500647
+!     socc( 4)=  1.348495043338
+!     socc( 5)=  0.019212214373
+      socc( 1)=  1.47635099172246
+      socc( 2)=  0.57262171921576
+      socc( 3)=  4.42021022431572
+      socc( 4)=  1.45639292431450
+      socc( 5)=  0.07442414043157
+      case (19) ! k2h2
+!     socc( 1)=  0.208760006346
+!     socc( 2)=  0.138541989704
+!     socc( 3)=  0.386670252318
+!     socc( 4)=  0.016021404603
+!     socc( 5)=  0.250006347029
+      socc( 1)=  0.21327389225187
+      socc( 2)=  0.15742618550281
+      socc( 3)=  0.23777629707277
+      socc( 4)=  0.03947724370597
+      socc( 5)=  0.35204638146660
+      case (20) ! cah2  
+!     socc( 1)=  0.571808676211
+!     socc( 2)=  0.369990649875
+!     socc( 3)=  0.706680421460
+!     socc( 4)=  0.135608718593
+!     socc( 5)=  0.215911533862
+      socc( 1)=  0.44469347109702
+      socc( 2)=  0.22747081274278
+      socc( 3)=  0.56036677846512
+      socc( 4)=  0.16838630572901
+      socc( 5)=  0.59908263196608
+      case (22) ! ticl4
+      socc( 1)=  0.556207001153
+      socc( 2)=  1.636785750051
+      socc( 3)=  0.135987223699
+      socc( 4)=  0.665357819140
+      socc( 5)=  5.949941835049
+      socc( 6)=  0.072030101702
+      socc( 7)=  1.665385107890
+      socc( 8)=  1.318305161317
+      case (28) ! nicl2
+      socc( 1)=  0.471449226244
+      socc( 2)=  1.848321876226
+      socc( 3)=  0.148706465947
+      socc( 4)=  0.496294633200
+      socc( 5)=  6.021927675279
+      socc( 6)=  0.093656398987
+      socc( 7)=  7.224190082123
+      socc( 8)=  1.695453641995
+      case (31) ! ga2h6
+!     socc( 1)=  0.566146002040
+!     socc( 2)=  0.390082862984
+!     socc( 3)=  1.375547173857
+!     socc( 4)=  0.431409918529
+!     socc( 5)=  0.236814042590
+      socc( 1)=  0.57826308157449
+      socc( 2)=  0.34449975501872
+      socc( 3)=  1.17180527854902
+      socc( 4)=  0.37066914375951
+      socc( 5)=  0.53476274109826
+      case (32) ! ge2h6
+!     socc( 1)=  0.678632869055
+!     socc( 2)=  0.448401639296
+!     socc( 3)=  2.353396664061
+!     socc( 4)=  0.336017097538
+!     socc( 5)=  0.183551730050
+      socc( 1)=  0.70350641393401
+      socc( 2)=  0.42704978207094
+      socc( 3)=  2.16068133098047
+      socc( 4)=  0.33494539724674
+      socc( 5)=  0.37381707576784
+      case (33) ! as2h4
+!     socc( 1)=  0.897057716962
+!     socc( 2)=  0.698073188806
+!     socc( 3)=  2.268107785321
+!     socc( 4)=  0.993047521234
+!     socc( 5)=  0.143713787676
+      socc( 1)=  0.92107947505591
+      socc( 2)=  0.66708491488049
+      socc( 3)=  2.16484123450403
+      socc( 4)=  0.86048214984404
+      socc( 5)=  0.38651222571553
+      case (34) ! h2se2
+!     socc( 1)=  1.057734857442
+!     socc( 2)=  0.706161945041
+!     socc( 3)=  2.584134923856
+!     socc( 4)=  1.550883700542
+!     socc( 5)=  0.101084573119
+      socc( 1)=  1.04688942053853
+      socc( 2)=  0.66080015140626
+      socc( 3)=  2.54103125176981
+      socc( 4)=  1.43408208074291
+      socc( 5)=  0.31719709554249
+      case (35) ! ch3br
+!     socc( 1)=  1.010357293121
+!     socc( 2)=  0.835588882346
+!     socc( 3)=  3.218529602497
+!     socc( 4)=  1.885703112552
+!     socc( 5)=  0.049821109485
+      socc( 1)=  1.03706637739269
+      socc( 2)=  0.84518831659950
+      socc( 3)=  3.23541746880381
+      socc( 4)=  1.81402086587711
+      socc( 5)=  0.06830697132689
+      case (36) ! krch3+
+!     socc( 1)=  1.612038870722
+!     socc( 2)=  0.463975846960
+!     socc( 3)=  4.691474970591
+!     socc( 4)=  1.210929193607
+!     socc( 5)=  0.021581118120
+      socc( 1)=  1.61862818561574
+      socc( 2)=  0.46044247739052
+      socc( 3)=  4.57435261827864
+      socc( 4)=  1.25889976803426
+      socc( 5)=  0.08767695068083
+      case (37) ! rb2h2
+!     socc( 1)=  0.276016704013
+!     socc( 2)=  0.069624349911
+!     socc( 3)=  0.347628111531
+!     socc( 4)=  0.016798931403
+!     socc( 5)=  0.289931903141
+      socc( 1)=  0.14282521488826
+      socc( 2)=  0.03938244691895
+      socc( 3)=  0.34188530743209
+      socc( 4)=  0.07341138815488
+      socc( 5)=  0.40249564260583
+      case (38) ! srh2 
+!     socc( 1)=  0.399461126945
+!     socc( 2)=  0.464092286548
+!     socc( 3)=  0.712183231094
+!     socc( 4)=  0.127671538058
+!     socc( 5)=  0.296591817354
+      socc( 1)=  0.31661576812877
+      socc( 2)=  0.28026739813584
+      socc( 3)=  0.54994458161993
+      socc( 4)=  0.17233306741345
+      socc( 5)=  0.68083918470201
+      case (49) ! in2h6 
+!     socc( 1)=  0.523399667025
+!     socc( 2)=  0.456303575229
+!     socc( 3)=  1.404083040087
+!     socc( 4)=  0.343449409538
+!     socc( 5)=  0.272764308121
+      socc( 1)=  0.55045843961642
+      socc( 2)=  0.43297258440488
+      socc( 3)=  1.15245543744621
+      socc( 4)=  0.29022846606800
+      socc( 5)=  0.57388507246449
+      case (50) ! sn2h6 
+!     socc( 1)=  0.649332509809
+!     socc( 2)=  0.530972650593
+!     socc( 3)=  1.554444199974
+!     socc( 4)=  1.036195088869
+!     socc( 5)=  0.229055550755
+      socc( 1)=  0.68251773983034
+      socc( 2)=  0.52012426137102
+      socc( 3)=  1.48880011245470
+      socc( 4)=  0.89384478123627
+      socc( 5)=  0.41471310510767
+      case (51) ! sb2h4 
+!     socc( 1)=  0.595540056536
+!     socc( 2)=  1.062095335588
+!     socc( 3)=  1.648989285300
+!     socc( 4)=  1.535030560474
+!     socc( 5)=  0.158344762101
+      socc( 1)=  0.61540460370033
+      socc( 2)=  1.04628303094561
+      socc( 3)=  1.60459381623914
+      socc( 4)=  1.32470243916499
+      socc( 5)=  0.40901610994994
+      case (52) ! h2te2
+!     socc( 1)=  0.913363404566
+!     socc( 2)=  0.885700860798
+!     socc( 3)=  2.113547519876
+!     socc( 4)=  1.979790951377
+!     socc( 5)=  0.107597263384
+      socc( 1)=  0.91856622827537
+      socc( 2)=  0.84745926929177
+      socc( 3)=  2.10401907242534
+      socc( 4)=  1.80298864587665
+      socc( 5)=  0.32696678413086
+      case (53) ! ch3i
+!     socc( 1)=  0.682404713161
+!     socc( 2)=  1.183677438899
+!     socc( 3)=  4.163913580723
+!     socc( 4)=  0.917132426105
+!     socc( 5)=  0.052871841112
+      socc( 1)=  0.69410786290732
+      socc( 2)=  1.18418766815566
+      socc( 3)=  4.15519220612675
+      socc( 4)=  0.89850698530615
+      socc( 5)=  0.06800527750412
+      case (54) ! xech3+
+!     socc( 1)=  1.593009813966
+!     socc( 2)=  0.510825152392
+!     socc( 3)=  4.683179081292
+!     socc( 4)=  1.180072785862
+!     socc( 5)=  0.032913166487
+      socc( 1)=  1.59781181108079
+      socc( 2)=  0.50444180381556
+      socc( 3)=  4.51837777350381
+      socc( 4)=  1.23712741708889
+      socc( 5)=  0.14224119451095
+      case (55) ! cs2 (cs2h2 has < 0 pop., better than csh)
+!     socc( 1)=  0.168943510125 
+!     socc( 2)=  0.721657389967
+!     socc( 3)=  0.048887802464
+!     socc( 4)=  0.053731262777
+!     socc( 5)=  0.006780034666
+      socc( 1)=  0.08192869223544
+      socc( 2)=  0.25091886606544
+      socc( 3)=  0.20095737093829
+      socc( 4)=  0.05359124723826
+      socc( 5)=  0.41260382352258
+      case (56) ! bah2
+!     socc( 1)=  0.419267445250
+!     socc( 2)=  0.310328992439
+!     socc( 3)=  0.743235676689
+!     socc( 4)=  0.093799783036
+!     socc( 5)=  0.433368102585
+      socc( 1)=  0.36111645289892
+      socc( 2)=  0.21706259036568
+      socc( 3)=  0.49117933382876
+      socc( 4)=  0.13201583866006
+      socc( 5)=  0.79862578424658
+      case (81) ! tl2h6
+!     socc( 1)=  0.727453929426
+!     socc( 2)=  0.388704125264
+!     socc( 3)=  1.132937589756
+!     socc( 4)=  0.556795796467
+!     socc( 5)=  0.194108559087
+      socc( 1)=  0.77857017134309
+      socc( 2)=  0.39878383690003
+      socc( 3)=  0.96636920512324
+      socc( 4)=  0.41548672207468
+      socc( 5)=  0.44079006455896
+      case (82) ! pb2h6
+!     socc( 1)=  0.722849435471
+!     socc( 2)=  0.545605237469
+!     socc( 3)=  1.516598964499
+!     socc( 4)=  1.024687094540
+!     socc( 5)=  0.190259268021
+      socc( 1)=  0.84407317987137
+      socc( 2)=  0.57097626170595
+      socc( 3)=  1.41885563268529
+      socc( 4)=  0.89241894312150
+      socc( 5)=  0.27367598261589
+      case (83) ! bi2h4
+!     socc( 1)=  0.916988391300
+!     socc( 2)=  0.869865561894
+!     socc( 3)=  1.829657264542
+!     socc( 4)=  1.278988726634
+!     socc( 5)=  0.104500055630
+      socc( 1)=  0.95992450942569
+      socc( 2)=  0.87853975622738
+      socc( 3)=  1.76932287894506
+      socc( 4)=  1.10572899335367
+      socc( 5)=  0.28648386204819
+      case (84) ! po2h2
+!     socc( 1)=  1.073513087182
+!     socc( 2)=  0.787293693245
+!     socc( 3)=  2.401324977316
+!     socc( 4)=  1.653841207025
+!     socc( 5)=  0.084027035233
+      socc( 1)=  1.10218282496916
+      socc( 2)=  0.77587743201424
+      socc( 3)=  2.39259584173761
+      socc( 4)=  1.51368555338134
+      socc( 5)=  0.21565834789765
+      case (85) ! atch3
+!     socc( 1)=  1.175280847825
+!     socc( 2)=  0.745929548696
+!     socc( 3)=  2.851870299769
+!     socc( 4)=  2.183788880587
+!     socc( 5)=  0.043130423123
+      socc( 1)=  1.20415102766452
+      socc( 2)=  0.75167422682772
+      socc( 3)=  2.86500641245293
+      socc( 4)=  2.11983812476180
+      socc( 5)=  0.05933020829303
+      case (86) ! rnch3+
+!     socc( 1)=  1.258779914392
+!     socc( 2)=  0.875097259789
+!     socc( 3)=  3.615070915661
+!     socc( 4)=  2.216642313517
+!     socc( 5)=  0.034409596640
+      socc( 1)=  1.27648426138478
+      socc( 2)=  0.86908707805523
+      socc( 3)=  3.44949006607917
+      socc( 4)=  2.22376208445041
+      socc( 5)=  0.18117651003041
+      end select
+
+      end
+
+!! ------------------------------------------------------------------------
+!  normalize shell occ. to q_atom = 0, just to make shell_occ_ML 
+!! ------------------------------------------------------------------------
+
+subroutine qshnorm(at,z,nsh,qshref)
+      implicit none
+      integer at,nsh
+      real*8  z,qshref(10)
+
+      integer i
+      real*8  norm, pol, val
+      real*8  qshnew(10)     
+      
+      norm = sum(qshref(1:nsh))
+
+      qshnew(1:nsh) = qshref(1:nsh) * z / norm
+
+      do i=1,nsh
+         write(*,'(6x,''socc('',i2,'')='',F16.12)') i, qshnew(i)
+      enddo
+      do i=1,nsh
+         write(*,'(2i4,F20.14,'' ##'')') at, i, qshnew(i)
+      enddo
+
+end
+
+!! ------------------------------------------------------------------------
+! returns row in PSE
+!! ------------------------------------------------------------------------
+INTEGER FUNCTION iTabRow6(i)
+      implicit none
+      INTEGER i
+ 
+      iTabRow6=0
+      If (i.gt. 0 .and. i.le. 2) Then
+         iTabRow6=1
+      Else If (i.gt. 2 .and. i.le.10) Then
+         iTabRow6=2
+      Else If (i.gt.10 .and. i.le.18) Then
+         iTabRow6=3
+      Else If (i.gt.18 .and. i.le.36) Then
+         iTabRow6=4
+      Else If (i.gt.36 .and. i.le.54) Then
+         iTabRow6=5
+      Else If (i.gt.54) Then
+         iTabRow6=6
+      End If
+ 
+End
+
+!! ------------------------------------------------------------------------
+!  modify electric field perturbation (local atomic field)
+!! ------------------------------------------------------------------------
+
+subroutine responscal(n,at,typ,z,pa,gapa,presp5,presp6,scal)
+   use iso_fortran_env, only : wp => real64
+   use parcom
+   use bascom
+   implicit none 
+!! ------------------------------------------------------------------------
+!  Input
+!! ------------------------------------------------------------------------
+   integer, intent(in)    :: n                  ! number of atoms 
+   integer, intent(in)    :: at(n)              ! ordinal number of atoms
+   integer, intent(in)    :: typ                ! type of calc (alph=1,beta=2)
+   real(wp),intent(in)    :: z(n)               ! nuclear charges          
+   real(wp),intent(in)    ::pa(n)               ! atomic populations       
+   real(wp),intent(in)    ::gapa(n)             ! atomic populations       
+   real(wp),intent(in)    ::presp5,presp6       ! parameters               
+!! ------------------------------------------------------------------------
+   real(wp),intent(out)   ::scal(10,n)          ! exponent scaling factors
+!! ------------------------------------------------------------------------
+   integer  :: i,ish
+   real(wp) :: qa 
+
+   do i=1,n
+      qa =z(i)-pa(i)
+      do ish=1,bas_nsh(at(i))
+         scal(ish,i) = shell_resp(ish,at(i),typ) + presp5*qa - presp6*qa**2 
+         if(scal(ish,i).lt.0.05) scal(ish,i)=0.05     
+         if(scal(ish,i).gt.20.0) scal(ish,i)=20.0      
+      enddo
+   enddo
+
+end
+
+!! ------------------------------------------------------------------------
+!  solve eigenvalue problem + gap weigted Dmat           
+!! ------------------------------------------------------------------------
+subroutine solve2(mode,ndim,nel,nopen,homo,et,gappar,focc,H,S,P,PE,e,eel,fail)
+      use parcom
+      implicit none
+      integer mode,ndim,nel,nopen,homo
+      real*8 H(ndim*(ndim+1)/2)
+      real*8 S(ndim,ndim)
+      real*8 P(ndim*(ndim+1)/2)
+      real*8 PE(ndim*(ndim+1)/2)
+      real*8 e(ndim)
+      real*8 focc(ndim)
+      real*8 eel       
+      real*8 et        
+      real*8 gappar    
+      logical fail
+
+      integer i,j,info,lwork,ij,iu
+      integer ihomoa,ihomob
+      real*8 nfoda,nfodb,ga,gb,efa,efb,x
+      integer,allocatable ::iwork(:),ifail(:)
+      real*8 ,allocatable ::D(:,:),hdum(:,:),sdum(:,:),work(:)
+      real*8 ,allocatable ::focca(:), foccb(:)
+
+      fail =.false.
+      allocate (D(ndim,ndim),hdum(ndim,ndim),sdum(ndim,ndim),focca(ndim),foccb(ndim))  
+
+      call blowsym(ndim,H,hdum)
+      sdum = S
+
+! for a large basis, taking only the occ.+few virt eigenvalues is faster than a full diag
+      iu=min(homo+5,ndim)
+      if(mode.eq.3) iu = ndim ! sTDA write. later one can change the diag routine in this case
+      allocate(iwork(5*ndim),ifail(ndim),work(1))
+      call dsygvx(1,'V','I','U',ndim, hdum, ndim, sdum, ndim, ga, gb, &
+     &            1, IU, 1d-7, ij, e, D, ndim, WORK, -1   , IWORK, &
+     &            IFAIL, INFO )
+      lwork=idint(work(1))
+      deallocate(work)
+      allocate(work(lwork))          
+      call dsygvx(1,'V','I','U',ndim, hdum, ndim, sdum, ndim, ga, gb, &
+     &            1, IU, 1d-7, ij, e, D, ndim, WORK, LWORK, IWORK, &
+     &            IFAIL, INFO )
+      if(info.ne.0) fail=.true.
+      if(iu+1.lt.ndim) e(iu+1:ndim)=100d0
+      deallocate(hdum)
+
+      e = e + 1.13 ! shift to match DFT absolute orbital energies (this has no effect on anything)
+      if(mode.eq.3)then
+         write(*,*) 'stda file written.'
+      endif
+
+      ga=0
+      gb=0
+! Fermi smearing                                          
+!     convert restricted occ first to alpha/beta             
+      if(nel.gt.0) then
+         call occu(ndim,nel,nopen,ihomoa,ihomob,focca,foccb)
+      else
+         focca=0.0d0
+         foccb=0.0d0
+         ihomoa=0
+         ihomob=0
+      endif
+      if(ihomoa+1.le.ndim) then 
+         call FERMISMEAR(.false.,ndim,ihomoa,et,e,focca,nfoda,efa,ga)
+      endif
+      if(ihomob+1.le.ndim.and.nel.gt.1) then
+         call FERMISMEAR(.false.,ndim,ihomob,et,e,foccb,nfodb,efb,gb)
+      endif
+      focc = focca + foccb
+
+      call dmat(ndim,focc,D,sdum)
+      call packsym(ndim,sdum,P)
+
+      if(mode.eq.2)then
+      foccb(homo+1:ndim)=0d0
+      do i=1,homo 
+         x = e(homo+1)-e(i)
+         foccb(i)=focc(i)*0.5d0*(1d0+erf(-4.1d0*(x-gappar)))
+      enddo
+      call dmat(ndim,foccb,D,sdum)
+      call packsym(ndim,sdum,PE)
+      endif
+
+      eel = sum(focc*e)
+
+      end
+!! ------------------------------------------------------------------------
+!  REAL*4 version
+!! ------------------------------------------------------------------------
+
+subroutine solve24(mode,ndim,nel,nopen,homo,et,gappar,focc,H,S,P,PE,e,eel,fail)
+      use parcom
+      implicit none
+      integer mode,ndim,nel,nopen,homo
+      real*8 H(ndim*(ndim+1)/2)
+      real*8 S(ndim,ndim)
+      real*8 P(ndim*(ndim+1)/2)
+      real*8 PE(ndim*(ndim+1)/2)
+      real*8 e(ndim)
+      real*8 focc(ndim)
+      real*8 eel       
+      real*8 et        
+      real*8 gappar    
+      logical fail
+
+      integer i,j,info,lwork,ij,iu
+      integer ihomoa,ihomob
+      real*8 nfoda,nfodb,ga,gb,efa,efb,x
+      integer,allocatable ::iwork(:),ifail(:)
+      real*8 ,allocatable ::focca(:), foccb(:)
+      real*4 ,allocatable ::D(:,:),hdum(:,:),sdum(:,:),work(:), eps(:)
+
+      fail =.false.
+      allocate (D(ndim,ndim),hdum(ndim,ndim),sdum(ndim,ndim),focca(ndim),foccb(ndim),eps(ndim))  
+
+      call blowsym84(ndim,H,hdum)
+      sdum = S
+
+! for a large basis, taking only the occ.+few virt eigenvalues is faster than a full diag
+      iu=min(homo+5,ndim)
+      if(mode.eq.3) iu = ndim ! sTDA write. later one can change the diag routine in this case
+      allocate(iwork(5*ndim),ifail(ndim),work(1))
+      call ssygvx(1,'V','I','U',ndim, hdum, ndim, sdum, ndim, ga, gb, &
+     &            1, IU, 1e-6, ij, eps, D, ndim, WORK, -1   , IWORK, &
+     &            IFAIL, INFO )
+      lwork=int(work(1))
+      deallocate(work)
+      allocate(work(lwork))          
+      call ssygvx(1,'V','I','U',ndim, hdum, ndim, sdum, ndim, ga, gb, &
+     &            1, IU, 1e-6, ij, eps, D, ndim, WORK, LWORK, IWORK, &
+     &            IFAIL, INFO )
+      if(info.ne.0) fail=.true.
+      e = eps
+      if(iu+1.lt.ndim) e(iu+1:ndim)=100d0
+      deallocate(hdum)
+
+      e = e + 1.13 ! shift to match DFT absolute orbital energies (this has no effect on anything)
+      if(mode.eq.3)then
+         write(*,*) 'stda file written.'
+      endif
+
+      ga=0
+      gb=0
+! Fermi smearing                                          
+!     convert restricted occ first to alpha/beta             
+      if(nel.gt.0) then
+         call occu(ndim,nel,nopen,ihomoa,ihomob,focca,foccb)
+      else
+         focca=0.0d0
+         foccb=0.0d0
+         ihomoa=0
+         ihomob=0
+      endif
+      if(ihomoa+1.le.ndim) then 
+         call FERMISMEAR(.false.,ndim,ihomoa,et,e,focca,nfoda,efa,ga)
+      endif
+      if(ihomob+1.le.ndim.and.nel.gt.1) then
+         call FERMISMEAR(.false.,ndim,ihomob,et,e,foccb,nfodb,efb,gb)
+      endif
+      focc = focca + foccb
+
+      call dmat4(ndim,focc,D,sdum)
+      call packsym48(ndim,sdum,P)
+
+      if(mode.eq.2)then
+      foccb(homo+1:ndim)=0d0
+      do i=1,homo 
+         x = e(homo+1)-e(i)
+         foccb(i)=focc(i)*0.5d0*(1d0+erf(-4.1d0*(x-gappar)))
+      enddo
+      call dmat4(ndim,foccb,D,sdum)
+      call packsym48(ndim,sdum,PE)
+      endif
+
+      eel = sum(focc*e)
+
+      end

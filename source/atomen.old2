@@ -1,0 +1,122 @@
+!--------------------------------------------------------
+! compute atomic/shell energy increments/corrections
+!--------------------------------------------------------
+
+subroutine atomen(n,nao,nel,at,aoat,z,rab,pa,psh,wbo,zeff,enuc,exc,ewbo)
+      use bascom
+      use parcom
+      use com
+      implicit none
+      integer n,nao,nel
+      integer,intent(in)     :: at(n)       
+      integer,intent(in)     :: aoat(nao)     
+      real*8, intent(in)     :: z(n)
+      real*8, intent(in)     :: rab(n*(n+1)/2) 
+      real*8, intent(in)     :: pa(n)                     ! atom populations
+      real*8, intent(in)     :: psh(10,n)                 ! shell populations
+      real*8, intent(in)     :: wbo(n,n)                  ! WBO, not used    
+      real*8, intent(in)     :: zeff(n)                   ! effective nuclear charges
+      real*8, intent(out)    :: enuc                      ! Enuc           
+      real*8, intent(out)    :: exc                       ! atomic EXC/core/whatever correction
+      real*8, intent(out)    :: ewbo                      ! WBO term
+
+!     real*8, parameter      :: erfs =-2.60d0             ! CN
+
+      integer i,j,k,l,lin,ati,atj,ia,ib,jsh
+      real*8 cn(n),r,tmp,arg,rcovij
+      real*8 zi, zj, ai, aj, damp
+      real*8 r0i,r0j,aa,aa2,rr,r0ab,x,zij!,erfs
+      real*8 e1,e2,e3
+      real*8 qi,qj,ff,gi,gj,glob10,glob9,glob8,glob7,erfs
+
+      erfs=glob_par(6)
+
+      e3 = 0
+      do i = 2, n
+        do j = 1, i-1 
+         e3 = e3 + 0.5d0*(shell_e(5,at(i))+shell_e(5,at(j))) * wbo(j,i) &
+     &           + 0.5d0*(shell_e(6,at(i))+shell_e(6,at(j))) * wbo(j,i)**2
+        enddo
+      enddo
+
+      ewbo = e3
+
+!     P and q terms
+      e1 = 0 
+      do i=1,n
+         ati = at(i)
+         qi  = z(i)-pa(i)
+         ff  = (pa(i) / z(i))**0.5d0 ! specific energy increment normalization factor (makes E(H+)=0)
+         e1 = e1 + ff*(shell_e(1,ati)+shell_e(2,ati)*qi+shell_e(3,ati)*qi**2+shell_e(4,ati)*qi**3) ! free atom + higher-order terms in q 
+      enddo
+
+      exc = e1 
+
+!     non-symmetric Enuc
+!     enuc=0
+!     do i=1, n
+!        do j=1, n  
+!           if(i.eq.j) cycle
+!           r  = rab(lin(i,j))
+!           enuc = enuc + zeff(i)*z(j) / r ! sqrt(r**2+x)
+!        enddo
+!     enddo
+!     enuc = enuc * 0.5d0
+
+      call ncoord_erf(n,at,rab,erfs,cn) ! standard CN
+
+!     force correction to VT (nuclear repulsion analogon)
+      glob10=glob_par(10)
+      glob9 =glob_par( 9)
+      glob8 =glob_par( 8)
+      glob7 =glob_par( 7)
+      k=0
+      enuc=0
+      do i=1,n
+         ati=at(i)
+         qi = z(i)-pa(i)
+         zi = fock_par(3,ati)
+         ai = fock_par(4,ati)
+         r0i=(fock_par(1,ati)+fock_par(2,ati)*cn(i))*(1d0+glob9*qi)
+         do j=1,i-1
+            k   = k + 1
+            atj =at(j)
+            qj  = z(j)-pa(j)
+            zj  = fock_par(3,atj)
+            aj  = fock_par(4,atj)
+            r0j =(fock_par(1,atj)+fock_par(2,atj)*cn(j))*(1d0+glob9*qj)
+            aa  = ai + aj                           
+            r0ab= (r0i + r0j)*(1d0+qi*qj*glob8)*(1d0+glob10*wbo(j,i)) 
+            arg = (rab(k)-r0ab)/r0ab  
+            damp= 0.5d0 * (1d0 + erf(-aa*arg)) 
+            write(*,*) i,j,arg,r0ab
+            zij = 0.5*(zi+zj)*(1d0+qi*qj*glob8)
+            enuc= enuc + damp*zij*(1d0/rab(k)+glob7/rab(k)**2)
+         enddo
+         k = k +1
+      enddo
+
+
+!     additive SR=core repulsion
+!     k=0
+!     aa=0
+!     do i=1, n
+!        ati=at(i)
+!        zi = z(i) * (1d0+atom_par(8,ati)*cn(i))  ! roughly Z
+!        do j=1, i-1
+!           atj= at(j)
+!           zj = z(j) * (1d0+atom_par(8,atj)*cn(j)) ! roughly Z
+!           k = k + 1
+!           r = rab(k)
+!           x = sqrt(atom_par(7,ati)*atom_par(7,atj))
+!           aa = aa + zi * zj * (erf(-x*r)+1d0)
+!        enddo
+!        k=k+1
+!     enddo
+!     aa = aa * glob_par(1)
+
+      write(*,'(''atom increment   : '',f12.5)') e1
+      write(*,'(''WBO  increment   : '',f12.5)') e3
+      write(*,'(''nuclear VT       : '',f12.5)') enuc
+
+      end

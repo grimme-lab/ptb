@@ -1,0 +1,582 @@
+!! ------------------------------------------------------------------------
+! model Hamiltonian to provide atomic shell populations and density matrix
+! fitted to Mulliken DFT populations/q/BO/dipole
+! SG, 2020-2021
+! last change on method and fit parameters Tue Jun 27 08:52:20 CEST 2021
+! HCNO FIT RMSD 15.46
+!! ------------------------------------------------------------------------
+
+subroutine shellq(pr,prop,n,ndim,nel,nopen,homo,at,chrg,xyz,z,rab, & 
+&                 pnt,norm,S,psh,pa,P,wbo,dip,alp)
+   use iso_fortran_env, only : wp => real64
+   use parcom
+   use bascom
+   use com
+   implicit none
+
+!! ------------------------------------------------------------------------
+!  Input
+!! ------------------------------------------------------------------------
+   logical, intent(in)    :: pr                 ! print
+   integer, intent(in)    :: prop               ! type of property calc (0: p,q,P,WBO   1: +dip  2: + polar)
+   integer, intent(in)    :: n                  ! number of atoms 
+   integer, intent(in)    :: ndim               ! number of AOs       
+   integer, intent(in)    :: nel                ! number of electrons 
+   integer, intent(in)    :: nopen              ! number of open shells
+   integer, intent(in)    :: homo               ! as the name says...
+   integer, intent(in)    :: at(n)              ! ordinal number of atoms
+   real(wp),intent(in)    :: chrg               ! system charge           
+   real(wp),intent(in)    :: xyz(3,n)           ! coordinates (not used)
+   real(wp),intent(in)    :: z(n)               ! nuclear charges          
+   real(wp),intent(in)    :: rab(n*(n+1)/2)     ! distances  
+   real(wp),intent(in)    :: pnt(3)             ! property reference point
+   real(wp),intent(in)    :: norm(ndim)         ! SAO normalization factors
+   real(wp),intent(in)    :: S(ndim*(ndim+1)/2) ! exact overlap maxtrix in SAO
+!! ------------------------------------------------------------------------
+!  Output
+!! ------------------------------------------------------------------------
+   real(wp),intent(out)   :: psh(10,n)          ! shell populations 
+   real(wp),intent(out)   :: pa(n)              ! atom      "
+   real(wp),intent(out)   :: P(ndim*(ndim+1)/2) ! density matrix
+   real(wp),intent(out)   :: wbo(n,n)           ! WBOs                 
+   real(wp),intent(out)   :: dip(3)             ! dipole moment
+   real(wp),intent(out)   :: alp(3,3)           ! dipole polarizability tensor
+
+!! ------------------------------------------------------------------------
+!  charge model, local
+!! ------------------------------------------------------------------------
+   real(wp),allocatable :: Hmat (:)                  ! Hamiltonian matrix
+   real(wp),allocatable :: Hdiag(:)                  ! diagonal
+   real(wp),allocatable :: SS(:)                     ! scaled overlap/perturbed H
+   real(wp),allocatable :: e(:)                      ! eigenvalues
+   real(wp),allocatable :: focc(:)                   ! occupations
+
+   real(wp),allocatable :: d  (:,:)                  ! dipole integrals
+   real(wp),allocatable :: P1   (:)                  ! perturbed P     
+   real(wp)             :: dip1(3),dip2(3)
+
+!  global fit para
+   real(wp),parameter   :: eT     = 300.00_wp   ! electronic temp. 
+   real(wp),parameter   :: erfs   =-2.2500_wp   ! erf expo CN -2.75
+!  real(wp),parameter   :: keht   = 3.6000_wp   ! diag/off-diag scaling
+!  real(wp),parameter   :: gamscal= 1.2600_wp   ! global gamma scaling
+!  real(wp),parameter   :: gpar4  = 0.5587_wp   ! diag/off-diag scaling
+!  real(wp),parameter   :: pscal  = 0.4614_wp   ! +U diag               
+!  real(wp),parameter   :: gpol   = 0.4614_wp   ! 
+   integer ,parameter   :: maxiter= 2              
+
+
+!! ------------------------------------------------------------------------
+!  local variables
+!! ------------------------------------------------------------------------
+   integer  :: i,j,k,l,ish,ati,atj,ia,ib,jsh,ii,jj,lin,ij,li,lj,ihomoa,ihomob
+   integer  :: ns, iter, ab
+   integer  :: llao(4)
+   data llao /1,3,5,7 /
+   real(wp) :: r,rcovij,arg,tmp,hi,hj,hij,pol,eh1,xk,sk,gpol
+   real(wp) :: gamscal, gama(94), pscal1, pscal2, keht
+   real(wp),allocatable :: cn(:), cns(:), gab(:,:), h1(:), gq(:), ves(:,:)
+   real(wp),allocatable :: S1(:,:), S2(:,:) !, X(:,:)
+   logical fail
+
+!! ------------------------------------------------------------------------
+!  initizialization
+!! ------------------------------------------------------------------------
+   if(pr)then
+   write(*,*) '----------------'
+   write(*,*) '| shellQ model |'
+   write(*,*) '| SG 2020-2021 |'
+   write(*,*) '----------------'
+   endif
+
+   allocate( S1(ndim,ndim),S2(ndim,ndim) )   ! ,X(ndim,ndim))
+
+   call mlpop1(ndim,S,S1,S2) ! ML, x=1/4
+   if(pr)write(*,*) 'ML setup done.'
+
+   allocate( Hmat(ndim*(ndim+1)/2), Hdiag(ndim),focc(ndim), SS(ndim*(ndim+1)/2), source = 0.0_wp )
+   allocate( ves(10,n), gq(n), h1(ndim), gab(n,n), cn(n), cns(n), source = 0.0_wp )
+
+!  gpol(1)  = 0.4500_wp  
+!  gpol(2)  = 0.5000_wp  
+
+! for fit
+   keht     = glob_par(1)
+   gpol     = glob_par(2)
+!  gpar4    = glob_par(4)
+   gamscal  = glob_par(5)
+   pscal1   = glob_par(6)
+   pscal2   = glob_par(7)
+!  erfs     = glob_par(8)
+
+!  def CN
+   call ncoord_erf(n,at,rab,-7.5_wp,cns) ! the org. EEQ was parameterized with erfs=-7.5 but smaller value is better here
+!  scaled def EEQ in first iter
+   call eeq(n,at,rab,chrg,cns,pa)
+
+   if(pr)then
+   write(*,*) 'EEQ done.'
+   write(*,'(''sum q : '',f8.3)') sum(pa)
+   write(*,'(''   atom      EEQ charges     defCN       specCN'')')
+   endif
+
+   gama = gam * gamscal
+
+!  special CN
+   cn = 0_wp
+   do i = 2, n
+      do j = 1, i-1 
+         r = rab(lin(i,j))
+         rcovij=1.889725949_wp*(4./3.)*(shell_cnf4(3,at(i))+shell_cnf4(3,at(j)))
+         arg = (r-rcovij)/rcovij
+         tmp = 0.5_wp * (1_wp + erf(erfs*arg)) 
+         cn(i) = cn(i) + tmp      
+         cn(j) = cn(j) + tmp 
+      enddo
+   enddo
+   if(pr)then
+   do i=1,n
+   write(*,'(2i5,4f12.3)') i,at(i),pa(i),cns(i),cn(i),cns(i)/(cn(i)+0.001_wp)
+   enddo
+   endif
+
+!  DFTB second order term J matrix
+   k = 0
+   do i=1, n
+      do j=1,i
+         k = k + 1
+         r = rab(k)        
+         xk=2_wp/(gama(at(i))+gama(at(j))) ! hardness, scaled standard values
+         gab(j,i)=1_wp/sqrt(r**2+xk**2)  ! damped Coulomb
+         gab(i,j)=gab(j,i)
+      enddo
+   enddo
+
+   call modbas(n,at,3) 
+   call sint(n,ndim,at,xyz,rab,SS,hdiag)     ! scaled S 
+
+!! ------------------------------------------------------------------------
+!  set up the H matrix twice
+!! ------------------------------------------------------------------------
+   do iter=1, maxiter   ! two "iterations": in the first, q = q(EEQ)
+
+   if(iter.eq.1) then
+   do i=1, n
+      eh1 = 0_wp
+      do l=1,n
+         eh1=eh1+pa(l)*gab(l,i) ! contraction with charge (DFTB term)
+       enddo
+       gq(i) = eh1 * 0.5_wp * pscal1
+   enddo
+   else
+   call setespot(n,at,psh,gab,ves)
+   ves = ves * pscal2
+   endif    
+
+   ! diagonal of H
+   ii = 0
+   do i = 1, n
+      ati = at(i)
+      do ish=1,bas_nsh(ati)
+          l = bas_lsh(ish,ati)+1
+          tmp = shell_xi(ish,ati) + cn(i)*shell_cnf1(ish,ati) &         ! shell-wise + shell-wise CN
+ &                                + pa(i)*shell_cnf2(ish,ati)           ! shell-wise 
+          do j=1,llao(l) ! AO loop
+             ii = ii + 1
+             Hdiag(ii) = tmp
+          enddo
+      enddo
+   enddo
+
+   ! full H            
+   ij = 0
+   Hmat=0
+   do i=1,ndim
+      ia = aoat(i)
+      ati= at(ia)
+      ish= shell2ao(i)
+      li = bas_lsh(ish,ati)+1
+      hi = Hdiag(i)
+      do j=1,i  
+         ij = ij + 1
+         if(abs(S(ij)).lt.1.d-7) cycle
+         ib = aoat(j)
+         atj= at(ib)
+         ab = lin(ia,ib)
+         hj = Hdiag(j)
+         hij= hi+hj
+         if(ia.ne.ib) then            ! different atoms
+            r   = rab(ab)
+            xk  = shell_cnf4(2,ati)+shell_cnf4(2,atj)
+            pol = ((hi-hj)/hij)**2
+            tmp = keht * SS(ij) * hij * (1_wp-pol*gpol) * (1_wp+xk/r)
+         else                         ! same atoms
+            tmp = SS(ij) * hij
+            jsh = shell2ao(j)
+            lj  = bas_lsh(jsh,atj)+1
+            if(ish.ne.jsh) then       ! s-s', p-p' off-diagonal (there is no d-d' in MG VDZP)
+               tmp = tmp * shell_cnf4(3+li,ati)
+            endif
+         endif
+         Hmat(ij) = tmp
+      enddo
+   enddo
+
+   if(iter.eq.10)then 
+   ij = 0
+   do i=1,ndim
+      ia = aoat(i)
+      do j=1,i  
+         ib = aoat(j)
+         ij = ij + 1
+!        add DFTB term
+         Hmat(ij) = Hmat(ij) - (gq(ia)+gq(ib)) * S(ij) 
+      enddo
+   enddo
+   else ! + U terms with density from 1. iter
+   k = 0
+   do i=1,ndim
+      ia = aoat(i)
+      ati= at(ia)
+      li = bas_lsh(shell2ao(i),ati)+1
+      hi = shell_cnf4(1,ati)/float(li)
+      do j=1,i-1
+         k  = k +1
+         ib = aoat(j)
+         atj= at(ib)
+         lj = bas_lsh(shell2ao(j),atj)+1
+         hj = shell_cnf4(1,atj)/float(lj)
+         xk = hi + hj
+         sk = 1_wp
+         if(ia.ne.ib) sk=1_wp-(shell_cnf4(8,ati)+shell_cnf4(8,atj))/rab(lin(ia,ib))
+!        write(*,*) ia,ib,sk
+         Hmat(k) = Hmat(k) + P(k) * xk * sk - S(k)*(ves(shell2ao(i),i)+ves(shell2ao(j),j))*0.5_wp
+      enddo
+      k = k +1
+      Hmat(k) = Hmat(k) + P(k) * hi * 2_wp - S(k)*ves(shell2ao(i),i)
+   enddo
+   endif
+
+   if(pr)write(*,*) 'shellQ H matrix iteration ',iter, ' done.'
+
+!  solve 
+   call solve (ndim,nel,nopen,homo,eT,focc,Hmat,S,P,Hdiag,eh1,fail)
+!  call solve2(ndim,nel,nopen,homo,eT,focc,Hmat,X,P,Hdiag,eh1,fail)
+
+   if(fail) stop 'diag error'
+
+   if(iter.gt.1.and.pr)then
+     ii=max(homo-3,1)
+     jj=min(homo+3,ndim)
+     write(*,'('' frontier occ.: '',10f8.3)') focc(ii:jj)
+     write(*,'('' gap          : '',  f8.3)') Hdiag(homo+1)-Hdiag(homo)
+     if(Hdiag(homo+1)-Hdiag(homo).lt.0.02) write(*,*) 'WARNING: small HL gap!'
+   endif
+
+!  charges (psh not used here)
+   call mlpop2(n,ndim, P, S1, S2, pa, psh)
+   write(*,*) pa
+!  do i=1,n
+!  write(*,*) psh(1:5,i)
+!  enddo
+   if(iter.lt.maxiter) pa = z - pa
+
+   enddo
+!! ------------------------------------------------------------------------
+!  done
+!! ------------------------------------------------------------------------
+
+! properties: WBO
+   call wiberg(n,ndim,at,rab,P,S,wbo)
+
+   deallocate(S1,S2,gq,gab)
+
+! properties: dipole moment
+   if(prop.eq.1.or.prop.eq.2)then
+     allocate(d(ndim*(ndim+1)/2,3))
+     call modbas(n,at,4) 
+     call dipint(n,ndim,at,xyz,rab,norm,pnt,d)   ! dipole integrals
+     call dipmom2(n,ndim,xyz,z,norm,P,d,pnt,dip) ! get dipole moment
+!    dip=0
+!    do i=1,n
+!       dip(1:3)=dip(1:3)+xyz(1:3,i)*(pa(i)-z(i))
+!    enddo
+   endif
+
+! properties: polarizability
+   if(prop.eq.2)then
+     sk  = 1.80_wp    ! correction factor
+     xk  = 0.0005_wp  ! finite field step
+     allocate(P1(ndim*(ndim+1)/2))
+     pol=0
+     do k=1,3
+        call addsym(ndim, xk,Hmat,d(1,k),SS) ! perturb H
+        call solve (ndim,nel,nopen,homo,eT,focc,SS,S,P1,Hdiag,eh1,fail) ! solve
+        call dipmom2(n,ndim,xyz,z,norm,P1,d,pnt,dip1) ! get new dipole moment
+        call addsym(ndim,-xk,Hmat,d(1,k),SS) ! other direction
+        call solve (ndim,nel,nopen,homo,eT,focc,SS,S,P1,Hdiag,eh1,fail)
+        call dipmom2(n,ndim,xyz,z,norm,P1,d,pnt,dip2)
+        alp(k,1:3)=-sk*(dip1(1:3)-dip2(1:3))/(2_wp*xk) ! numerical diff. dmu/dfield
+        pol = pol + alp(k,k)
+     enddo
+     pol = pol / 3_wp
+     if(abs(alp(1,2)-alp(2,1))/pol.gt.1d-2) stop 'tensor not symmetric1'
+     if(abs(alp(1,3)-alp(3,1))/pol.gt.1d-2) stop 'tensor not symmetric2'
+     if(abs(alp(2,3)-alp(3,2))/pol.gt.1d-2) stop 'tensor not symmetric3'
+   endif
+
+   end
+
+!! ------------------------------------------------------------------------
+!     set up Coulomb potential due to 2nd order fluctuation
+!! ------------------------------------------------------------------------
+
+subroutine setespot(n,at,qsh,jab,ves)
+   use bascom
+      implicit none 
+      integer, intent(in) :: n
+      integer, intent(in) :: at(n)
+      real*8, intent(in) ::  qsh(10,n),jab(n,n)
+      real*8, intent(inout) :: ves(10,n) 
+      integer i,j,ati,atj,ish,jsh
+      real*8  vesi
+      real*8  atocc(10)
+
+      do i=1,n
+         ati = at(i)
+         do ish=1,bas_nsh(ati)
+            vesi = 0
+            do j=1,n   
+               atj = at(j)
+               do jsh=1,bas_nsh(atj)
+                  call shellocc_ref(atj,atocc)           
+                  vesi =vesi + (atocc(jsh)-qsh(jsh,j))*jab(j,i)
+               enddo
+            enddo
+            ves(ish,i) = vesi
+         enddo
+      enddo
+
+      end  
+
+!! ------------------------------------------------------------------------
+!! neutral atomic shell occupations from r2SCAN-3c opt 
+!! C2H6, CH3NH2, CH3OH
+!! ------------------------------------------------------------------------
+
+subroutine shellocc_ML(at,socc) ! shellQ based on wB97X-D3 ML(x=1/4)              
+      use bascom
+      implicit none
+      integer at
+      real*8 socc(*)
+
+      socc(1:bas_nsh(at))=0
+
+      select case (at)
+
+      case (1) 
+      socc( 1)=  0.534480053175
+      socc( 2)=  0.405818421323
+      socc( 3)=  0.059701525502
+      case (3) 
+      case (4) 
+      case (5) 
+      case (6) 
+      socc( 1)=  0.578446469175
+      socc( 2)=  0.324052365218
+      socc( 3)=  1.820045889629
+      socc( 4)=  1.208313837682
+      socc( 5)=  0.069141438297
+      case (7)
+      socc( 1)=  0.694358181161
+      socc( 2)=  0.488055901112
+      socc( 3)=  2.234490331290
+      socc( 4)=  1.539185424727
+      socc( 5)=  0.043910161710
+      case (8)
+      socc( 1)=  0.882602145531
+      socc( 2)=  0.590942331986
+      socc( 3)=  2.708428625644
+      socc( 4)=  1.786865163528
+      socc( 5)=  0.031161733311
+      case (9)
+      end select
+
+      end
+
+subroutine shellocc_ref(at,socc) 
+      use bascom
+      implicit none
+      integer at
+      real*8 socc(*)
+
+      socc(1:bas_nsh(at))=0
+
+      select case (at)
+
+      case (1) ! c2h6
+      socc( 1)=  0.533047627235
+      socc( 2)=  0.408579869489
+      socc( 3)=  0.058372503276
+      case (2) ! heh+ 
+      socc( 1)=  1.281397706549
+      socc( 2)=  0.713829552965
+      socc( 3)=  0.004772740486
+      case (3) ! lih
+      socc( 1)=  0.409565688560
+      socc( 2)=  0.191757285436
+      socc( 3)=  0.340235870385
+      socc( 4)=  0.018214263048
+      socc( 5)=  0.040226892572
+      case (4) ! beh2
+      socc( 1)=  0.685947888116
+      socc( 2)=  0.308621403483
+      socc( 3)=  0.646526998702
+      socc( 4)=  0.307851605051
+      socc( 5)=  0.051052104648
+      case (5) ! b2h6
+      socc( 1)=  0.552106361608
+      socc( 2)=  0.233899678096
+      socc( 3)=  1.345854343178
+      socc( 4)=  0.762030308127
+      socc( 5)=  0.106109308991
+      case (6) ! c2h6
+      socc( 1)=  0.571201906704
+      socc( 2)=  0.323220026328
+      socc( 3)=  1.827270260662
+      socc( 4)=  1.206087153721
+      socc( 5)=  0.072220652586
+      case (7) ! n2h4
+      socc( 1)=  0.720109002669
+      socc( 2)=  0.484216257374
+      socc( 3)=  2.229217660006
+      socc( 4)=  1.496949883845
+      socc( 5)=  0.069507196105
+      case (8) ! h2o2
+      socc( 1)=  0.957139137702
+      socc( 2)=  0.638574629300
+      socc( 3)=  2.666173232804
+      socc( 4)=  1.692500432213
+      socc( 5)=  0.045612567981
+      case (9) ! hf
+      socc( 1)=  1.026161598808
+      socc( 2)=  0.681838249673
+      socc( 3)=  3.183619297124
+      socc( 4)=  2.098069014104
+      socc( 5)=  0.010311840291
+      case (11) ! nah 
+      socc( 1)=  0.059186811373
+      socc( 2)=  0.553904448219
+      socc( 3)=  0.312058923528
+      socc( 4)=  0.017052854453
+      socc( 5)=  0.057796962427
+      case (12) ! mgh2  
+      socc( 1)=  0.658325322782
+      socc( 2)=  0.396018507733
+      socc( 3)=  0.703816562424
+      socc( 4)=  0.138982936940
+      socc( 5)=  0.102856670121
+      case (13) ! al2h6
+      socc( 1)=  0.633418917174
+      socc( 2)=  0.336953861007
+      socc( 3)=  1.372801277879
+      socc( 4)=  0.424269888354
+      socc( 5)=  0.232556055585
+      case (14) ! si2h6
+      socc( 1)=  0.668726898902
+      socc( 2)=  0.458688273846
+      socc( 3)=  1.980924392864
+      socc( 4)=  0.728999352795
+      socc( 5)=  0.162661081593
+      case (15) ! p2h4
+      socc( 1)=  0.803207509565
+      socc( 2)=  0.748576826399
+      socc( 3)=  2.527289576203
+      socc( 4)=  0.793490898340
+      socc( 5)=  0.127435189492
+      case (16) ! h2s2
+      socc( 1)=  0.856202102739
+      socc( 2)=  0.838272107562
+      socc( 3)=  2.586129191291
+      socc( 4)=  1.622224170289
+      socc( 5)=  0.097172428119
+      case (17) ! hcl
+      socc( 1)=  0.856048863942
+      socc( 2)=  0.943560207493
+      socc( 3)=  3.290905101058
+      socc( 4)=  1.879158515679
+      socc( 5)=  0.030327311828
+      end select
+
+      end
+
+!! ------------------------------------------------------------------------
+!  normalize shell occ. to q_atom = 0, just to make shell_occ_ML 
+!! ------------------------------------------------------------------------
+
+subroutine qshnorm(z,nsh,qshref)
+      implicit none
+      integer nsh
+      real*8  z,qshref(10)
+
+      integer i
+      real*8  norm, pol, val
+      real*8  qshnew(10)     
+      
+      norm = sum(qshref(1:nsh))
+
+      qshnew(1:nsh) = qshref(1:nsh) * z / norm
+
+      do i=1,nsh
+         write(*,'(6x,''socc('',i2,'')='',F16.12)') i, qshnew(i)
+      enddo
+
+end
+
+!! ------------------------------------------------------------------------
+!  Wiberg in ZDO basis
+!! ------------------------------------------------------------------------
+
+subroutine wiberg_zdo(n,ndim,at,rab,P,wb)
+      use bascom
+      implicit none
+      integer n,ndim,at(n)
+      real*8 rab(n*(n+1)/2)
+      real*8 P(ndim,ndim)
+      real*8 wb(n,n)
+
+      real*8 xsum
+      integer i,j,k,m,ibmax,imem(n),lin
+      character*2 asym
+      integer llao(4)
+      data llao /1,3,5,7 /
+      integer aose(2,n)
+
+      m = 1     
+      do i=1,n 
+         aose(1,i)=m 
+         do k=1,bas_nsh(at(i))
+            m= m + llao(bas_lsh(k,at(i))+1)
+         enddo
+         aose(2,i)=m-1
+      enddo
+
+      wb=0
+      do i=2,n 
+         do j=1,i-1
+         xsum=0.0
+         if(rab(lin(i,j)).lt.50.0)then
+            do k=aose(1,i),aose(2,i)     ! AOs on atom i
+               do m=aose(1,j),aose(2,j)  ! AOs on atom j
+                  xsum=xsum+P(k,m)**2
+               enddo
+            enddo
+         endif
+         wb(i,j)=xsum
+         wb(j,i)=xsum
+         enddo
+      enddo
+!     call prmat(6,wb,n,n,'WBO')
+
+      end
+

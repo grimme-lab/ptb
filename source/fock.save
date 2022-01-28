@@ -1,0 +1,125 @@
+!------------------------------------------------------------------
+! compute Fock and H0 matrix using RI ints on file 
+! and S and pa as further input
+!------------------------------------------------------------------
+subroutine fock(n,nao,at,xyz,rab,aoat,z,pa,S,qaux_Q,qaux_N,P,F,H0)
+      use bascom
+      use parcom
+      use com
+      implicit none
+      integer n,nao
+      integer,intent(in)     :: at(n)       
+      integer,intent(in)     :: aoat(nao)     
+      real*8, intent(in)     :: xyz(3,n)
+      real*8, intent(in)     :: rab(n*(n+1)/2) 
+      real*8, intent(in)     :: z (n)
+      real*8, intent(in)     :: pa(n)                     ! shellQ populations
+      real*8, intent(in)     :: S (nao*(nao+1)/2)         ! overlap
+      real*8, intent(in)     :: qaux_Q(naux)              ! aux charges
+      real*8, intent(in)     :: qaux_N(naux)              ! aux pop
+      real*8, intent(in)     :: P (nao*(nao+1)/2)         ! ZDO density matrix
+      real*8, intent(inout)  :: F (nao*(nao+1)/2)         ! estimated F (contains T on input)
+      real*8, intent(out)    :: H0(nao*(nao+1)/2)         ! H0 = F - J for energy calc
+
+      real*8, parameter      :: erfs    =-3.00d0          ! CN
+!     real*8, parameter      :: gpol    = 0.000d0         ! 
+
+      integer i,j,k,l,ij,ia,ib,li,lj,lin,maux
+      integer ish,jsh,ata,atb,ati,atj,ab
+      real*8  Jij,rho1,rho2,ddot,hi,hj,hij,pol,term2,gpol1,gpol2,eh1,ov1,ov2,ov2sc
+      real*8  cns(n)
+      real*8, allocatable :: vtmp(:)
+      real*8, allocatable :: gab(:,:), gq(:)
+
+      allocate( vtmp(2*naux), source = 0d0 )
+
+!     TB2 term for XC1, same as in shellQ
+      allocate( gq(n*(n+1)/2), gab(n,n), source = 0d0 )
+      k = 0
+      do i=1, n
+         do j=1,i
+         k = k + 1
+         term2=2d0/(gam(at(i))+gam(at(j))) 
+         gab(j,i)=1d0/sqrt(rab(k)**2+term2**2)  ! damped Coulomb
+!        gab(j,i)=1d0/(rab(k)+term2)  ! damped Coulomb
+         gab(i,j)=gab(j,i)
+         enddo
+      enddo
+      k = 0
+      do i=1, n
+         do j=1,i
+         eh1 = 0d0 
+         do l=1,n
+            eh1= eh1+(z(l)-pa(l))*(gab(l,i)+gab(l,j)) ! contraction with charge
+         enddo
+         k = k + 1
+         gq(k) = eh1
+         enddo
+      enddo
+
+      ov2sc= glob_par(3)
+      gpol1= glob_par(5)
+      gpol2= glob_par(6)
+
+!     local CN with fitted element radii
+      call ncoord_erf(n,at,rab,erfs,cns)
+
+!     Fock matrix XC1
+      ij = 0
+      do i=1,nao 
+         ia  = aoat(i)
+         ata = at(ia)
+         ish = shell2ao(i)
+         hi  = fock_lev (ish,ata) * (1d0+cns(ia)*fock_par(4,ata))
+         do j=1,i  
+            ij  =ij + 1       
+            if(abs(P(ij)).lt.1d-7) cycle
+            ib  = aoat(j)
+            atb = at(ib)
+            ab  = lin(ia,ib)
+            jsh = shell2ao(j)
+            hj  = fock_lev (jsh,atb) * (1d0+cns(ib)*fock_par(4,atb))
+            hij = hi + hj
+            pol = ((hi-hj)/hij)**2
+            if(ia.ne.ib) then                                  ! A ne B
+            term2 = 0.5d0*(fock_par(5,ata)+fock_par(5,atb))
+            F(ij) = F(ij) + hij * P(ij) * (1d0+gpol1*pol) * (1d0+term2/rab(ab))
+            ov2   =        (fock_par(8,ata)+fock_par(8,atb))   ! EHT   term 
+            else
+            F(ij) = F(ij) + hij * P(ij) * (1d0+gpol2*pol) * fock_par(6,ata)   
+            ov2   =ov2sc * (fock_par(8,ata)+fock_par(8,atb))   ! EHT   term 
+            endif
+            ov1   = gq(ab) * (fock_par(3,ata)+fock_par(3,atb)) ! DFTB2 term 
+            F(ij) = F(ij) + S(ij) * (ov1+ov2)
+         enddo
+      enddo
+      deallocate( gq, gab )
+
+      H0 = F
+
+!     RI part XC2 and J
+      open(unit=42,file='gtb_3idx',form='unformatted')
+  10  read(42,end=100)i,j,vtmp
+      ij  = lin(i,j)
+      ia  = aoat(i)
+      ib  = aoat(j)
+      ata = at(ia)
+      atb = at(ib)
+      ish = shell2ao(i)
+      jsh = shell2ao(j)
+      Jij = -ddot(naux, vtmp(1),     1,qaux_Q,1)              ! Ves
+      rho2= -ddot(naux, vtmp(naux+1),1,qaux_N,1)              ! XC2
+      if(ia.ne.ib) then                                       ! A ne B
+         term2 = rho2 * (fock_par(2,ata) + fock_par(2,atb))*0.5d0
+      else
+         eh1 = (1d0+0.01*cns(ia)*fock_par(7,ata))
+         term2 = rho2 * (fock_par2(ish,ata) + fock_par2(jsh,ata))*0.5d0 * eh1
+      endif
+      F (ij) = F(ij) + Jij + term2
+      H0(ij) = F(ij) - Jij 
+      goto 10
+ 100  close(42)
+
+!     call prmat(6,F,nao,0,'F')
+!     stop
+end

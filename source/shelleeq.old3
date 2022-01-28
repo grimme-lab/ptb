@@ -1,0 +1,310 @@
+
+subroutine shelleeq(n,at,xyz,rab,ichrg,cn1,cn2,cn3,cn4,q,qa,es)
+   use iso_fortran_env, only : wp => real64
+   use parcom
+   use bascom
+   use com
+   implicit none
+
+!! ------------------------------------------------------------------------
+!  Input
+!! ------------------------------------------------------------------------
+   integer, intent(in)    :: n             ! number of atoms 
+   integer, intent(in)    :: at(n)         ! ordinal number of atoms
+   real(wp),intent(in)    :: xyz(3,n)      ! coordinates (not used)
+   real(wp),intent(in)    :: rab(n*(n+1)/2)! distances  
+   integer, intent(in)    :: ichrg         ! total charge (constrain)
+!! ------------------------------------------------------------------------
+!  Output
+!! ------------------------------------------------------------------------
+   real(wp),intent(out)   :: cn1 (n)       ! short range CN            
+   real(wp),intent(out)   :: cn2 (n)       ! long  range CN            
+   real(wp),intent(out)   :: cn3 (n)       ! short range dEN² weighted
+   real(wp),intent(out)   :: cn4 (n)       ! short range dEN  weighted
+   real(wp),intent(out)   :: q(10,n)       ! shell charges     
+   real(wp),intent(out)   :: qa  (n)       ! charges of atoms
+   real(wp),intent(out)   :: es            ! electrostatic energy
+
+!! ------------------------------------------------------------------------
+!  π itself
+   real(wp),parameter :: pi = 3.1415926535897932384626433832795029_wp
+!  √π
+   real(wp),parameter :: sqrtpi = sqrt(pi)
+!  √(2/π)
+   real(wp),parameter :: sqrt2pi = sqrt(2.0_wp/pi)
+!
+!! ------------------------------------------------------------------------
+!  charge model
+!! ------------------------------------------------------------------------
+   integer  :: m ! dimension of the Lagrangian
+   real(wp),allocatable :: Amat(:,:)    ! interaction matrix
+   real(wp),allocatable :: Xvec (:)     ! RHS
+   real(wp),allocatable :: Xtmp (:)     ! save
+   real(wp),allocatable :: alpha(:)     ! shell alpha
+   real(wp),allocatable :: gam  (:)     ! shell gamma
+   real(wp),parameter :: nciscal= 3.17_wp ! LR(NCI) shift
+   real(wp),parameter :: erfs   = 6.00_wp ! erf expos SR
+   real(wp),parameter :: erfl   = 3.50_wp !           LR
+
+!! ------------------------------------------------------------------------
+!  local variables
+!! ------------------------------------------------------------------------
+   integer  :: i,j,k,l,ish,ati,jsh,ii,jj,lin,ij
+   real(wp) :: r,cn, gamij, dEN, tmp2
+   real(wp) :: arg,tmp,ff,damp,rcovij
+
+!! ------------------------------------------------------------------------
+!  Lapack work variables
+!! ------------------------------------------------------------------------
+   integer, allocatable :: ipiv(:)
+   real(wp),allocatable :: work(:)
+   integer  :: lwork
+   integer  :: info
+   real(wp) :: test(1)
+
+!! ------------------------------------------------------------------------
+!  initizialization
+!! ------------------------------------------------------------------------
+   m = 1
+   do i=1,n  
+      do ish=1,bas_nsh(at(i))
+         m = m + 1
+      enddo
+   enddo
+
+! dimension m = nshells + 1(=Nel constrain)
+   allocate( ipiv(m), source = 0 )
+   allocate( Amat(m,m), Xvec(m), Xtmp(m), alpha(m-1), gam(m-1), source = 0.0_wp )
+
+  cn1 = 0.0_wp
+  cn2 = 0.0_wp
+  cn3 = 0.0_wp
+  cn4 = 0.0_wp
+  do i = 2, n
+      do j = 1, i-1 
+         r = rab(lin(i,j))
+         rcovij=atom_par(4,at(i))+atom_par(4,at(j))
+         arg = (r-rcovij)/rcovij
+         tmp = exp(-(r-nciscal*rcovij)**4)      ! LR (=NCI)
+         cn2(i) = cn2(i) + tmp 
+         cn2(j) = cn2(j) + tmp 
+         tmp = 0.5_wp * (1.0_wp + erf(-erfs*arg)) ! SR
+         cn1(i) = cn1(i) + tmp 
+         cn1(j) = cn1(j) + tmp 
+         tmp = 0.5_wp * (1.0_wp + erf(-erfl*arg))  ! SR2
+         dEN = en(at(j))-en(at(i))
+         tmp2= tmp * dEN**2        ! nearest neighbor EN 
+         cn3(i) = cn3(i) + tmp2 
+         cn3(j) = cn3(j) + tmp2 
+         cn4(i) = cn4(i) + tmp*dEN
+         cn4(j) = cn4(j) + tmp*(en(at(i))-en(at(j)))
+      enddo
+   enddo
+
+!! ------------------------------------------------------------------------
+!  set up the A matrix and X vector
+!! ------------------------------------------------------------------------
+!  αi -> alpha(i), ENi -> xi(i), κi -> kappa(i), Jii -> gam(i)
+!  γij = 1/√(αi+αj)
+!  Xi  = -ENi 
+!  Aii = Jii + 2/√π·γii
+!  Aij = erf(γij·Rij)/Rij = 2/√π·F0(γ²ij·R²ij)
+!! ------------------------------------------------------------------------
+
+!  prepare some arrays
+   ii = 0
+   do i = 1, n
+      ati = at(i)
+      do ish=1,bas_nsh(ati)
+         ii = ii + 1
+         Xvec (ii) = -shell_eeq_xi (ish,ati) + cn1(i)*shell_eeq_cnf1(ish,ati) & ! element + shell-wise SR CN
+ &                                           + cn2(i)*shell_eeq_cnf2(1,ati)   & !         + element-wise LR CN
+ &                                           + cn3(i)*shell_eeq_cnf2(2,ati)   & !         + element-wise dEN² weigted CN 
+ &                                           + cn4(i)*shell_eeq_cnf2(3,ati)     !         + element-wise dEN weigted CN 
+         gam  (ii) =       shell_eeq_gam(ish,ati)
+         alpha(ii) =1.0_wp/shell_eeq_alp(ish,ati)**2                            ! = exponent auf Gaussian charge distribution
+         Xtmp (ii) =Xvec(ii)
+      enddo
+   enddo
+
+   ! prepare A matrix
+   ii = 0       
+   do i = 1, n
+      do ish=1,bas_nsh(at(i))
+         ii = ii + 1
+         jj = 0
+         do j = 1, i  
+            ij  = lin(i,j)
+              r = rab(ij) 
+            do jsh=1,bas_nsh(at(j))
+               jj = jj + 1
+               if(jj.gt.ii) cycle
+               if(jj.ne.ii)then
+                  gamij = 1.0_wp/sqrt(alpha(ii)+alpha(jj))
+                  Amat(jj,ii) = erf(gamij*r)/r
+                  Amat(ii,jj) = Amat(jj,ii)
+               else
+                  Amat(ii,ii) = gam(ii) + sqrt2pi/sqrt(alpha(ii))  
+               endif
+            enddo
+         enddo
+      enddo
+   enddo
+
+!! ------------------------------------------------------------------------
+!  solve the linear equations to obtain partial charges
+!! ------------------------------------------------------------------------
+   Amat(m,1:m) = 1.0_wp
+   Amat(1:m,m) = 1.0_wp
+   Amat(m,m  ) = 0.0_wp
+   Xvec(m)     = float(ichrg)    ! constrain
+!  call prmat(6,amat,m,m,'A')
+
+   ! assume work space query, set best value to test after first dsysv call
+   call dsysv('u', m, 1, Amat, m, ipiv, Xvec, m, test, -1, info)
+   lwork = int(test(1))
+   allocate( work(lwork), source = 0.0_wp )
+
+   call dsysv('u',m,1,Amat,m,ipiv,Xvec,m,work,lwork,info)
+   if(info > 0) stop 'DSYSV in shelleeq failed'
+!  write(*,*) Xvec
+
+   ii = 0
+   do i = 1, n
+      ati = at(i)
+      do ish=1,bas_nsh(ati)
+         ii = ii + 1
+         q(ish,i) = Xvec(ii) ! solutions
+      enddo
+      qa(i) = sum(q(1:bas_nsh(ati),i)) ! condensed to atomic charges
+   enddo
+
+   es = 0.0_wp
+   return
+
+!  compute ES energy
+   ii = 0       
+   do i = 1, n
+      do ish=1,bas_nsh(at(i))
+         ii = ii + 1
+         jj = 0
+         do j = 1, i  
+            ij  = lin(i,j)
+              r = rab(ij) 
+            do jsh=1,bas_nsh(at(j))
+               jj = jj + 1
+               if(jj.gt.ii) cycle
+               if(jj.ne.ii)then
+                  gamij = 1.0_wp/sqrt(alpha(ii)+alpha(jj))
+                  tmp   = erf(gamij*r)/r
+                  es    = es + q(ish,i)*q(jsh,j)*tmp
+               else
+                  es    = es - q(ish,i)*Xtmp(ii) &
+ &                           + 0.5_wp*q(ish,i)**2*(gam(ii)+sqrt2pi/sqrt(alpha(ii)))
+               endif
+            enddo
+         enddo
+      enddo
+   enddo
+
+   end
+
+!! ------------------------------------------------------------------------
+!! neutral atomic shell occupations, ROHF sph. av.
+!! ------------------------------------------------------------------------
+
+subroutine shellocc(at,socc)  ! RHF
+      use bascom
+      implicit none
+      integer at
+      real*8 socc(*)
+
+      socc(1:bas_nsh(at))=0
+
+      select case (at)
+      case (1) 
+      socc(1)=  0.48640481
+      socc(2)=  0.50203252
+      socc(3)=  0.01156267
+      case (6) 
+      socc(1)=  0.75202717
+      socc(2)=  0.32466440
+      socc(3)=  1.86304709
+      socc(4)=  1.02293909
+      socc(5)=  0.03732225
+      case (7)
+      socc(1)=  0.82278318
+      socc(2)=  0.61392967
+      socc(3)=  2.15883405
+      socc(4)=  1.37860543
+      socc(5)=  0.02584768
+      case (8)
+      socc(1)=  0.99107003
+      socc(2)=  0.66530413
+      socc(3)=  2.64697808
+      socc(4)=  1.68017760
+      socc(5)=  0.01647016
+      end select
+
+      end
+
+subroutine shellocc_dum(at,socc) ! with pol, sEEQ
+      use bascom
+      implicit none
+      integer at
+      real*8 socc(*)
+
+      socc(1:bas_nsh(at))=0
+
+      select case (at)
+
+      case (1) 
+      case (6) 
+      case (7)
+      case (8)
+
+      end select
+
+      end
+
+!! ------------------------------------------------------------------------
+!  normalize shell occ. to q_atom = 0
+!! ------------------------------------------------------------------------
+subroutine qshnorm(z,nsh,qshref)
+      implicit none
+      integer nsh
+      real*8  z,qshref(10)
+
+      integer i
+      real*8  norm, pol, val
+      real*8  qshnew(nsh)    
+      
+      norm = sum(qshref(1:nsh))
+      pol = 0
+      val = 0
+      do i=1, nsh
+         if(i.eq.999) then
+            pol = pol + qshref(i)
+         else
+            val = val + 1
+         endif
+      enddo
+      pol = pol / val ! fraction of pol for each val shell
+
+      qshnew = 0
+      do i=1, nsh
+!        if(i.ne.nsh) then
+            qshnew(i) = qshref(i) + pol
+!        endif
+      enddo
+
+      qshnew = qshnew * z / norm
+
+      qshref(1:nsh)=qshnew(1:nsh)
+
+      write(*,*) sum(qshref(1:nsh))
+      do i=1,nsh
+      write(*,'(6x,''socc('',i1,'')='',F12.8)') i, qshnew(i)
+      enddo
+
+end

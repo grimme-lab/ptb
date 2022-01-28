@@ -1,0 +1,262 @@
+
+      subroutine mpop(n,ndim,aoat,P,S,q,qsh)
+      use bascom
+      implicit none
+      integer n,ndim,aoat(ndim)
+      real*8 q(n),qsh(10,n)
+      real*8 P(ndim*(ndim+1)/2)
+      real*8 S(ndim*(ndim+1)/2)
+
+      integer i,j,ij,ii,jj,ish,jsh
+      real*8 ps
+
+      qsh= 0
+      q  = 0 
+      ij = 0
+      do i=1,ndim
+         ii=aoat(i)
+         ish=shell2ao(i)
+         do j=1,i-1
+            ij=ij+1
+            jj=aoat(j)
+            jsh=shell2ao(j)
+            ps=p(ij)*s(ij)
+            q(ii)=q(ii)+ps
+            q(jj)=q(jj)+ps
+            qsh(ish,ii)=qsh(ish,ii)+ps
+            qsh(jsh,jj)=qsh(jsh,jj)+ps
+         enddo
+         ij=ij+1
+         ps=p(ij)*s(ij)
+         q(ii)=q(ii)+ps    
+         qsh(ish,ii)=qsh(ish,ii)+ps    
+      enddo
+
+      end
+
+      subroutine mpop_wao(n,ndim,aoat,P,S,q,qsh,qao)
+      use bascom
+      implicit none
+      integer n,ndim,aoat(ndim)
+      real*8 q(n),qsh(10,n),qao(ndim)
+      real*8 P(ndim*(ndim+1)/2)
+      real*8 S(ndim*(ndim+1)/2)
+
+      integer i,j,ij,ii,jj,ish,jsh
+      real*8 ps
+
+      qsh= 0
+      q  = 0 
+      qao= 0 
+      ij = 0
+      do i=1,ndim
+         ii=aoat(i)
+         ish=shell2ao(i)
+         do j=1,i-1
+            ij=ij+1
+            jj=aoat(j)
+            jsh=shell2ao(j)
+            ps=p(ij)*s(ij)
+            q(ii)=q(ii)+ps
+            q(jj)=q(jj)+ps
+            qao(i)=qao(i)+ps
+            qao(j)=qao(j)+ps
+            qsh(ish,ii)=qsh(ish,ii)+ps
+            qsh(jsh,jj)=qsh(jsh,jj)+ps
+         enddo
+         ij=ij+1
+         ps=p(ij)*s(ij)
+         q(ii)=q(ii)+ps    
+         qao(i)=qao(i)+ps    
+         qsh(ish,ii)=qsh(ish,ii)+ps    
+      enddo
+
+      end
+
+cccccccccccccccccccccccccccccccccccccccccccccc      
+c            Wiberg BOs      
+cccccccccccccccccccccccccccccccccccccccccccccc      
+
+      subroutine wiberg(n,ndim,at,aoad,xyz,P,S,wbo)
+      use bascom
+      implicit none
+      integer n,ndim,at(n),aoad(ndim)
+      real*8 xyz(3,n)
+      real*8 P(ndim*(ndim+1)/2)
+      real*8 S(ndim*(ndim+1)/2)
+      real*8 wbo(n,n)
+
+      real*8,allocatable ::Ptmp(:,:)
+      real*8,allocatable ::si  (:,:)
+      real*8,allocatable ::pi  (:,:)
+      real*8,allocatable ::wb  (:,:)
+      real*8 xsum,rab
+      integer i,j,k,m,ibmax,imem(n),aostarti,aoendi,aostartj,aoendj
+      character*2 asym
+      integer llao(4)
+      data llao /1,3,5,7 /
+      integer aose(2,n)
+
+      allocate(Ptmp(ndim,ndim),pi(ndim,ndim),si(ndim,ndim),wb(n,n))
+      call blowsym(ndim,P,pi)
+      call blowsym(ndim,S,si)
+      call DGEMM('N','N',ndim,ndim,ndim,1.0d0,pi,
+     .                   ndim,si,ndim,0.0d0,Ptmp,ndim)
+
+      m = 1     
+      do i=1,n 
+         aose(1,i)=m 
+         do k=1,bas_nsh(at(i))
+            m= m + llao(bas_lsh(k,at(i))+1)
+         enddo
+         aose(2,i)=m-1
+         write(*,*) i,aose(1:2,i),aoad(i)
+      enddo
+      stop
+
+      wb=0
+      do i=1,n 
+         aostarti = aoad(i)
+         if(i.lt.n) then
+           aoendi   = aoad(i+1)-1
+         else
+           aoendi   = ndim    
+         endif
+         do j=1,i-1
+         aostartj = aoad(j)
+         if(j.lt.n) then
+           aoendj   = aoad(j+1)-1
+         else
+           aoendj   = ndim    
+         endif
+         xsum=0.0
+         rab=(xyz(1,i)-xyz(1,j))**2
+     .      +(xyz(2,i)-xyz(2,j))**2
+     .      +(xyz(3,i)-xyz(3,j))**2
+         if(rab.lt.400d0)then
+            do k=aostarti,aoendi         ! AOs on atom i
+               do m=aostartj,aoendj      ! AOs on atom j
+                  xsum=xsum+Ptmp(k,m)*Ptmp(m,k)
+               enddo
+            enddo
+         endif
+         wb(i,j)=xsum
+         wb(j,i)=xsum
+         enddo
+      enddo
+      deallocate(Ptmp)
+      wbo = wb
+
+      write(*,*)'largest Wiberg (P*S) bond orders for each atom'
+      write(*,*)'          total WBO             WBO to atom > 0.05 ...'
+      do i=1,n
+         do j=1,n
+            imem(j)=j
+         enddo
+         call wibsort(n,i,imem,wb)
+         ibmax=0
+         xsum =0
+         do j=1,n
+            if(wb(i,j).gt.0.05)ibmax=j
+            xsum=xsum+wb(i,j)
+         enddo
+         write(*,'(i6,a4,1x,f6.3,9(4x,a2,i4,f6.3))')
+     .   i,asym(at(i)),xsum,
+     .   (asym(at(imem(j))),imem(j),wb(i,j),j=1,ibmax)
+      enddo
+
+      end
+
+cccccccccccccccccccccccccccccccccccccccccccccc      
+c            Wiberg BOs, orthogonal basis
+cccccccccccccccccccccccccccccccccccccccccccccc      
+
+      subroutine wibergo(n,ndim,at,aoad,xyz,P)
+      implicit none
+      integer n,ndim,at(n),aoad(ndim)
+      real*8 xyz(3,n)
+      real*8 P(ndim,ndim)
+
+      real*8 xsum,rab
+      real*8 wb(n,n)
+      integer i,j,k,m,ibmax,imem(n),aostarti,aoendi,aostartj,aoendj,lin
+      character*2 asym
+
+      wb=0
+      do i=1,n 
+         aostarti = aoad(i)
+         if(i.lt.n) then
+           aoendi   = aoad(i+1)-1
+         else
+           aoendi   = ndim    
+         endif
+         do j=1,i-1
+         aostartj = aoad(j)
+         if(j.lt.n) then
+           aoendj   = aoad(j+1)-1
+         else
+           aoendj   = ndim    
+         endif
+         xsum=0.0
+         rab=(xyz(1,i)-xyz(1,j))**2
+     .      +(xyz(2,i)-xyz(2,j))**2
+     .      +(xyz(3,i)-xyz(3,j))**2
+         if(rab.lt.100.0)then
+            do k=aostarti,aoendi         ! AOs on atom i
+               do m=aostartj,aoendj      ! AOs on atom j
+                  xsum=xsum+P(k,m)**2
+               enddo
+            enddo
+         endif
+         wb(i,j)=xsum
+         wb(j,i)=xsum
+         enddo
+      enddo
+
+      write(*,*)'largest Wiberg (ZDO) bond orders for each atom'
+      write(*,*)'          total WBO             WBO to atom > 0.1 ...'
+      do i=1,n
+         do j=1,n
+            imem(j)=j
+         enddo
+         call wibsort(n,i,imem,wb)
+         ibmax=0
+         xsum =0
+         do j=1,n
+            if(wb(i,j).gt.0.1)ibmax=j
+            xsum=xsum+wb(i,j)
+         enddo
+         write(*,'(i6,a4,1x,f6.3,9(4x,a2,i4,f6.3))')
+     .   i,asym(at(i)),xsum,
+     .   (asym(at(imem(j))),imem(j),wb(i,j),j=1,ibmax)
+      enddo
+
+      end
+
+cccccccccccccccccccccccccccccccccccccccc
+
+      SUBROUTINE wibsort(ncent,imo,imem,qmo)
+      IMPLICIT REAL*8(A-H,O-Z)
+      dimension qmo(ncent,ncent)
+      dimension imem(ncent)
+
+      do 140   ii = 2,ncent
+         i = ii - 1
+         k = i
+         pp= qmo(imo,i)
+         do 120   j = ii, ncent
+            if (qmo(imo,j) .lt. pp) go to 120
+            k = j
+            pp=qmo(imo,j)
+  120    continue
+         if (k .eq. i) go to 140
+         qmo(imo,k) = qmo(imo,i)
+         qmo(imo,i) = pp
+
+         ihilf=imem(i)
+         imem(i)=imem(k)
+         imem(k)=ihilf
+  140 continue
+
+      end
+

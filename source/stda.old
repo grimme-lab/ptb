@@ -1,0 +1,79 @@
+!! ------------------------------------------------------------------------
+!  response analogue of the twoscf routine stda corrected H
+!! ------------------------------------------------------------------------
+
+subroutine stda(n,ndim,nel,nopen,homo,at,xyz,rab,cn,eT,focc,norm,S,P,Hmat,dum)
+   use iso_fortran_env, only : wp => real64
+   use bascom
+   use parcom
+   use mocom
+   use com
+   implicit none 
+!! ------------------------------------------------------------------------
+!  Input
+!! ------------------------------------------------------------------------
+   integer, intent(in)    :: n                     ! number of atoms 
+   integer, intent(in)    :: ndim                  ! number of AOs       
+   integer, intent(in)    :: nel                   ! number of electrons 
+   integer, intent(in)    :: nopen                 ! number of open shells
+   integer, intent(in)    :: homo                  ! as the name says...
+   integer, intent(in)    :: at(n)                 ! ordinal number of atoms
+   real(wp),intent(in)    :: xyz(3,n)              ! coordinates
+   real(wp),intent(in)    :: rab(n*(n+1)/2)        ! distances  
+   real(wp),intent(in)    :: cn(n)                 ! CN           
+   real(wp),intent(in)    :: eT                    ! el. temp.
+   real(wp),intent(in)    :: focc (ndim)           ! fractional occ.
+   real(wp),intent(in)    :: norm (ndim)           ! AO norm
+   real(wp),intent(in)    :: S(ndim*(ndim+1)/2)    ! exact overlap maxtrix in SAO
+   real(wp),intent(in)    :: P   (ndim*(ndim+1)/2) ! P
+   real(wp),intent(inout) :: Hmat(ndim*(ndim+1)/2) ! dummy H
+   real(wp),intent(inout) :: dum (ndim*(ndim+1)/2) ! dummy P
+
+!  local
+   integer  :: i,j,k,ish,ati,atj,ia,ib,jsh,lin
+   real(wp) :: hi,hj,vi,vj,eel,t8,r
+   real(wp) :: eps(ndim),xab(n*(n+1)/2)
+   logical  :: fail
+
+   k = 0
+   do i=1,n
+      hi = shell_cnf3(10,at(i)) + (cn(i)-avcn(at(i)))*shell_resp(10,at(i),1)
+      do j=1,i
+         k = k + 1
+         r = hi + shell_cnf3(10,at(j)) + (cn(j)-avcn(at(j)))*shell_resp(10,at(j),1)
+         t8= (rab(k)-r)/r
+         xab(k) = 0.5_wp*(1_wp+erf(-2_wp*t8)) 
+      enddo
+   enddo
+
+   k = 0
+   do i=1,ndim
+      ia = aoat(i)
+      ati= at(ia)
+      ish= shell2ao(i)
+      hi = stda_par1(ish,ati)
+      vi = stda_par2(ish,ati)
+      do j=1,i               
+         k  = k + 1
+         ib = aoat(j)
+         atj= at(ib)
+         jsh= shell2ao(j)
+         hj = stda_par1(jsh,atj)
+         vj = stda_par2(jsh,atj)
+         Hmat(k) = Hmat(k) + P(k)*(hi+hj) * xab(lin(ib,ia)) + S(k)*(vi+vj) 
+      enddo
+   enddo
+
+   close(42,status='delete')
+
+   call solve2(3,n,ndim,nel,nopen,homo,at,eT,focc,Hmat,S,dum,eps,eel,fail) 
+   if(fail) stop 'diag error stda'
+
+   if(cmo_ref(1,1).gt.-98.999d0) then
+      call momatch2(.true.,ndim,homo,S)
+!     call printmos(n,at,xyz,ndim,homo,norm,2d0) ! cut virt. > 2 Eh because very high lying gTB MOs are crap
+   endif
+
+
+end
+
