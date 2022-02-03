@@ -214,11 +214,9 @@ subroutine setupcbas0(n,at)
       cs(31:36)='1s2s2p3s3p3d'             !28
       cs(37:38)='1s2s2p3s3p3d4s4p'         !36
       cs(39:48)='1s2s2p3s3p3d'             !28
-      cs(49:54)='1s2s2p3s3p3d4s4p4d'       !46
-      cs(55:56)='1s2s2p3s3p3d4s4p4d5s5p'   !54
-      ! Ln                                      4f not included in core, i.e., max 12 core shells (13 with 4f)
-      cs(72:80)='1s2s2p3s3p3d4s4p4d'       !46  
-      cs(81:86)='1s2s2p3s3p3d4s4p4d5s5p5d' !64
+      cs(49:71)='1s2s2p3s3p3d4s4p4d'       !46
+      cs(72:80)='1s2s2p3s3p3d4s4p4d'       !60-14=46 (f-core neglected)
+      cs(81:86)='1s2s2p3s3p3d4s4p4d5s5p5d' !78-14=64    "       "
 
       do i=1,86
          call corestring(i,trim(cs(i))) ! set shells with n, l

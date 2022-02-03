@@ -1,4 +1,4 @@
-subroutine rdtm(n,ndim,homo,at,S,focc,ekin,dip,alp,P,rdref)
+subroutine rdtm(n,ndim,homo,at,S,focc,ekin,etot,dip,alp,P,rdref)
    use iso_fortran_env, only : wp => real64
    use mocom ! fit only
    implicit none
@@ -16,6 +16,7 @@ subroutine rdtm(n,ndim,homo,at,S,focc,ekin,dip,alp,P,rdref)
 !  Output
 !! ------------------------------------------------------------------------
    real(wp), intent(out)  :: ekin
+   real(wp), intent(out)  :: etot
    real(wp), intent(out)  :: dip(3)
    real(wp), intent(out)  :: alp(6)
    real(wp), intent(out)  :: P(ndim*(ndim+1)/2) ! exact P maxtrix in SAO
@@ -50,6 +51,11 @@ subroutine rdtm(n,ndim,homo,at,S,focc,ekin,dip,alp,P,rdref)
    if(.not.ex) return
    open(unit=10,file='control')
 25 read(10,'(a)',end=30) atmp
+   if(index(atmp,'subenergy').ne.0) then
+      read(10,'(a)',end=30) atmp
+      call readl(atmp,xx,nn)
+      if(nn.ge.3) etot=xx(1)
+   endif
    if(index(atmp,'dipole').ne.0) then
       read(10,'(a)',end=30) atmp
       call readl(atmp,xx,nn)
@@ -168,6 +174,93 @@ subroutine reordertm(nao,nat,at,stmp)
  
 !     call prmat(6,cmo_ref,nao,nao,'C')
 !     stop 'reorder2'
+
+end 
+
+!! ------------------------------------------------------------------------
+!  write TM mos
+!! ------------------------------------------------------------------------
+
+subroutine wr_tm_mos(nao,nat,at,nopen)
+      use bascom
+      implicit none          
+      integer, intent(in)  :: nao,nat,at(nat),nopen
+
+      integer i,j,ii,jj,ish,ijij,ij,lin
+      integer isao,iat,ishtyp,mli,iperm(nao),llao2(0:3)
+      data llao2/1,3,5,7 /
+      real*8,allocatable :: stmp(:,:), C(:,:), eps(:)
+
+      allocate(stmp(nao,nao),C(nao,nao),eps(nao))
+
+! permutation array 
+! order in TM (define, infsao option):
+! 1 -4 d0  = (-xx-yy+2zz)/sqrt(12) 
+! 2 -3 d1a = xz    
+! 3 -2 d1b = yz    
+! 4 -1 d2a = xy    
+! 5    d2b = (xx-yy)/2  
+      isao=0
+      do iat=1,nat
+         do ish=1,bas_nsh(at(iat))
+            ishtyp=bas_lsh(ish,at(iat))
+            do mli=1,llao2(ishtyp)
+               isao=isao+1
+               iperm(isao)=isao
+            enddo
+            if(llao2(ishtyp).eq.5)then
+                  iperm(isao-3 )=isao-4 ! dz2   2
+                  iperm(isao-4) =isao   ! dx2y2 1
+                  iperm(isao-2) =isao-1 ! dxy   3
+                  iperm(isao-1) =isao-3 ! dxz   4
+                  iperm(isao  ) =isao-2 ! dyz   5
+            endif
+         enddo
+      enddo
+!     open(unit=42,file='gtb_tmpmos',form='unformatted')
+      rewind 42
+      read(42) C
+      read(42) eps
+!     close(42)
+
+      do i=1,nao
+         ii=iperm(i)
+         stmp(ii,1:nao)=C(i,1:nao)
+      enddo
+
+      if(nopen.eq.0)then
+      open(unit=68,file='mos.tmp')
+      write(68,'(''$scfmo    scfconv=6   format(4d20.14)'')')
+      write(68,'(''# SCF total energy is    -9999.9999999999 a.u.'')')
+      write(68,'(''#'')')
+      do i=1,nao
+         write(68,'(i6,2x,''a      eigenvalue='',d20.14,''   nsaos='',i0)') i,eps(i),nao
+         write(68,'(4d20.14)') stmp(1:nao,i)
+      enddo
+      write(68,'(''$end'')')
+      close(68)
+      else
+      open(unit=68,file='alpha.tmp')
+      write(68,'(''$uhfmo_alpha   scfconv=6   format(4d20.14)'')')
+      write(68,'(''# SCF total energy is    -9999.9999999999 a.u.'')')
+      write(68,'(''#'')')
+      do i=1,nao
+         write(68,'(i6,2x,''a      eigenvalue='',d20.14,''   nsaos='',i0)') i,eps(i),nao
+         write(68,'(4d20.14)') stmp(1:nao,i)
+      enddo
+      write(68,'(''$end'')')
+      close(68)
+      open(unit=68,file='beta.tmp')
+      write(68,'(''$uhfmo_beta   scfconv=6   format(4d20.14)'')')
+      write(68,'(''# SCF total energy is    -9999.9999999999 a.u.'')')
+      write(68,'(''#'')')
+      do i=1,nao
+         write(68,'(i6,2x,''a      eigenvalue='',d20.14,''   nsaos='',i0)') i,eps(i),nao
+         write(68,'(4d20.14)') stmp(1:nao,i)
+      enddo
+      write(68,'(''$end'')')
+      close(68)
+      endif
 
 end 
 

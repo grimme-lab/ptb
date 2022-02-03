@@ -15,7 +15,7 @@ program gTB
       real(wp),allocatable :: xyz(:,:),rab(:),z(:), wbo(:,:), cn(:)
       real(wp),allocatable :: psh(:,:),q(:), psh_ref(:,:), q_ref(:), wbo_ref(:,:), qd4(:)
       real(wp),allocatable :: psh_gtb(:,:),q_gtb(:), wbo_gtb(:,:)
-      real(wp),allocatable :: S(:),T(:),P(:),SS(:),F(:),D3(:,:)
+      real(wp),allocatable :: S(:),T(:),P(:),SS(:),F(:),V(:),D3(:,:)
       real(wp),allocatable :: eps(:),focc(:),xnorm(:)
       real(wp),allocatable :: Pref(:)
       real(wp),allocatable :: fragchrg_eeq(:),fragchrg_ref(:),fragchrg(:)
@@ -31,6 +31,7 @@ program gTB
       integer nopen
       integer na,nb,nel,ihomo
       integer prop
+      integer, parameter :: nvecut = 0
       integer ia,ib,ish,jsh,ksh,ata,atb,ati
       integer ii,jj,ij,ll
       integer molcount,idum(100),tenmap(6)
@@ -39,7 +40,7 @@ program gTB
       real(wp) chrg ! could be fractional for model systems
 
       real(wp) t0,t1,w0,w1,t00,w00,ddot
-      real(wp) etot,eref,enuc,ekinref,ekin,eel
+      real(wp) etot,eref,enuc,ekinref,ekin,eel,eve,everef
       real(wp) norm,ff,f2,f1,x,y,qi,ge,r
       real(wp) dcal,dref,deeq,dang
       real(wp) a1,a2,s8
@@ -68,7 +69,7 @@ program gTB
       stda    =.false.
       acn     =.false.
       nogtb   =.false.
-      eref = 0
+      eref    = 0
       ekinref = 0
       prop = 1
       pnt  = 0
@@ -169,14 +170,14 @@ program gTB
          write(*,'(''.EFIELD :'',3f12.6)') efield  
       endif
       nopen=0
-!     inquire(file='.UHF',exist=ex)
-!     if(ex)then
-!        open(unit=1,file='.UHF')
-!        read(1,'(a)')atmp
-!        close(1)
-!        call readline(atmp,floats,str,ns,nf)
-!        nopen=int(floats(1))
-!     endif
+      inquire(file='.UHF',exist=ex)
+      if(ex)then
+         open(unit=1,file='.UHF')
+         read(1,'(a)')atmp
+         close(1)
+         call readline(atmp,floats,str,ns,nf)
+         nopen=int(floats(1))
+      endif
 
 ! how many atoms?
       call rd0(fname,n)
@@ -190,6 +191,7 @@ program gTB
 ! read coordinates
       call rd(.true.,fname,n,xyz,at)
       call calcrab(n,at,xyz,rab)
+      if(stda) call wr_control_atoms(n,at) ! control atoms block for e-gtb with TM
  
       if(acn)then
          avcn = 0
@@ -225,7 +227,7 @@ program gTB
       allocate(S(ndim*(ndim+1)/2),P(ndim*(ndim+1)/2), SS(ndim*(ndim+1)/2), &
      &         T(ndim*(ndim+1)/2),F(ndim*(ndim+1)/2), D3(ndim*(ndim+1)/2,3), &
      &         ML1(ndim,ndim),ML2(ndim,ndim), xnorm(ndim),focc(ndim),eps(ndim),&
-     &         epsref(ndim),Pref(ndim*(ndim+1)/2),cmo_ref(ndim,ndim))  
+     &         epsref(ndim),Pref(ndim*(ndim+1)/2),cmo_ref(ndim,ndim),V(ndim*(ndim+1)/2))  
 
 ! valence basis
       call setupbas (n,at,ndim)
@@ -237,13 +239,23 @@ program gTB
 
 ! determine occupations
       call occ(ndim,nel,nopen,ihomo,na,nb,focc)
+      write(*,*) 
+      write(*,*) 'nalpha ',na  
+      write(*,*) 'nbeta  ',nb  
+      write(*,*) 'ntotal ',na+nb
+      if(nopen.eq.0.and.na.ne.nb) nopen = na - nb ! case .UHF does not exist i.e. radical
+      write(*,*) 'nopen  ',nopen
       
 ! exact S and T
-      call stint(n,ndim,at,xyz,rab,S,T,xnorm)    
+      if(n.lt.nvecut)then
+      call stvint(n,ndim,at,xyz,rab,z,S,T,V,xnorm)
+      else
+      call stint (n,ndim,at,xyz,rab,S,T,xnorm)
+      endif
 
 ! read DFT reference
       pnt = 0
-      call rdtm(n,ndim,ihomo,at,S,focc,ekinref,dip_ref,alp_ref,Pref,rdref)
+      call rdtm(n,ndim,ihomo,at,S,focc,ekinref,eref,dip_ref,alp_ref,Pref,rdref)
       if(rdref.and.mod(nel,2).ne.0) stop 'open-shell DFT ref. not implemented'
 
       if(nogtb) then
@@ -283,21 +295,27 @@ include 'polgrad.f90'
      &          efield,qd4,ML1,ML2,psh,q,P,F,eps,eel,wbo,dip,alp) ! gd4 = EEQ to avoid recompute
       call energy(ndim,T,P,ekin) 
       write(*,'('' kinetic energy (calc/ref) :'',2f12.6)') ekin,ekinref
+      if(rdref.and.n.lt.nvecut)then
+      call energy(ndim,V,P,eve) 
+      call energy(ndim,V,Pref,everef) 
+      write(*,'('' Z/r pot energy (calc/ref) :'',2f12.6)') eve,everef  
+      endif
 
 ! ENERGY ONLY FROM P and q
       if(energ.and.(.not.stda)) then
-         call gtbenergy(.true.,n,ndim,at,z,xyz,rab,q,psh,P,wbo,eref,etot)
-         open(unit=12,file='.data')  
+!        call gtbenergy(.true.,n,ndim,at,z,xyz,rab,q,psh,P,wbo,eref,etot)
+!        open(unit=12,file='.data')  
 !        write(12,*) eref/float(n),etot/float(n)
-         write(12,*) eref,etot
-         close(12)
-         open(unit=111,file='energy')
-         write(111,'(''$energy'')')   
-         write(111,'('' 1      '',f16.8,''   99.9 99.9 99.9 99.9'')') etot
-         write(111,'(''$end'')')   
-         close(111)
+!        write(12,*) eref,etot
+!        close(12)
+!        open(unit=111,file='energy')
+!        write(111,'(''$energy'')')   
+!        write(111,'('' 1      '',f16.8,''   99.9 99.9 99.9 99.9'')') etot 
+!        write(111,'(''$end'')')   
+!        close(111)
          goto 9999
       endif
+
 ! BETA 
 !     if(prop.eq.3.or.ex)then
 !        prop=3
@@ -322,24 +340,18 @@ include 'polgrad.f90'
 !        enddo
 !     endif
 
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! OUTPUT
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !     compute NCI fragments (for artificial CT check)
       allocate(molvec(n))
       call mrec(molcount,xyz,n,at,molvec)
       allocate(fragchrg(molcount),fragchrg_eeq(molcount),fragchrg_ref(molcount))
-      fragchrg_ref=0
       fragchrg_eeq=0
       do i=1,n
-         fragchrg_ref(molvec(i))=fragchrg_ref(molvec(i))-q_ref(i)+z(i)
          fragchrg_eeq(molvec(i))=fragchrg_eeq(molvec(i))-q    (i)+z(i) 
       enddo
-      if(molcount.gt.1)then
-      write(*,*) 'CT ref',fragchrg_ref
-      write(*,*) 'CT cal',fragchrg_eeq
-      endif
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! OUTPUT
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
       write(*,'(/,''     ------  P-gTB results ------'')')
       write(*,'(''  # element  Z   pop.                shell populations'')')
       do i=1,n    
@@ -347,6 +359,7 @@ include 'polgrad.f90'
          floats(1:ns)=psh(1:ns,i)
          write(*,'(i3,5x,a2,f5.1,f8.4,5x,10f7.3,5x)') i,asym(at(i)),z(i),q(i),floats(1:ns)
       enddo
+      if(molcount.gt.1) write(*,*) 'CT cal',fragchrg_eeq
       call prwbo(n,at,wbo)
       call prdipole(dip)
       if(prop.eq.3) write(*,'(''polarizability computed with beta-parameterized response correction!'')')
@@ -370,6 +383,12 @@ include 'polgrad.f90'
          if(nogtb.and.i.eq.1) write(133,'(2i3,5x,a2,f8.4,5x,10f7.3)') i,at(i),asym(at(i)),z(i)-q_ref(i),floats(1:ns)
       enddo
       if(wrapo) stop
+
+      fragchrg_ref=0
+      do i=1,n
+         fragchrg_ref(molvec(i))=fragchrg_ref(molvec(i))-q_ref(i)+z(i)
+      enddo
+      if(molcount.gt.1) write(*,*) 'CT ref',fragchrg_ref
 
       call prwbo(n,at,wbo_ref)
       call prdipole(dip_ref) 
@@ -476,13 +495,15 @@ include 'polgrad.f90'
       open(unit=12,file='.data')  
       if((.not.betaref).and.(.not.stda))then
 ! Ekin
-      if(abs(ekinref) .gt.1d-8) write(12,'(2F28.14,1x,a)') 0.3d0*ekinref,0.3d0*ekin    
+      if(abs(ekinref) .gt.1d-8) write(12,'(2F28.14,1x,a)') 1d0*ekinref,1d0*ekin !,atmp
+! Ven
+      if(n.lt.nvecut) write(12,'(2F28.14,1x,a)') 0.5d0*everef,0.5d0*eve
 ! momatch
       if(abs(totmatch).gt.1d-8) write(12,'(2F28.14,1x,a)') zero, 0.04d0*totmatch 
 ! psh
       do i=1,n
          do j=1,bas_nsh(at(i))
-            write(12,'(2F28.14,1x,a)') psh_ref(j,i),psh(j,i) !,trim(atmp)
+            write(12,'(2F28.14,1x,a)') 0.9*psh_ref(j,i),0.9*psh(j,i) !,trim(atmp)
          enddo
       enddo
 ! mu
@@ -491,7 +512,7 @@ include 'polgrad.f90'
          write(12,'(2F28.14,1x,a)') f2*dip_ref(i),f2*dip(i) !,trim(atmp)
       enddo
 ! wbo
-      f2=0.25 ! 0.25=10 % HCNO
+      f2=0.20 ! 0.25=10 % HCNO
       do i=2,n
          do j=1,i-1 
             if(abs(wbo_ref(j,i)).gt.0.01) write(12,'(2F28.14,1x,a)') wbo_ref(j,i)*f2, wbo(j,i)*f2 !,trim(atmp)

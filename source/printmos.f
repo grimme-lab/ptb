@@ -44,7 +44,6 @@ ccccccccccccccccccccccccccccccccccccccccccc
       rewind(42)
       read(42) tmp
       read(42) eval
-      close(42,status='delete')
       
       Do i=1,nmo 
          tmp(i,:)=tmp(i,:)*norm(i)

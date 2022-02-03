@@ -18,7 +18,8 @@ module parcom
       real(wp) shell_resp(10,86,2)
 
 !     real(wp),parameter :: mull_loew14 = 0.1666666667_wp ! Mulliken-Loewdin mixing factor (0=M, 0.5=L)
-      real(wp),parameter :: mull_loew14 = 0.2500000000_wp ! Mulliken-Loewdin mixing factor (0=M, 0.5=L)
+!     real(wp),parameter :: mull_loew14 = 0.2500000000_wp ! Mulliken-Loewdin mixing factor (0=M, 0.5=L)
+      real(wp),parameter :: mull_loew14 = 0.3333333333_wp ! Mulliken-Loewdin mixing factor (0=M, 0.5=L)
                                                           ! was 1/4 for quite some time
 
 end module parcom       

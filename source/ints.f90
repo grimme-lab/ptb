@@ -376,7 +376,7 @@ subroutine stvint(nat,nao,at,xyz,rab,z,s,t,v,norm)
       real*8, parameter :: PI = 2.0d0/3.1415926535897932384626433832795029d0
       real*8, parameter :: PI2= 2.0d0/PI
 
-      intcut=20. ! agressive cut-off
+      intcut=25. ! agressive cut-off
       
       s =0.0d0
       t =0.0d0

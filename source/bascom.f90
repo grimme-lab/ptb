@@ -6,7 +6,7 @@ module bascom
 
       integer  ncao, nsao, npr, nsh
       integer  bas_nsh(86) 
-      real(wp) bas_ec(2,6,10,86)  ! read data: exp/contr,max contr,max shells,elements
+      real(wp) bas_ec(2,5,10,86)  ! read data: exp/contr,max contr,max shells,elements
       integer  bas_lsh (10,86) 
       integer  bas_npr (10,86)
 

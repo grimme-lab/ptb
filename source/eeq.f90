@@ -1,4 +1,4 @@
-subroutine eeq(n,at,rab,chrg,cn,scal,q)
+subroutine eeq(n,at,rab,chrg,cn,orig,scal,q)
       use iso_fortran_env, id => output_unit, wp => real64
       implicit none
       integer, intent(in)  :: n            ! number of atoms     
@@ -6,6 +6,7 @@ subroutine eeq(n,at,rab,chrg,cn,scal,q)
       real(wp),intent(in)  :: rab(n*(n+1)/2)   ! dist
       real(wp),intent(in)  :: chrg         ! total charge on system
       real(wp),intent(in)  :: cn(n)        ! CN                       
+      logical ,intent(in)  :: orig         ! logical. if true use original eeq model
       real(wp),intent(in)  :: scal(86)     ! scale orig xi parameters         
       real(wp),intent(out) :: q(n)         ! output charges
 
@@ -103,10 +104,17 @@ subroutine eeq(n,at,rab,chrg,cn,scal,q)
 
       allocate(A(m,m),x(m),work(m*m),ipiv(m),alp(n))
 !  setup RHS
+      if(orig)then
+      do i=1,n
+         x(i) =-chieeq(at(i))               + cnfeeq(at(i))*sqrt(cn(i))
+       alp(i) = alpeeq(at(i)) 
+      enddo
+      else
       do i=1,n
          x(i) =-chieeq(at(i)) * scal(at(i)) + cnfeeq(at(i))*sqrt(cn(i))
        alp(i) = alpeeq(at(i)) 
       enddo
+      endif
 
       A = 0
 !  setup A matrix  

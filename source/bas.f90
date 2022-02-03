@@ -244,10 +244,11 @@ subroutine rdbas
          call readl(atmp,xx,nn)
          if(nn.eq.1)then
             np = idint(xx(1))
+            if(np.gt.5) stop 'contraction > 5 (recompile -> bascom.f90)'
             if(index(atmp,'s').ne.0) l=0         
             if(index(atmp,'p').ne.0) l=1         
             if(index(atmp,'d').ne.0) l=2         
-            if(index(atmp,'f').ne.0) stop 'lmax = f'
+            if(index(atmp,'f').ne.0) l=3                
             if(index(atmp,'g').ne.0) stop 'lmax = f'
             bas_nsh(iat)=bas_nsh(iat)+1
             bas_lsh(bas_nsh(iat),iat)=l           

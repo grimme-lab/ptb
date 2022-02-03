@@ -147,7 +147,7 @@ subroutine pgtb(pr,prop,n,ndim,nel,nopen,homo,at,chrg,xyz,z,rab, &
    call eeq(n,at,rab,chrg,cnorg,.true. ,shell_cnf1(9,:),qeeq_org)!  orig EEQ
 
    if(pr)then
-   write(*,'(''EEQ done. sum q : '',f8.3,i5)') sum(qeeq)
+   write(*,'(''EEQ done. sum q : '',f8.3)') sum(qeeq)
    write(*,'(''    atom   Zeff    EEQ charge    srCN     noHCN      eeqCN'')')
    do i=1,n
        write(*,'(2i5,f5.1,6f8.3)') i,at(i),z(i),qeeq(i),qeeq_org(i),cns(i),cn(i),cnorg(i)
@@ -218,7 +218,7 @@ subroutine pgtb(pr,prop,n,ndim,nel,nopen,homo,at,chrg,xyz,z,rab, &
    if(prop.eq.4) then
 !     call stda(n,ndim,nel,nopen,homo,at,xyz,rab,cn,eT,focc,norm,S,P,Htmp,Vecp) ! Vecp is dummy
       call printmos(n,at,xyz,ndim,homo,norm,2d0) ! cut virt. > 2 Eh because very high lying gTB MOs are crap
-      call wr_tm_mos(ndim,n,at,nopen)
+      call wr_tm_mos(ndim,n,at)
       close(42,status='delete') ! mos not used anymore
    endif
 !  if(prop.ge.0) close(42,status='delete')
