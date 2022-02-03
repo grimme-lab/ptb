@@ -222,20 +222,30 @@ end
 !! ------------------------------------------------------------------------
 !! ------------------------------------------------------------------------
 
-subroutine rdbas
+subroutine rdbas(fname)
       use bascom
       implicit none
 
+      character(len=*), intent(in) :: fname
       character*80 atmp
       integer nn,i,iat,np,l
       real*8 xx(10)
+      logical :: ex
 
       bas_nsh = 0
       bas_lsh = 0
       bas_npr = 0
       bas_ec  = 0
 
-      open(unit=44,file='~/.basis_vDZP')
+      ! open(unit=44,file='~/.basis_vDZP')
+      inquire(file=fname, exist=ex)
+      if (.not.ex) then
+         print '(a)', "Error: Cannot find basis set file '"//trim(fname)//"'.", &
+            & "Provide basis file or specify location with -bas option."
+         error stop
+      end if
+      open(unit=44,file=fname)
+
  10   read(44,'(a)',end=20) atmp
       if(index(atmp,'*').ne.0) then        
          read(44,*) iat             

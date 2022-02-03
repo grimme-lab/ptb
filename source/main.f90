@@ -52,7 +52,7 @@ program gTB
       real(wp),parameter :: zero = 0_wp
       character*2 asym
       character*80 str(10)
-      character*80 atmp,arg1,fname,pname
+      character*80 atmp,arg1,fname,pname,bname
       logical ex,fail,wrapo,test,test2,exref,dgrad,fdgr,raman,betaref,energ,stda,acn,rdref,nogtb
       integer TID, OMP_GET_NUM_THREADS, OMP_GET_THREAD_NUM, nproc
 
@@ -76,6 +76,7 @@ program gTB
       chrg = 0
       alp_ref(1)=-99
       pname='~/.atompara'
+      bname="~/.basis_vDZP"
 
 !!$OMP PARALLEL PRIVATE(TID)
 !      TID = OMP_GET_THREAD_NUM()
@@ -93,6 +94,22 @@ program gTB
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! input options
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      do i = 1, command_argument_count()
+         call getarg(i, arg1)
+         select case(trim(arg1))
+         case('-help')
+            call help
+            stop
+         case('-version')
+            call head
+            stop
+         end select
+      end do
+
+      if (command_argument_count() == 0) then
+         call help
+         error stop
+      end if
 
       call head
       call getarg(1,fname)
@@ -111,6 +128,9 @@ program gTB
       if(index(arg1,'-par').ne.0)then          
       call getarg(i+1,pname)
       endif
+      if(index(arg1,'-bas').ne.0)then
+      call getarg(i+1,bname)
+      endif
       if(index(arg1,'-chrg').ne.0)then          
       call getarg(i+1,atmp)
       call readline(atmp,floats,str,ns,nf)
@@ -121,6 +141,13 @@ program gTB
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! read parameter file
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+      inquire(file=pname,exist=ex)
+      if (.not.ex) then
+         print '(a)', "Error: Cannot find parameter file '"//trim(pname)//"'.", &
+            & "Provide parameter file or specify location with -par option."
+         error stop
+      end if
 
       write(*,*) pname
       open(unit=1,file=pname)            
@@ -220,7 +247,7 @@ program gTB
       nel=int(sum(z))-int(chrg)
 
       ndim=0
-      call rdbas                      ! file: ~/.basis_vDZP
+      call rdbas(bname)                      ! file: ~/.basis_vDZP
       write(*,*) 'basis read done.'
       call setupbas0(n,at,ndim)   
 
@@ -588,6 +615,33 @@ end
 
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+subroutine help
+      use, intrinsic :: iso_fortran_env, only : output_unit
+      implicit none
+      write(output_unit, '(a)') &
+         "Usage: gtb <input> [options]...", &
+         "", &
+         "Geometry input must be given with the first argument.", &
+         "Accepted formats are Turbomole coord and xyz format.", &
+         "", &
+         "Options:", &
+         "", &
+         "-chrg <int>        specify systems total charge", &
+         "-avcn              just calculate coordination numbers", &
+         "-apo               just printout shell pop for testing", &
+         "-polar/-alpha      calculate polarizibility", &
+         "-hyperpolar/-beta  calculate hyperpolarizibility", &
+         !"-energy            evaluate (electronic) energy", &
+         "-stda              output stda compatible format", &
+         "-nogtb             skip gTB calculation", &
+         "-par <file>        read parameters from provided file", &
+         "-bas <file>        read basis set from provided file", &
+         "-test              more printout for testing and debugging", &
+         "-version           print version header and exit", &
+         "-help              show this help message", &
+         ""
+end subroutine help
 
 
 subroutine head
