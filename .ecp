@@ -1074,6 +1074,7 @@ f-g
 -36.010016 2  4.028600
 *
 # ce T. Cundari, W. Stevens, JCP, 98, 7, 5555-5565
+*
 58 
   ncore =    46           lmax =     3
 f
@@ -1092,6 +1093,7 @@ d-f
           10.2861440    0           6.4893374
 *
 # pr T. Cundari, W. Stevens, JCP, 98, 7, 5555-5565
+*
 59
   ncore =    46           lmax =     3
 f
@@ -1110,6 +1112,7 @@ d-f
            9.8739121    0           6.5480515
 *
 # nd T. Cundari, W. Stevens, JCP, 98, 7, 5555-5565
+*
 60
   ncore =    46           lmax =     3
 f
@@ -1128,6 +1131,7 @@ d-f
            9.6174105    0           6.6436655
 *
 # pm T. Cundari, W. Stevens, JCP, 98, 7, 5555-5565
+*
 61
   ncore =    46           lmax =     3
 f
@@ -1146,6 +1150,7 @@ d-f
            9.2809058    0           6.6732942
 *
 # sm T. Cundari, W. Stevens, JCP, 98, 7, 5555-5565
+*
 62
   ncore =    46           lmax =     3
 f
@@ -1164,6 +1169,7 @@ d-f
            9.0371770    0           6.7128890
 *
 # eu T. Cundari, W. Stevens, JCP, 98, 7, 5555-5565
+*
 63
   ncore =    46           lmax =     3
 f
@@ -1182,6 +1188,7 @@ d-f
            8.7412269    0           6.6937973
 *
 # gd T. Cundari, W. Stevens, JCP, 98, 7, 5555-5565
+*
 64
   ncore =    46           lmax =     3
 f
@@ -1200,6 +1207,7 @@ d-f
            8.3450729    0           6.4306437
 *
 # tb T. Cundari, W. Stevens, JCP, 98, 7, 5555-5565
+*
 65
   ncore =    46           lmax =     3
 f
@@ -1218,6 +1226,7 @@ d-f
            8.2233626    0           6.5931180
 *
 # dy T. Cundari, W. Stevens, JCP, 98, 7, 5555-5565
+*
 66
   ncore =    46           lmax =     3
 f
@@ -1236,6 +1245,7 @@ d-f
            7.9802314    0           6.4958825
 *
 # ho T. Cundari, W. Stevens, JCP, 98, 7, 5555-5565
+*
 67
   ncore =    46           lmax =     3
 f
@@ -1254,6 +1264,7 @@ d-f
            7.7300492    0           6.3510091
 *
 # er T. Cundari, W. Stevens, JCP, 98, 7, 5555-5565
+*
 68
   ncore =    46           lmax =     3
 f
@@ -1272,6 +1283,7 @@ d-f
            7.4886891    0           6.1656407
 *
 # tm T. Cundari, W. Stevens, JCP, 98, 7, 5555-5565
+*
 69
   ncore =    46           lmax =     3
 f
@@ -1290,6 +1302,7 @@ d-f
            7.2335009    0           5.8942635
 *
 # yb T. Cundari, W. Stevens, JCP, 98, 7, 5555-5565
+*
 70
   ncore =    46           lmax =     3
 f
@@ -1308,6 +1321,7 @@ d-f
            7.2748623    0           6.2642419
 *
 # lu T. Cundari, W. Stevens, JCP, 98, 7, 5555-5565
+*
 71
   ncore =    46           lmax =     3
 f
