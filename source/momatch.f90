@@ -3,6 +3,7 @@
 !! ------------------------------------------------------------------------
 subroutine momatch(pr,ndim,nocc,nvirt,S)
       use mocom  
+      use gtb_la, only : la_gemm, la_symm
       implicit none          
       logical, intent(in)  :: pr                
       integer, intent(in)  :: ndim,nocc,nvirt
@@ -27,8 +28,8 @@ subroutine momatch(pr,ndim,nocc,nvirt,S)
       read  (42) e  !  "  eigenvalues, DFT on epsref   "   2
 
       call blowsym(ndim,S,SS)
-      CALL dsymm('L','L',ndim,ndim,1.D0,SS,ndim,C,ndim,0.D0,C2,ndim)  
-      call DGEMM('T','N',ndim,ndim,ndim,1.0d0,cmo_ref,ndim,C2,ndim,0.0d0,SS,ndim)
+      CALL la_symm('L','L',ndim,ndim,1.D0,SS,ndim,C,ndim,0.D0,C2,ndim)  
+      call la_gemm('T','N',ndim,ndim,ndim,1.0d0,cmo_ref,ndim,C2,ndim,0.0d0,SS,ndim)
 
       homo_ref=epsref(nocc)
       totmatch = 0

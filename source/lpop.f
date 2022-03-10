@@ -2,6 +2,7 @@
 ! Loewdin population analysis
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
       subroutine lpop(n, nao, p, s, q, qsh)
+      use gtb_la, only : la_gemm, la_syev
       use bascom
       implicit none             
       integer n, nao
@@ -21,7 +22,7 @@
 
       call blowsym(nao,S,vecs)
 
-      call dsyev ('V','U',nao,vecs,nao,e,aux,lwork,info)
+      call la_syev ('V','U',nao,vecs,nao,e,aux,lwork,info)
       
       if(e(1).le.0.or.info.ne.0) stop 'sorry, must stop in S^1/2!'
 
@@ -36,16 +37,16 @@
          enddo
       enddo
 
-      call dgemm('N','T',nao,nao,nao,1.0d0,x,        ! vecs = S^1/2
-     .                   nao,cc,nao,0.0d0,vecs,nao)
+      call la_gemm('N','T',nao,nao,nao,1.0d0,x,        ! vecs = S^1/2
+     .               nao,cc,nao,0.0d0,vecs,nao)
 
       call blowsym(nao,P,x)
 
-      call dgemm('N','N',nao,nao,nao,1.0d0,x,        ! cc=P*S^1/2
-     .                   nao,vecs,nao,0.0d0,cc,nao)
+      call la_gemm('N','N',nao,nao,nao,1.0d0,x,        ! cc=P*S^1/2
+     .               nao,vecs,nao,0.0d0,cc,nao)
 
-      call dgemm('N','N',nao,nao,nao,1.0d0,vecs,     ! PL=S^1/2*cc  
-     .                   nao,cc,nao,0.0d0,x,nao)
+      call basl_gemm('N','N',nao,nao,nao,1.0d0,vecs,     ! PL=S^1/2*cc  
+     .               nao,cc,nao,0.0d0,x,nao)
 
 !     call prmat(6,x,nao,nao,'PL')
 

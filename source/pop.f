@@ -103,6 +103,7 @@ cccccccccccccccccccccccccccccccccccccccccccccc
 
       subroutine wiberg(n,ndim,at,rab,P,S,wbo)
       use bascom
+      use gtb_la, only : la_gemm
       implicit none
       integer n,ndim,at(n)
       real*8 rab(n*(n+1)/2)
@@ -123,8 +124,8 @@ cccccccccccccccccccccccccccccccccccccccccccccc
 
       call blowsym(ndim,P,pi)
       call blowsym(ndim,S,si)
-      call DGEMM('N','N',ndim,ndim,ndim,1.0d0,pi,
-     .                   ndim,si,ndim,0.0d0,Ptmp,ndim)
+      call la_gemm('N','N',ndim,ndim,ndim,1.0d0,pi,
+     .               ndim,si,ndim,0.0d0,Ptmp,ndim)
 
       m = 1     
       do i=1,n 

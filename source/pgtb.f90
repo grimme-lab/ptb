@@ -9,7 +9,7 @@
 !! ------------------------------------------------------------------------
 ! CPU  profiling yields: 50 % for 2 Eigensolves, 
 !                        25 % for ML-matrix Eigensolve and setup
-!                        25 % for 5 Dgemm (Dmat, Vpauli, pops)
+!                        25 % for 5 gemm (Dmat, Vpauli, pops)
 !                        non-linalg is < 5 %
 !! ------------------------------------------------------------------------
 !        read(1,*) shell_xi  (1:10,j)    ! 71-80  
@@ -510,6 +510,7 @@ end
 subroutine calcpauli1(n,nao,at,z,q,S,Hdiag,Hmat)
       use  bascom
       use  parcom
+      use gtb_la, only : la_symm
       implicit none          
       integer, intent(in)   :: nao,n,at(n)
       real*8,  intent(in)   :: z(n),q(n)
@@ -546,8 +547,8 @@ subroutine calcpauli1(n,nao,at,z,q,S,Hdiag,Hmat)
       enddo
 
 !     N^3 step
-!     call SGEMM('N','N',nao,nao,nao,1.0e0,sdum,nao,stmp,nao,0.0e0,xtmp,nao)
-      call ssymm('L','L',nao,nao,1e0,sdum,nao,stmp,nao,0e0,xtmp,nao)   
+!     call la_gemm('N','N',nao,nao,nao,1.0e0,sdum,nao,stmp,nao,0.0e0,xtmp,nao)
+      call la_symm('L','L',nao,nao,1e0,sdum,nao,stmp,nao,0e0,xtmp,nao)   
 
       k = 0 
       do i=1, nao 
@@ -566,6 +567,7 @@ subroutine calcpauli1(n,nao,at,z,q,S,Hdiag,Hmat)
 subroutine calcpauli2(n,nao,at,psh,S,Hdiag,Hmat)
       use  bascom
       use  parcom
+      use gtb_la, only : la_gemm, la_symm
       implicit none          
       integer, intent(in)   :: nao,n,at(n)
       real*8,  intent(in)   :: psh(10,n)
@@ -601,8 +603,8 @@ subroutine calcpauli2(n,nao,at,psh,S,Hdiag,Hmat)
       enddo
 
 !     N^3 step
-!     call SGEMM('N','N',nao,nao,nao,1.0e0,sdum,nao,stmp,nao,0.0e0,xtmp,nao)
-      call ssymm('L','L',nao,nao,1e0,sdum,nao,stmp,nao,0e0,xtmp,nao)   
+!     call la_gemm('N','N',nao,nao,nao,1.0e0,sdum,nao,stmp,nao,0.0e0,xtmp,nao)
+      call la_symm('L','L',nao,nao,1.0e0,sdum,nao,stmp,nao,0.0e0,xtmp,nao)   
 
       k = 0 
       do i=1, nao 
@@ -957,6 +959,7 @@ End
 subroutine solve2(mode,n,ndim,nel,nopen,homo,at,et,focc,H,S,P,e,eel,fail)
       use parcom
       use bascom, only: nsh
+      use gtb_la, only : la_sygvx, la_sygvd
       implicit none
       integer mode,n,ndim,nel,nopen,homo
       integer at(n)
@@ -991,25 +994,25 @@ subroutine solve2(mode,n,ndim,nel,nopen,homo,at,et,focc,H,S,P,e,eel,fail)
       if(iu.eq.ndim) then                  
 ! full diag (faster if all eigenvalues are taken)
        allocate (work(1),iwork(1))
-       call dsygvd(1,'V','U',ndim,hdum,ndim,sdum,ndim,e,work,-1,IWORK,LIWORK,INFO)
+       call la_sygvd(1,'V','U',ndim,hdum,ndim,sdum,ndim,e,work,-1,IWORK,LIWORK,INFO)
        lwork=int(work(1))
        liwork=iwork(1)
        deallocate(work,iwork)
        allocate (work(lwork),iwork(liwork)) 
-       call dsygvd(1,'V','U',ndim,hdum,ndim,sdum,ndim,e,work,LWORK,IWORK,LIWORK,INFO)
+       call la_sygvd(1,'V','U',ndim,hdum,ndim,sdum,ndim,e,work,LWORK,IWORK,LIWORK,INFO)
        D = hdum
       else
 ! for a large basis, taking only the occ.+few virt eigenvalues is faster than a full diag
        allocate(iwork(5*ndim),ifail(ndim),work(1))
-       call dsygvx(1,'V','I','U',ndim, hdum, ndim, sdum, ndim, ga, gb, &
-     &            1, IU, 1d-7, ij, e, D, ndim, WORK, -1, IWORK, &
-     &            IFAIL, INFO )
+       call la_sygvx(1,'V','I','U',ndim, hdum, ndim, sdum, ndim, ga, gb, &
+     &               1, IU, 1d-7, ij, e, D, ndim, WORK, -1, IWORK, &
+     &              IFAIL, INFO )
        lwork=idint(work(1))
        deallocate(work)
        allocate(work(lwork))          
-       call dsygvx(1,'V','I','U',ndim, hdum, ndim, sdum, ndim, ga, gb, &
-     &            1, IU, 1d-7, ij, e, D, ndim, WORK, LWORK, IWORK, &
-     &            IFAIL, INFO )
+       call la_sygvx(1,'V','I','U',ndim, hdum, ndim, sdum, ndim, ga, gb, &
+     &               1, IU, 1d-7, ij, e, D, ndim, WORK, LWORK, IWORK, &
+     &               IFAIL, INFO )
        do i=iu+1,ndim     
          e(i)=10d0
          D(1:ndim,i)=0d0
@@ -1066,6 +1069,7 @@ subroutine onescf(n,ndim,nel,nopen,homo,at,rab,cn,S,SS,Hmat,Hdiag,focc,&
    use bascom
    use parcom
    use com
+   use gtb_la, only : la_gemm, la_symm
    implicit none 
 !! ------------------------------------------------------------------------
 !  Input
@@ -1192,6 +1196,7 @@ end
 
 subroutine momatch(pr,ex,ndim,nocc,nvirt,S)
       use mocom  
+      use gtb_la, only : la_symm, la_gemm
       implicit none          
       logical, intent(in)  :: pr,ex
       integer, intent(in)  :: ndim,nocc,nvirt
@@ -1223,8 +1228,8 @@ subroutine momatch(pr,ex,ndim,nocc,nvirt,S)
       read  (42) e  !  "  eigenvalues, DFT on epsref   "   2
 
       call blowsym(ndim,S,SS)
-      CALL dsymm('L','L',ndim,ndim,1.D0,SS,ndim,C,ndim,0.D0,C2,ndim)  
-      call DGEMM('T','N',ndim,ndim,ndim,1.0d0,cmo_ref,ndim,C2,ndim,0.0d0,SS,ndim)
+      CALL la_symm('L','L',ndim,ndim,1.D0,SS,ndim,C,ndim,0.D0,C2,ndim)  
+      call la_gemm('T','N',ndim,ndim,ndim,1.0d0,cmo_ref,ndim,C2,ndim,0.0d0,SS,ndim)
 
       homo_ref=epsref(nocc)
       totmatch = 0

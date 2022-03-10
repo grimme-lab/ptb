@@ -4,6 +4,7 @@
 !ccccccccccccccccccccccccccccccccccccccccccccc
 
 subroutine fpcom(ndim,S,F,P)
+      use gtb_la, only : la_gemm
       implicit none
       integer ndim
       real*8 S(ndim*(ndim+1)/2)
@@ -23,10 +24,10 @@ subroutine fpcom(ndim,S,F,P)
       call blowsym(ndim,F,Fdum)
       call blowsym(ndim,P,Pdum)
 
-      call DGEMM('N','N',ndim,ndim,ndim,1.0d0,Pdum,ndim,Fdum,ndim,0.0d0,PF,ndim)
-      call DGEMM('N','N',ndim,ndim,ndim,1.0d0,Pdum,ndim,Sdum,ndim,0.0d0,PS,ndim)
-      call DGEMM('N','N',ndim,ndim,ndim,1.0d0,Fdum,ndim,PS  ,ndim,0.0d0,FP  ,ndim)
-      call DGEMM('N','N',ndim,ndim,ndim,1.0d0,Sdum,ndim,PF  ,ndim,0.0d0,Pdum,ndim)
+      call la_gemm('N','N',ndim,ndim,ndim,1.0d0,Pdum,ndim,Fdum,ndim,0.0d0,PF,ndim)
+      call la_gemm('N','N',ndim,ndim,ndim,1.0d0,Pdum,ndim,Sdum,ndim,0.0d0,PS,ndim)
+      call la_gemm('N','N',ndim,ndim,ndim,1.0d0,Fdum,ndim,PS  ,ndim,0.0d0,FP  ,ndim)
+      call la_gemm('N','N',ndim,ndim,ndim,1.0d0,Sdum,ndim,PF  ,ndim,0.0d0,Pdum,ndim)
 
       tr  =0
       norm=0

@@ -7,6 +7,7 @@ subroutine calcvecp(n,nao,at,xyz,rab,norm,v)
       use cbascom
       use  bascom
       use  parcom
+      use gtb_la, only : la_gemm
       implicit none          
       integer, intent(in)   :: nao,n,at(n)
       real*8,  intent(in)   :: xyz(3,n)
@@ -43,7 +44,7 @@ subroutine calcvecp(n,nao,at,xyz,rab,norm,v)
       enddo
 
 !     N^3 step
-      call DGEMM('T','N',nao,nao,cnsao,1.0d0,Scv,cnsao,stmp,cnsao,0.0d0,xtmp,nao)
+      call la_gemm('T','N',nao,nao,cnsao,1.0d0,Scv,cnsao,stmp,cnsao,0.0d0,xtmp,nao)
       k = 0 
       do i=1, nao 
          do j=1, i

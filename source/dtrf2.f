@@ -1,22 +1,10 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
       subroutine dtrf2(s,li,lj)
+      use gtb_la, only : la_gemm
       implicit none
       real*8, intent(inout) :: s(6,6)
       integer,intent(in)    :: li,lj
-      interface
-         SUBROUTINE DGEMM(TRANSA,TRANSB,M,N,K,ALPHA,A,LDA,
-     .                    B,LDB,BETA,C,LDC)
-         INTENT(IN) ALPHA,BETA,K,LDA,LDB,LDC,M,N,TRANSA,TRANSB,A,B
-         INTENT(INOUT) C
-*     .. Scalar Arguments ..
-         DOUBLE PRECISION ALPHA,BETA
-         INTEGER K,LDA,LDB,LDC,M,N
-         CHARACTER TRANSA,TRANSB
-*     .. Array Arguments ..
-         DOUBLE PRECISION A(lda,*),B(ldb,*),C(ldc,*)
-         END SUBROUTINE DGEMM
-      end interface
 c CAO-AO transformation
       real*8 :: trafo(6,6)
       parameter (trafo = reshape((/ ! copied from scf.f, simplyfied
@@ -95,9 +83,9 @@ c --- rest
          return
       end select
 !     if not returned up to here -> d-d
-! CB: transposing s in first dgemm is important for integrals other than S
-      CALL DGEMM('T','N',6,6,6,1.D0,s,6,trafo,6,0.D0,dum,6)
-      CALL DGEMM('T','N',6,6,6,1.D0,dum,6,trafo,6,0.D0,s2,6)
+! CB: transposing s in first gemm is important for integrals other than S
+      CALL la_gemm('T','N',6,6,6,1.D0,s,6,trafo,6,0.D0,dum,6)
+      CALL la_gemm('T','N',6,6,6,1.D0,dum,6,trafo,6,0.D0,s2,6)
       s(1:5,1:5) = s2(2:6,2:6)
       return
 
