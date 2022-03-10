@@ -4,6 +4,7 @@
       subroutine mlpop(n, nao, p, s, q, qsh)
       use bascom
       use parcom, only: mull_loew14
+      use gtb_la, only : la_gemm, la_syev
       implicit none             
       integer n, nao
       real*8 s (nao*(nao+1)/2)   ! overlap
@@ -27,11 +28,11 @@
 
       allocate (aux(1))
       lwork=-1
-      call dsyev ('V','U',nao,vecs,nao,e,aux,lwork,info)
+      call la_syev ('V','U',nao,vecs,nao,e,aux,lwork,info)
       lwork=idint(aux(1))
       deallocate(aux)
       allocate (aux(lwork))
-      call dsyev ('V','U',nao,vecs,nao,e,aux,lwork,info)
+      call la_syev ('V','U',nao,vecs,nao,e,aux,lwork,info)
       
       if(e(1).le.0.or.info.ne.0) stop 'sorry, must stop in mlpop!'
 
@@ -45,23 +46,23 @@
             cc(i,m)=e1(m)*vecs(i,m)  
          enddo
       enddo
-      call dgemm('N','T',nao,nao,nao,1.0d0,vecs,     ! vecs = S^1/2
-     .                   nao,cc,nao,0.0d0,s1,nao)
+      call la_gemm('N','T',nao,nao,nao,1.0d0,vecs,     ! vecs = S^1/2
+     .               nao,cc,nao,0.0d0,s1,nao)
       do m=1,nao 
          do i=1,nao
             cc(i,m)=e2(m)*vecs(i,m)  
          enddo
       enddo
-      call dgemm('N','T',nao,nao,nao,1.0d0,vecs,     ! vecs = S^1/2
-     .                   nao,cc,nao,0.0d0,s2,nao)
+      call la_gemm('N','T',nao,nao,nao,1.0d0,vecs,     ! vecs = S^1/2
+     .               nao,cc,nao,0.0d0,s2,nao)
 
       call blowsym(nao,P,x)
 
-      call dgemm('N','N',nao,nao,nao,1.0d0,x,      ! cc=P*S^1/2
-     .                   nao,s1,nao,0.0d0,cc,nao)
+      call la_gemm('N','N',nao,nao,nao,1.0d0,x,      ! cc=P*S^1/2
+     .               nao,s1,nao,0.0d0,cc,nao)
 
-      call dgemm('N','N',nao,nao,nao,1.0d0,s2,     ! PL=S^1/2*cc  
-     .                   nao,cc,nao,0.0d0,x,nao)
+      call la_gemm('N','N',nao,nao,nao,1.0d0,s2,     ! PL=S^1/2*cc  
+     .               nao,cc,nao,0.0d0,x,nao)
 
 !     call prmat(6,x,nao,nao,'PL')
 
@@ -84,6 +85,7 @@
 
       subroutine mlpop1(nao, s, s34, s14)
       use parcom, only: mull_loew14
+      use gtb_la, only : la_gemm, la_syev
       implicit none             
       integer nao
       real*8 s (nao*(nao+1)/2)   ! overlap
@@ -103,11 +105,11 @@
 
       allocate(aux(1))
       lwork=-1
-      call dsyev ('V','U',nao,X,nao,e,aux,lwork,info)
+      call la_syev ('V','U',nao,X,nao,e,aux,lwork,info)
       lwork=idint(aux(1))
       deallocate(aux)
       allocate (aux(lwork))
-      call dsyev ('V','U',nao,X,nao,e,aux,lwork,info)
+      call la_syev ('V','U',nao,X,nao,e,aux,lwork,info)
 
       do i=1,nao
          e1(i)=e(i)**(1d0-mull_loew14)
@@ -119,15 +121,15 @@
             cc(i,m)=X(i,m) * e1(m)
          enddo
       enddo
-      call dgemm('N','T',nao,nao,nao,1.0d0,X,     ! = S^3/4
-     .                   nao,cc,nao, 0.0d0,s34,nao)
+      call la_gemm('N','T',nao,nao,nao,1.0d0,X,     ! = S^3/4
+     .               nao,cc,nao, 0.0d0,s34,nao)
       do m=1,nao 
          do i=1,nao
             cc(i,m)=X(i,m) * e2(m)
          enddo
       enddo
-      call dgemm('N','T',nao,nao,nao,1.0d0,X,     ! = S^1/4
-     .                   nao,cc,nao, 0.0d0,s14,nao)
+      call la_gemm('N','T',nao,nao,nao,1.0d0,X,     ! = S^1/4
+     .                nao,cc,nao, 0.0d0,s14,nao)
 
       end
 
@@ -139,6 +141,7 @@
 
       subroutine mlpop14(nao, s, s34, s14)
       use parcom, only: mull_loew14
+      use gtb_la, only : la_gemm, la_syev
       implicit none             
       integer nao
       real*8 s (nao*(nao+1)/2)   ! overlap
@@ -157,11 +160,11 @@
 
       allocate(aux(1))
       lwork=-1
-      call ssyev ('V','U',nao,X,nao,e,aux,lwork,info)
+      call la_syev ('V','U',nao,X,nao,e,aux,lwork,info)
       lwork=int(aux(1))
       deallocate(aux)
       allocate (aux(lwork))
-      call ssyev ('V','U',nao,X,nao,e,aux,lwork,info)
+      call la_syev ('V','U',nao,X,nao,e,aux,lwork,info)
 
       do i=1,nao
          e1(i)=e(i)**(1e0-mull_loew14)       
@@ -173,16 +176,16 @@
             cc(i,m)=X(i,m) * e1(m)
          enddo
       enddo
-      call sgemm('N','T',nao,nao,nao,1.0e0,X,     ! = S^3/4
-     .                   nao,cc,nao, 0.0e0,s34,nao)
+      call la_gemm('N','T',nao,nao,nao,1.0e0,X,     ! = S^3/4
+     .               nao,cc,nao, 0.0e0,s34,nao)
 
       do m=1,nao 
          do i=1,nao
             cc(i,m)=X(i,m) * e2(m)
          enddo
       enddo
-      call sgemm('N','T',nao,nao,nao,1.0e0,X,     ! = S^1/4
-     .                   nao,cc,nao, 0.0e0,s14,nao)
+      call la_gemm('N','T',nao,nao,nao,1.0e0,X,     ! = S^1/4
+     .               nao,cc,nao, 0.0e0,s14,nao)
 
       end
 
@@ -194,6 +197,7 @@
 
       subroutine mlpop2(n, nao, p, s1, s2, q, qsh)
       use bascom
+      use gtb_la, only : la_gemm, la_symm
       implicit none             
       integer n, nao
       real*8 p (nao*(nao+1)/2)   ! density, unchanged 
@@ -211,12 +215,12 @@
 
       call blowsym84(nao,P,x)
 
-!     call sgemm('N','N',nao,nao,nao,1.0e0,x,      ! cc=P*S^3/4
-!    .                   nao,s1,nao,0.0e0,cc,nao)
-      call ssymm('L','L',nao,nao,1e0,x,nao,S1,nao,0e0,cc,nao)   
+!     call la_gemm('N','N',nao,nao,nao,1.0e0,x,      ! cc=P*S^3/4
+!    .               nao,s1,nao,0.0e0,cc,nao)
+      call la_symm('L','L',nao,nao,1e0,x,nao,S1,nao,0e0,cc,nao)   
 
-      call sgemm('N','N',nao,nao,nao,1.0e0,s2,     ! PL=S^1/4*cc  
-     .                   nao,cc,nao,0.0e0,x,nao)
+      call la_gemm('N','N',nao,nao,nao,1.0e0,s2,     ! PL=S^1/4*cc  
+     .               nao,cc,nao,0.0e0,x,nao)
 
       qsh= 0
       q  = 0 
@@ -237,6 +241,7 @@
 
       subroutine mlpop3(n, nao, p, s1, s2, q)
       use bascom
+      use gtb_la, only : la_gemm
       implicit none             
       integer n, nao
       real*8 p (nao*(nao+1)/2)   ! density, unchanged 
@@ -253,11 +258,11 @@
 
       call blowsym(nao,P,x)
 
-      call dgemm('N','N',nao,nao,nao,1.0d0,x,      ! cc=P*S^3/4
-     .                   nao,s1,nao,0.0d0,cc,nao)
+      call la_gemm('N','N',nao,nao,nao,1.0d0,x,      ! cc=P*S^3/4
+     .               nao,s1,nao,0.0d0,cc,nao)
 
-      call dgemm('N','N',nao,nao,nao,1.0d0,s2,     ! PL=S^1/4*cc  
-     .                   nao,cc,nao,0.0d0,x,nao)
+      call la_gemm('N','N',nao,nao,nao,1.0d0,s2,     ! PL=S^1/4*cc  
+     .               nao,cc,nao,0.0d0,x,nao)
 
       q  = 0 
       do i=1,nao 

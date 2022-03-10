@@ -4,7 +4,11 @@ PROG = ~/bin/gtb
  OSTYPE=LINUXI
 #--------------------------------------------------------------------------
 
-MODULES= iso_fortran_env.o bascom.o parcom.o com.o thresholds.o cbascom.o mocom.o
+SOURCES = accuracy.f90 la.f90 blas_level1.f90 blas_level2.f90 blas_level3.f90 lapack_eig.f90
+$(foreach src, $(SOURCES), $(eval $(src) := $(patsubst %.f90, %.o, $(src))))
+
+MODULES= iso_fortran_env.o bascom.o parcom.o com.o thresholds.o cbascom.o mocom.o \
+			$(foreach src, $(SOURCES), $($(src)))
 
 CFILES= symmetry_i.o
 
@@ -112,6 +116,13 @@ fortran.o : $(CUDA)/src/fortran.c
 $(PROG): $(OBJS) 
 	$(LINKER) $(OBJS) $(LIBS) -o $(PROG)
 
+
+# dependencies
+$(blas_level1.f90): $(accuracy.f90)
+$(blas_level2.f90): $(accuracy.f90)
+$(blas_level3.f90): $(accuracy.f90)
+$(lapack_eig.f90): $(accuracy.f90)
+$(la.f90): $(blas_level1.f90) $(blas_level2.f90) $(blas_level3.f90) $(lapack_eig.f90)
 
 #aufraeumen
 clean:

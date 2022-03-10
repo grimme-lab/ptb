@@ -1,5 +1,6 @@
 
       subroutine solve(ndim,nel,nopen,homo,et,focc,H,S,P,e,ge,fail)
+      use gtb_la, only : la_sygvx
       implicit none
       integer ndim,nel,nopen,homo
       real*8 H(ndim*(ndim+1)/2)
@@ -28,15 +29,15 @@
 ! for a large basis, taking only the occ. eigenvalues is faster than a full diag
       iu=min(homo+5,ndim)
       allocate(iwork(5*ndim),ifail(ndim),work(1))
-      call dsygvx(1,'V','I','U',ndim, hdum, ndim, sdum, ndim, ga, gb, 
-     .            1, IU, 1d-7, ij, e, D, ndim, WORK, -1   , IWORK, 
-     .            IFAIL, INFO )
+      call la_sygvx(1,'V','I','U',ndim, hdum, ndim, sdum, ndim, ga, gb, 
+     .              1, IU, 1d-7, ij, e, D, ndim, WORK, -1   , IWORK, 
+     .              IFAIL, INFO )
       lwork=idint(work(1))
       deallocate(work)
       allocate(work(lwork))          
-      call dsygvx(1,'V','I','U',ndim, hdum, ndim, sdum, ndim, ga, gb, 
-     .            1, IU, 1d-7, ij, e, D, ndim, WORK, LWORK, IWORK, 
-     .            IFAIL, INFO )
+      call la_sygvx(1,'V','I','U',ndim, hdum, ndim, sdum, ndim, ga, gb, 
+     .              1, IU, 1d-7, ij, e, D, ndim, WORK, LWORK, IWORK, 
+     .              IFAIL, INFO )
       if(info.ne.0) fail=.true.
       e(iu+1:ndim)=100d0
       deallocate(hdum)
@@ -70,6 +71,7 @@ c     convert restricted occ first to alpha/beta
 !ccccccccccccccccccccccccccccccccccccccccccccc
 
       subroutine solve_spec(ndim,nel,nopen,homo,et,focc,H,X,P,e,ge,fail)
+      use gtb_la, only : la_gemm, la_syevx
       implicit none
       integer ndim,nel,nopen,homo
       real*8 H(ndim*(ndim+1)/2)
@@ -92,21 +94,23 @@ c     convert restricted occ first to alpha/beta
 
       call blowsym(ndim,H,hdum)
 !     go to OAO basis
-      call dgemm('N','N',ndim,ndim,ndim,1d0,hdum,ndim,X,ndim,0d0,D,ndim)
-      call dgemm('T','N',ndim,ndim,ndim,1d0,X,ndim,D,ndim,0d0,hdum,ndim)
+      call la_gemm('N','N',ndim,ndim,ndim,1d0,hdum,ndim,
+     &               X,ndim,0d0,D,ndim)
+      call la_gemm('T','N',ndim,ndim,ndim,1d0,X,ndim,
+     &               D,ndim,0d0,hdum,ndim)
 
       iu=min(homo+5,ndim)
 ! for a large basis, taking only the occ. eigenvalues is faster than a full diag
       lwork  = -1
       allocate(iwork(5*ndim),ifail(ndim),work(1))
-      call dsyevx('V','I','U',ndim, hdum, ndim, ga, gb, 1, IU, 1d-6,
-     .            ij, e, D, ndim, WORK,LWORK,IWORK,IFAIL,INFO)
+      call la_syevx('V','I','U',ndim, hdum, ndim, ga, gb, 1, IU, 1d-6,
+     .              ij, e, D, ndim, WORK,LWORK,IWORK,IFAIL,INFO)
       lwork = idint(work(1))
       deallocate(work)
       allocate(work(lwork))
       fail =.false.
-      call dsyevx('V','I','U',ndim, hdum, ndim, ga, gb, 1, IU, 1d-6,
-     .            ij, e, D, ndim, WORK,LWORK,IWORK,IFAIL,INFO)
+      call la_syevx('V','I','U',ndim, hdum, ndim, ga, gb, 1, IU, 1d-6,
+     .              ij, e, D, ndim, WORK,LWORK,IWORK,IFAIL,INFO)
 
       if(info.ne.0.or.ij.ne.iu) fail=.true.
       e(iu+1:ndim)=100d0
@@ -133,7 +137,8 @@ c     convert restricted occ first to alpha/beta
       ge = ga + gb
 
 !     get AO MO coeff. from OAO ones
-      call dgemm('T','N',ndim,ndim,ndim,1d0,X,ndim,D,ndim,0d0,hdum,ndim)
+      call la_gemm('T','N',ndim,ndim,ndim,1d0,X,ndim,
+     &               D,ndim,0d0,hdum,ndim)
       call dmat(ndim,focc,hdum,D)
       call packsym(ndim,D,P)
 
@@ -256,6 +261,7 @@ c     convert restricted occ first to alpha/beta
 !ccccccccccccccccccccccccccccccccccccccccccccc
 
       subroutine dmat(ndim,focc,C,P)
+      use gtb_la, only : la_gemm
       implicit none
       integer ndim
       real*8 focc(*)
@@ -270,13 +276,14 @@ c     convert restricted occ first to alpha/beta
             Ptmp(i,m)=C(i,m)*focc(m)
          enddo
       enddo
-      call DGEMM('N','T',ndim,ndim,ndim,1.0d0,C,
-     .                   ndim,Ptmp,ndim,0.0d0,P,ndim)
+      call la_gemm('N','T',ndim,ndim,ndim,1.0d0,C,
+     .               ndim,Ptmp,ndim,0.0d0,P,ndim)
       deallocate(Ptmp)
 
       end
 
       subroutine dmat4(ndim,focc,C,P)
+      use gtb_la, only : la_gemm
       implicit none
       integer ndim
       real*8 focc(*)
@@ -291,8 +298,8 @@ c     convert restricted occ first to alpha/beta
             Ptmp(i,m)=C(i,m)*focc(m)
          enddo
       enddo
-      call SGEMM('N','T',ndim,ndim,ndim,1.0e0,C,
-     .                   ndim,Ptmp,ndim,0.0e0,P,ndim)
+      call la_gemm('N','T',ndim,ndim,ndim,1.0e0,C,
+     .               ndim,Ptmp,ndim,0.0e0,P,ndim)
       deallocate(Ptmp)
 
       end

@@ -6,6 +6,7 @@
 ***********************************************************************
 
       subroutine makel(nao, s, x)
+      use gtb_la, only : la_gemm, la_syev
       implicit real*8 (a-h,o-z)
       dimension s(*)
       dimension x(nao,nao)
@@ -23,7 +24,7 @@
          enddo
       enddo
 
-      call dsyev ('V','U',nao,vecs,nao,e,aux,lwork,info)
+      call la_syev ('V','U',nao,vecs,nao,e,aux,lwork,info)
       
 c     call dHQRII(s,nao,nao,e,vecs)
 
@@ -39,8 +40,8 @@ c     call dHQRII(s,nao,nao,e,vecs)
          enddo
       enddo
 
-      call dgemm('N','T',nao,nao,nao,1.0d0,x,
-     .                   nao,cc,nao,0.0d0,vecs,nao)
+      call la_gemm('N','T',nao,nao,nao,1.0d0,x,
+     .               nao,cc,nao,0.0d0,vecs,nao)
 
       x = vecs
       deallocate(e,aux,cc,vecs)
