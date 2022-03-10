@@ -116,7 +116,7 @@ program parascript
               WRITE(*,'(a,i1,a)')  "Period ",period," selected."
 !             elemrange(1)=19
 !             elemrange(2)=36
-              elemrange(1)=26
+              elemrange(1)=21
               elemrange(2)=30
           CASE (5)
               WRITE(*,'(a,i1,a)')  "Period ",period," selected."

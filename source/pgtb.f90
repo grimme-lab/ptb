@@ -855,11 +855,16 @@ subroutine setavcn ! same but with erfs=-2
       avcn(19)= 2.7819
       avcn(37)= 3.0927
       avcn(55)= 3.2766
-      avcn(26)= 5.4401
+      avcn(21)= 5.3338
+      avcn(22)= 3.9880
+      avcn(23)= 4.7847
+      avcn(24)= 4.8891
+      avcn(25)= 5.1454
+      avcn(26)= 5.4032
       avcn(27)= 4.6291
       avcn(28)= 3.3144
-      avcn(29)= 2.3956
-      avcn(30)= 2.4782
+      avcn(29)= 2.3406
+      avcn(30)= 2.4079
 
 end
 
