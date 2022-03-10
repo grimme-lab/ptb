@@ -10,7 +10,7 @@
 
       cn= 0
       nn= 0
-      open(unit=1,file='.list')
+      open(unit=1,file='.list_only')
  10   read(1,'(a)',end=100) atmp
       if(index(atmp,'*').eq.0) then
       write(btmp,'(''cd '',a,''; gtb coord -avcn > tmp; cd ..'')')

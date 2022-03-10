@@ -9,5 +9,6 @@ module mocom
       real(wp),allocatable :: totmatch    
       real(wp)             :: fitdat(10000)
       integer              :: fitcount         
+      logical              :: increase_eps_weight
 
 end module mocom       

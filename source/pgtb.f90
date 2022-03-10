@@ -4,7 +4,7 @@
 ! fitted to shell populations/q/BO/dipole/IR/alpha/Raman/Ekin/matched orbital energies
 ! SG, 2020-2022
 !
-! last change on method or HCNO/global parameters: Wed Jan 19 09:30:34 CET 2022
+! last change on method or HCNO/global parameters: Sat Feb  5 09:38:39 CET 2022
 !
 !! ------------------------------------------------------------------------
 ! CPU  profiling yields: 50 % for 2 Eigensolves, 
@@ -12,10 +12,19 @@
 !                        25 % for 5 Dgemm (Dmat, Vpauli, pops)
 !                        non-linalg is < 5 %
 !! ------------------------------------------------------------------------
+!        read(1,*) shell_xi  (1:10,j)    ! 71-80  
+!        read(1,*) shell_cnf1(1:10,j)    ! 81-90    
+!        read(1,*) shell_cnf2(1:10,j)    ! 91-100   
+!        read(1,*) shell_cnf3(1:10,j)    ! 101-110  
+!        read(1,*) expscal  (3,1:10,j)   ! 111-120  
+!        read(1,*) shell_cnf4(1:10,j)    ! 121-130  
+!        read(1,*) shell_resp(1:10,j,1)  ! 131-140  
+!        read(1,*) empty                 ! 141-150
+
 
 subroutine pgtb(pr,prop,n,ndim,nel,nopen,homo,at,chrg,xyz,z,rab, & 
 &               pnt,norm,S,T,D,efield,qeeq_org,S1,S2,psh,pa,&
-&               P,H,eps,eel,wbo,dip,alp)
+&               P,H,eps,eel,ecoul,wbo,dip,alp)
    use iso_fortran_env, only : wp => real64
    use parcom
    use bascom
@@ -57,6 +66,7 @@ subroutine pgtb(pr,prop,n,ndim,nel,nopen,homo,at,chrg,xyz,z,rab, &
    real(wp),intent(inout) :: H(ndim*(ndim+1)/2) ! unperturbed Hamilton Matrix
    real(wp),intent(out)   :: eps(ndim)          ! eigenvalues
    real(wp),intent(out)   :: eel                ! electronic energy
+   real(wp),intent(out)   :: ecoul              ! Coulomb energy
    real(wp),intent(out)   :: wbo(n,n)           ! WBOs                 
    real(wp),intent(out)   :: dip(3)             ! dipole moment
    real(wp),intent(out)   :: alp(6)             ! dipole polarizability tensor
@@ -88,7 +98,7 @@ subroutine pgtb(pr,prop,n,ndim,nel,nopen,homo,at,chrg,xyz,z,rab, &
    real(wp),allocatable :: ves0(:), ves1(:), gab(:,:)
    real(wp),allocatable :: patmp(:), pshtmp(:,:)
    real(wp),parameter   :: au2ev = 27.2113957_wp
-   logical fail
+   logical fail, highsym
 
 !! ------------------------------------------------------------------------
 !  initizialization
@@ -148,9 +158,9 @@ subroutine pgtb(pr,prop,n,ndim,nel,nopen,homo,at,chrg,xyz,z,rab, &
 
    if(pr)then
    write(*,'(''EEQ done. sum q : '',f8.3,i5)') sum(qeeq)
-   write(*,'(''    atom   Zeff    EEQ charge    srCN     noHCN      eeqCN'')')
+   write(*,'(''    atom   Zeff  qEEQ  mod  orig   srCN     noHCN   CN(EEQ)'')')
    do i=1,n
-       write(*,'(2i5,f5.1,6f8.3)') i,at(i),z(i),qeeq(i),qeeq_org(i),cns(i),cn(i),cnorg(i)
+       write(*,'(2i5,f5.1,2x,6f8.3)') i,at(i),z(i),qeeq(i),qeeq_org(i),cns(i),cn(i),cnorg(i)
    enddo
    endif
 
@@ -189,12 +199,12 @@ subroutine pgtb(pr,prop,n,ndim,nel,nopen,homo,at,chrg,xyz,z,rab, &
    scfpar(1) =  glob_par(11)  ! gpol 
    scfpar(2) =  glob_par(14)  ! Wolfsberg l dep.
    scfpar(4) =  glob_par(16)  ! iter1 off-diag
-   scfpar(5) =  0.0284174890  ! glob_par(14)  ! gamscal 
+   scfpar(5) =  0.024_wp      ! glob_par(14)  ! gamscal 
    scfpar(6) =  glob_par(13)  ! iter1 two-center
-   scfpar(7) = -0.08_wp       ! gamscal in onescf
+   scfpar(7) =  0.00_wp       ! gamscal in onescf
    scfpar(8) =  glob_par(12)  ! gpol in onescf
    call twoscf(pr,prop,n,ndim,nel,nopen,homo,at,xyz,z,rab,cns,S,T,SS,Vecp,Hdiag,focc,&
-               norm,eT,scfpar,S1,S2,qeeq_org,psh,pa,P,H,ves0,gab,eps,eel)  
+               norm,eT,scfpar,S1,S2,qeeq_org,psh,pa,P,H,ves0,gab,eps,eel,ecoul)  
 
 !! ------------------------------------------------------------------------
 !  done
@@ -209,19 +219,15 @@ subroutine pgtb(pr,prop,n,ndim,nel,nopen,homo,at,chrg,xyz,z,rab, &
    Htmp = H 
 
 ! MO match for fit
-   if(cmo_ref(1,1).gt.-98.999d0.and.prop.ge.0.and.prop.ne.4) then
-      write(*,*) 'MATCH'
-      call momatch(pr,ndim,homo,0,S)
+   if(cmo_ref(1,1).gt.-98.999d0.and.prop.ge.0.and.prop.lt.4) then
+      call getsymmetry(pr,n,at,xyz,0.01d0,50,highsym) ! get PG to check for MO degen.
+      call momatch(pr,highsym,ndim,homo,0,S)          ! which modifies match routine
    endif
 
 ! stda
-   if(prop.eq.4) then
-!     call stda(n,ndim,nel,nopen,homo,at,xyz,rab,cn,eT,focc,norm,S,P,Htmp,Vecp) ! Vecp is dummy
-      call printmos(n,at,xyz,ndim,homo,norm,2d0) ! cut virt. > 2 Eh because very high lying gTB MOs are crap
-      call wr_tm_mos(ndim,n,at,nopen)
-      close(42,status='delete') ! mos not used anymore
-   endif
-!  if(prop.ge.0) close(42,status='delete')
+   if(prop.eq.4) call printmos(n,at,xyz,ndim,homo,norm,2d0) ! cut virt. > 2 Eh because very high lying gTB MOs are crap
+   if(prop.eq.5) call wr_tm_mos(ndim,n,nel,at,nopen,ndim)   ! write for TM all mos (incl. virts!)
+   close(42,status='delete')
 
 ! just with field
    if(sum(abs(efield)).gt.1.d-6) then
@@ -284,7 +290,7 @@ end
 !! ------------------------------------------------------------------------
 
 subroutine twoscf(pr,prop,n,ndim,nel,nopen,homo,at,xyz,z,rab,cn,S,T,SS,Vecp,Hdiag,focc,&
-                  norm,eT,scfpar,S1,S2,qeeq_org,psh,pa,P,Hmat,ves,gab,eps,eel)
+                  norm,eT,scfpar,S1,S2,qeeq_org,psh,pa,P,Hmat,ves,gab,eps,eel,ecoul)
    use iso_fortran_env, only : wp => real64
    use bascom
    use parcom
@@ -328,7 +334,8 @@ subroutine twoscf(pr,prop,n,ndim,nel,nopen,homo,at,xyz,z,rab,cn,S,T,SS,Vecp,Hdia
    real(wp),intent(inout)   :: ves(nsh)              ! 
    real(wp),intent(inout)   :: gab(nsh,nsh)          ! 
    real(wp),intent(out)     :: eps (ndim)            ! orbital energies
-   real(wp),intent(out)     :: eel                   ! electronic energy = sum eps (not used)
+   real(wp),intent(out)     :: eel                   ! electronic energy = sum eps
+   real(wp),intent(out)     :: ecoul                 ! Coulomb energy 
 
 !  local
    logical  :: fail
@@ -465,6 +472,7 @@ subroutine twoscf(pr,prop,n,ndim,nel,nopen,homo,at,xyz,z,rab,cn,S,T,SS,Vecp,Hdia
 !  solve 
    mode = iter
    if(iter.eq.2.and.prop.eq.4) mode = 3     ! stda write
+   if(iter.eq.2.and.prop.eq.5) mode = 4     ! TM write
    if(              prop.lt.0) mode = -iter ! IR/Raman  
    call solve2 (mode,n,ndim,nel,nopen,homo,at,eT,focc,Hmat,S,P,eps,eel,fail) 
    if(fail) stop 'diag error'
@@ -490,6 +498,8 @@ subroutine twoscf(pr,prop,n,ndim,nel,nopen,homo,at,xyz,z,rab,cn,S,T,SS,Vecp,Hdia
 
    enddo
    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+!  call calces(n,at,scfpar(5),rab,z,psh,gab,ecoul)
 
 end
 
@@ -622,7 +632,7 @@ subroutine setgab(n,at,rab,q,gamscal,gab)
 
       integer i,j,k,ati,atj,ish,jsh,ii,jj,lin
       real*8 gish,gjsh,xk,r2,geff(n),ff
-      real*8,parameter :: cok   = 0.85d0
+      real*8,parameter :: cok   = 0.9d0
       real*8,parameter :: cmn   = 1d0-cok
 
       do i=1,n
@@ -692,6 +702,53 @@ subroutine setespot(n,at,qsh,gab,ves)
          vesi=vesi+qshi*gab(i,i)
          ves(i)=ves(i)+vesi
       enddo
+
+end  
+
+subroutine calces(n,at,scfpar,rab,z,qsh,gab,ecoul)
+   use iso_fortran_env, only : wp => real64
+   use bascom
+      implicit none 
+      integer, intent(in)  :: n
+      integer, intent(in)  :: at(n)
+      real*8,  intent(in)  :: scfpar          
+      real*8,  intent(in)  :: rab(n*(n+1)/2)  
+      real*8,  intent(in)  :: z(n)
+      real*8,  intent(in)  :: qsh(10,n)
+      real*8,  intent(in)  :: gab(nsh,nsh)
+      real*8,  intent(out) :: ecoul    
+
+      integer i,j,ati,ish,iish
+      real*8  atocc(10)
+      real*8  qshtmp(nsh)
+      real*8  q(n)
+
+      iish = 0
+      do i=1,n
+         ati = at(i)
+         q(i)= 0
+         do ish=1,bas_nsh(ati)
+            iish = iish + 1
+            call shellocc_ref(ati,atocc) ! ref. atomic pop.
+            qshtmp(iish)=atocc(ish)-qsh(ish,i)
+            q(i)=q(i)+qsh(ish,i)
+         enddo
+         q(i)=z(i)-q(i)
+      enddo
+
+      call setgab  (n,at,rab,q,scfpar,gab)  ! the gab contain q as higher order effect on Ves
+
+      ecoul=0
+      do i=1,iish-1
+         do j=i+1,iish
+            ecoul =ecoul + qshtmp(i)*qshtmp(j)*gab(j,i)
+         enddo
+      enddo
+      ecoul=ecoul*2.0d0
+      do i=1,iish
+         ecoul =ecoul + qshtmp(i)*qshtmp(i)*gab(i,i)
+      enddo
+      ecoul=ecoul*0.5d0
 
 end  
 
@@ -796,6 +853,11 @@ subroutine setavcn ! same but with erfs=-2
       avcn(19)= 2.7819
       avcn(37)= 3.0927
       avcn(55)= 3.2766
+      avcn(26)= 5.4401
+      avcn(27)= 4.6291
+      avcn(28)= 3.3144
+      avcn(29)= 2.3956
+      avcn(30)= 2.4782
 
 end
 
@@ -908,7 +970,7 @@ subroutine solve2(mode,n,ndim,nel,nopen,homo,at,et,focc,H,S,P,e,eel,fail)
       real*8 gappar    
       logical fail
 
-      integer i,j,info,lwork,ij,iu
+      integer i,j,info,lwork,liwork,ij,iu
       integer ihomoa,ihomob
       real*8 nfoda,nfodb,ga,gb,efa,efb,gap,w1,w0,t1,t0
       integer,allocatable ::iwork(:),ifail(:)
@@ -921,31 +983,47 @@ subroutine solve2(mode,n,ndim,nel,nopen,homo,at,et,focc,H,S,P,e,eel,fail)
       call blowsym(ndim,H,hdum)
       call blowsym(ndim,S,sdum)
 
+      iu=min(homo+4,ndim)                 ! normal case 
+      if(mode.eq.3) iu = min(ndim,5*homo) ! sTDA write, guess for highest relevant virt
+      if(mode.eq.4) iu = ndim             ! all virts MUST be given to TM (otherwise virts are strange orthogonalized and results
+                                          ! are worse! (i.e. iu = ndim)
+! diag case branch
+      if(iu.eq.ndim) then                  
+! full diag (faster if all eigenvalues are taken)
+       allocate (work(1),iwork(1))
+       call dsygvd(1,'V','U',ndim,hdum,ndim,sdum,ndim,e,work,-1,IWORK,LIWORK,INFO)
+       lwork=int(work(1))
+       liwork=iwork(1)
+       deallocate(work,iwork)
+       allocate (work(lwork),iwork(liwork)) 
+       call dsygvd(1,'V','U',ndim,hdum,ndim,sdum,ndim,e,work,LWORK,IWORK,LIWORK,INFO)
+       D = hdum
+      else
 ! for a large basis, taking only the occ.+few virt eigenvalues is faster than a full diag
-      iu=min(homo+5,ndim)
-!     iu=ndim
-      if(mode.eq.3) iu = ndim ! sTDA write. later one can change the diag routine in this case
-      allocate(iwork(5*ndim),ifail(ndim),work(1))
-      call dsygvx(1,'V','I','U',ndim, hdum, ndim, sdum, ndim, ga, gb, &
-     &            1, IU, 1d-7, ij, e, D, ndim, WORK, -1   , IWORK, &
+       allocate(iwork(5*ndim),ifail(ndim),work(1))
+       call dsygvx(1,'V','I','U',ndim, hdum, ndim, sdum, ndim, ga, gb, &
+     &            1, IU, 1d-7, ij, e, D, ndim, WORK, -1, IWORK, &
      &            IFAIL, INFO )
-      lwork=idint(work(1))
-      deallocate(work)
-      allocate(work(lwork))          
-      call dsygvx(1,'V','I','U',ndim, hdum, ndim, sdum, ndim, ga, gb, &
+       lwork=idint(work(1))
+       deallocate(work)
+       allocate(work(lwork))          
+       call dsygvx(1,'V','I','U',ndim, hdum, ndim, sdum, ndim, ga, gb, &
      &            1, IU, 1d-7, ij, e, D, ndim, WORK, LWORK, IWORK, &
      &            IFAIL, INFO )
-      deallocate(hdum)
+       do i=iu+1,ndim     
+         e(i)=10d0
+         D(1:ndim,i)=0d0
+         D(i,i)     =1d0
+       enddo
+! end of diag case branch      
+      endif
+
       if(info.ne.0) fail=.true.
-      if(iu+1.lt.ndim) e(iu+1:ndim)=100d0
+      deallocate(hdum)
 
       if(mode.ge.2)then ! only if SP calc and in 2. iter
-!        global shift to match DFT absolute orbital energies (this has no effect on anything)
+!        global shift to match DFT absolute orbital energies (this has no effect on anything in gTB)
          e = e + glob_par(15) + glob_par(17)*e
-         if(mode.eq.3)then ! virt. MO correction for sTDA
-            gap = e(homo+1) - e(homo) 
-            e(homo+1:ndim) = e(homo+1:ndim) + glob_par(4) + glob_par(5)*gap 
-         endif
          open(unit=42,file='gtb_tmpmos',form='unformatted') 
          write(42) D
          write(42) e
@@ -1112,27 +1190,31 @@ end
 !  MO match score for occupied space and scaled LUMO contribution
 !! ------------------------------------------------------------------------
 
-subroutine momatch(pr,ndim,nocc,nvirt,S)
+subroutine momatch(pr,ex,ndim,nocc,nvirt,S)
       use mocom  
       implicit none          
-      logical, intent(in)  :: pr                
+      logical, intent(in)  :: pr,ex
       integer, intent(in)  :: ndim,nocc,nvirt
       real*8 , intent(in)  :: S(ndim*(ndim+1)/2)
       
-      logical ex
       integer i,j,k,l,match
       real*8,allocatable :: SS(:,:), C2(:,:), C(:,:), e(:), srt(:)
-      real*8 norm, wei, ss2, ss4, smax, gap_ref, homo_ref
-      real*8,parameter :: lumoweight = 0.40d0   ! LUMO weight for fit
+      real*8 norm, wei, ss2, ss4, smax, gap_ref, homo_ref, ff, lumoweight
       real*8,parameter :: mothr      = 0.3d0    ! lower weight for MOs .lt. HOMO of this vaue
       real*8,parameter :: au2ev = 27.2113957d0 
 
       allocate(SS(ndim,ndim),C2(ndim,ndim),C(ndim,ndim),e(ndim),srt(nocc))
-      inquire(file='.HIGHSYM',exist=ex)
+
+      lumoweight = 0.40d0   ! LUMO weight for fit
+      ff = 1.d0
+      if(increase_eps_weight) then
+         ff = 3.d0 ! increase eps weight for metals to improve LS procedure
+         lumoweight = 0.20d0
+      endif
 
       if(pr) then
-         write(*,*) 'running MO match with DFT reference'
-         if(ex) write(*,*) 'excluding spread penalty because .HIGHSYM was found'
+         write(*,*) 'running MO match with DFT reference', ff
+         if(ex) write(*,*) 'excluding spread penalty because HIGHSYM was found'
          write(*,*) ' MO  DFT #   eps (DFT)    eps      penalty       Smax(1,2)'
       endif
 
@@ -1155,9 +1237,9 @@ subroutine momatch(pr,ndim,nocc,nvirt,S)
             ss2 = SS(j,i)**2
             srt(j) = -ss2
             if(homo_ref-epsref(j).gt.mothr) then
-               wei = 0.4
+               wei = 0.4 * ff
             else
-               wei = 1.2
+               wei = 1.2 * ff
             endif
             norm = norm + ss2 * abs(epsref(j) - e(i)) * wei
             if(ss2.gt.smax)then ! get best matching DFT MO number for printout
@@ -1191,7 +1273,7 @@ subroutine momatch(pr,ndim,nocc,nvirt,S)
 
       if(pr) then
          write(*,*) 'total MO match score with gap :', totmatch  ! should be zero for perfect MOs
-         write(*,'('' gap (eV)  DFT vs. gTB        : '',2f9.5)') gap_ref,(e(nocc+1) - e(nocc))*au2ev
+         write(*,'('' gap (eV)  DFT vs. gTB         : '',2f9.5)') gap_ref,(e(nocc+1) - e(nocc))*au2ev
       endif
       return
          

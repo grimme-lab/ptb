@@ -18,7 +18,7 @@ program gTB
       real(wp),allocatable :: S(:),T(:),P(:),SS(:),F(:),V(:),D3(:,:)
       real(wp),allocatable :: eps(:),focc(:),xnorm(:)
       real(wp),allocatable :: Pref(:)
-      real(wp),allocatable :: fragchrg_eeq(:),fragchrg_ref(:),fragchrg(:)
+      real(wp),allocatable :: fragchrg_ref(:),fragchrg(:)
       real(wp),allocatable :: dipgrad(:,:),dipgrad_ref(:,:)
       real(wp),allocatable :: fdgrad(:,:,:),fdgrad_ref(:,:,:)
       real*4  ,allocatable :: ML1(:,:),ML2(:,:)
@@ -31,7 +31,7 @@ program gTB
       integer nopen
       integer na,nb,nel,ihomo
       integer prop
-      integer, parameter :: nvecut = 0
+      integer, parameter :: nvecut = 10     ! fit on Ven*P for molecules with less #atoms than this value 
       integer ia,ib,ish,jsh,ksh,ata,atb,ati
       integer ii,jj,ij,ll
       integer molcount,idum(100),tenmap(6)
@@ -40,8 +40,8 @@ program gTB
       real(wp) chrg ! could be fractional for model systems
 
       real(wp) t0,t1,w0,w1,t00,w00,ddot
-      real(wp) etot,eref,enuc,ekinref,ekin,eel,eve,everef
-      real(wp) norm,ff,f2,f1,x,y,qi,ge,r
+      real(wp) etot,eref,enuc,ekinref,ekin,eel,eve,everef,ecoul,egtb
+      real(wp) norm,ff,f2,f1,x,y,qi,ge,r,evew
       real(wp) dcal,dref,deeq,dang
       real(wp) a1,a2,s8
       real(wp) erfs     
@@ -53,7 +53,7 @@ program gTB
       character*2 asym
       character*80 str(10)
       character*80 atmp,arg1,fname,pname,bname
-      logical ex,fail,wrapo,test,test2,exref,dgrad,fdgr,raman,betaref,energ,stda,acn,rdref,nogtb
+      logical ex,fail,wrapo,test,test2,tmwr,dgrad,raman,betaref,energ,stda,acn,rdref,nogtb,tmel
       integer TID, OMP_GET_NUM_THREADS, OMP_GET_THREAD_NUM, nproc
 
       call timing(t00,w00)           
@@ -61,7 +61,7 @@ program gTB
       rdref   =.false.
       wrapo   =.false.
       test    =.false.
-      exref   =.false.
+      tmwr    =.false.
       dgrad   =.false.
       raman   =.false.
       betaref =.false.
@@ -74,6 +74,7 @@ program gTB
       prop = 1
       pnt  = 0
       chrg = 0
+      nopen= 0
       alp_ref(1)=-99
       pname='~/.atompara'
       bname="~/.basis_vDZP"
@@ -123,6 +124,7 @@ program gTB
       if(index(arg1,'-hyperpolar') .ne.0) prop =3 ! hyperpolar      
       if(index(arg1,'-energy') .ne.0)energ=.true. ! energy          
       if(index(arg1,'-stda')   .ne.0)stda=.true.  ! stda write      
+      if(index(arg1,'-tmwr')   .ne.0)tmwr=.true.  ! TM write      
       if(index(arg1,'-test').ne.0) test =.true.   ! more data output
       if(index(arg1,'-nogtb').ne.0) nogtb =.true. ! 
       if(index(arg1,'-par').ne.0)then          
@@ -135,6 +137,11 @@ program gTB
       call getarg(i+1,atmp)
       call readline(atmp,floats,str,ns,nf)
       chrg=floats(1)
+      endif
+      if(index(arg1,'-uhf').ne.0)then          
+      call getarg(i+1,atmp)
+      call readline(atmp,floats,str,ns,nf)
+      nopen=floats(1)
       endif
       enddo
 
@@ -153,7 +160,7 @@ program gTB
       open(unit=1,file=pname)            
       read(1,*) glob_par (1:10)
       read(1,*) glob_par(11:20)
-      do i=1,44 ! change here for new elements
+      do i=1,72 ! change here for new elements
          read(1,*) j
          read(1,*) expscal  (1,1:10,j)   ! 1 -10  E    
          read(1,*) ener_par1 (1:10,j)    ! 11-20  E        
@@ -196,7 +203,6 @@ program gTB
          efield(1:3)=floats(1:3) 
          write(*,'(''.EFIELD :'',3f12.6)') efield  
       endif
-      nopen=0
       inquire(file='.UHF',exist=ex)
       if(ex)then
          open(unit=1,file='.UHF')
@@ -213,12 +219,12 @@ program gTB
      &         psh(10,n),psh_ref(10,n),q_ref(n),qd4(n),wbo(n,n),     &
      &         wbo_ref(n,n),wbo_gtb(n,n),q_gtb(n),psh_gtb(10,n),     &
      &         dipgrad(3,3*n),dipgrad_ref(3,3*n),                    &
-     &         fdgrad(3,3*n,9), fdgrad_ref(3,3*n,9) )
+     &         fdgrad(3,3*n,9), fdgrad_ref(3,3*n,9), molvec(n) )
 
 ! read coordinates
       call rd(.true.,fname,n,xyz,at)
       call calcrab(n,at,xyz,rab)
-      if(stda) call wr_control_atoms(n,at) ! control atoms block for e-gtb with TM
+      if(tmwr) call wr_control_atoms(n,at,bname) ! control atoms block for e-gtb with TM
  
       if(acn)then
          avcn = 0
@@ -239,8 +245,10 @@ program gTB
             
       call setavcn   ! av. el. CNs with erfs=-2.0
 
+      increase_eps_weight = .false.
       idum=0
       do i=1,n
+         if (metal(at(i)).ne.0) increase_eps_weight = .true.  ! increase orbital energy weight in fit 
          z(i)=valel(at(i))
          idum(at(i))=idum(at(i))+1
       enddo
@@ -255,6 +263,9 @@ program gTB
      &         T(ndim*(ndim+1)/2),F(ndim*(ndim+1)/2), D3(ndim*(ndim+1)/2,3), &
      &         ML1(ndim,ndim),ML2(ndim,ndim), xnorm(ndim),focc(ndim),eps(ndim),&
      &         epsref(ndim),Pref(ndim*(ndim+1)/2),cmo_ref(ndim,ndim),V(ndim*(ndim+1)/2))  
+
+      call mrec(molcount,xyz,n,at,molvec)  ! fragments (for CT check)
+      allocate(fragchrg(molcount),fragchrg_ref(molcount))
 
 ! valence basis
       call setupbas (n,at,ndim)
@@ -275,15 +286,16 @@ program gTB
       
 ! exact S and T
       if(n.lt.nvecut)then
-      call stvint(n,ndim,at,xyz,rab,z,S,T,V,xnorm)
+      call stvint(n,ndim,at,xyz,rab,z,S,T,V,xnorm) ! + Vints for fit (small mol.)
       else
       call stint (n,ndim,at,xyz,rab,S,T,xnorm)
       endif
+      if(n.eq.1) call prmat(6,S,ndim,0,'overlap matrix')
 
 ! read DFT reference
       pnt = 0
-      call rdtm(n,ndim,ihomo,at,S,focc,ekinref,eref,dip_ref,alp_ref,Pref,rdref)
-      if(rdref.and.mod(nel,2).ne.0) stop 'open-shell DFT ref. not implemented'
+      if((.not.energ).and.(.not.stda).and.(.not.tmwr)) call rdtm(n,ndim,ihomo,at,S,focc,ekinref,eref,dip_ref,alp_ref,Pref,rdref)
+!     if(rdref.and.mod(nel,2).ne.0) stop 'open-shell DFT ref. not implemented'
 
       if(nogtb) then
          call mlpop14(ndim,S,ML1,ML2) ! ML precalc, x=1/4
@@ -291,8 +303,16 @@ program gTB
       endif
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
+!     inquire(file='beta_red',exist=ex)
+!     if(ex)    prop=3
+
+      if(alp_ref(1).gt.0.and.prop.lt.2) prop = 2 ! switch on polar calc
+      if(energ)                         prop = 0
+      if(stda)                          prop = 4
+      if(tmwr)                          prop = 5
+
 ! DIPGRAD
-      if((.not.energ).and.(.not.stda))then
+      if(prop.gt.0.and.prop.lt.4) then
          inquire(file='dipgrad',exist=ex)
          if(ex)then
          dgrad=.true.
@@ -311,25 +331,21 @@ include 'polgrad.f90'
          endif
       endif
 
-      if(alp_ref(1).gt.0.and.prop.lt.2) prop = 2 ! switch on polar calc
-      inquire(file='beta_red',exist=ex)
-      if(ex)    prop=3
-      if(energ) prop=0
-      if(stda)  prop=4
 ! SINGLE POINT
       if(prop.gt.0) call dipint(n,ndim,at,xyz,rab,xnorm,pnt,D3)! dipole integrals 
       call pgtb(.true.,prop,n,ndim,nel,nopen,ihomo,at,chrg,xyz,z,rab,pnt,xnorm,S,T,D3,&
-     &          efield,qd4,ML1,ML2,psh,q,P,F,eps,eel,wbo,dip,alp) ! gd4 = EEQ to avoid recompute
+     &          efield,qd4,ML1,ML2,psh,q,P,F,eps,eel,ecoul,wbo,dip,alp) ! gd4 = EEQ to avoid recompute
       call energy(ndim,T,P,ekin) 
-      write(*,'('' kinetic energy (calc/ref) :'',2f12.6)') ekin,ekinref
+      write(*,'('' kinetic energy (calc/ref) :'',2f14.6)') ekin,ekinref
+!     write(*,'('' Coulomb energy (Eh, kcal/mol/Nel) :'',2f12.8)') ecoul,627.51*ecoul/nel 
       if(rdref.and.n.lt.nvecut)then
       call energy(ndim,V,P,eve) 
       call energy(ndim,V,Pref,everef) 
-      write(*,'('' Z/r pot energy (calc/ref) :'',2f12.6)') eve,everef  
+      write(*,'('' Z/r pot energy (calc/ref) :'',2f14.6)') eve,everef  
       endif
 
 ! ENERGY ONLY FROM P and q
-      if(energ.and.(.not.stda)) then
+!     if(energ.and.(.not.stda)) then
 !        call gtbenergy(.true.,n,ndim,at,z,xyz,rab,q,psh,P,wbo,eref,etot)
 !        open(unit=12,file='.data')  
 !        write(12,*) eref/float(n),etot/float(n)
@@ -340,8 +356,8 @@ include 'polgrad.f90'
 !        write(111,'('' 1      '',f16.8,''   99.9 99.9 99.9 99.9'')') etot 
 !        write(111,'(''$end'')')   
 !        close(111)
-         goto 9999
-      endif
+!        goto 9999
+!     endif
 
 ! BETA 
 !     if(prop.eq.3.or.ex)then
@@ -370,23 +386,23 @@ include 'polgrad.f90'
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! OUTPUT
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
 !     compute NCI fragments (for artificial CT check)
-      allocate(molvec(n))
-      call mrec(molcount,xyz,n,at,molvec)
-      allocate(fragchrg(molcount),fragchrg_eeq(molcount),fragchrg_ref(molcount))
-      fragchrg_eeq=0
+      fragchrg=0
       do i=1,n
-         fragchrg_eeq(molvec(i))=fragchrg_eeq(molvec(i))-q    (i)+z(i) 
+         fragchrg(molvec(i))=fragchrg(molvec(i))-q(i)+z(i) 
       enddo
 
+      tmel = .false.
       write(*,'(/,''     ------  P-gTB results ------'')')
       write(*,'(''  # element  Z   pop.                shell populations'')')
       do i=1,n    
          ns = bas_nsh(at(i))
+         if (ns.gt.6) tmel = .true.  ! reduce Z/r weight in fit if TM present
          floats(1:ns)=psh(1:ns,i)
          write(*,'(i3,5x,a2,f5.1,f8.4,5x,10f7.3,5x)') i,asym(at(i)),z(i),q(i),floats(1:ns)
       enddo
-      if(molcount.gt.1) write(*,*) 'CT cal',fragchrg_eeq
+      if(molcount.gt.1) write(*,*) 'CT cal',fragchrg
       call prwbo(n,at,wbo)
       call prdipole(dip)
       if(prop.eq.3) write(*,'(''polarizability computed with beta-parameterized response correction!'')')
@@ -520,11 +536,13 @@ include 'polgrad.f90'
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
       open(unit=12,file='.data')  
-      if((.not.betaref).and.(.not.stda))then
+      if(rdref)then
+      evew = 0.1d0
+      if(tmel) evew = 0.05d0
 ! Ekin
       if(abs(ekinref) .gt.1d-8) write(12,'(2F28.14,1x,a)') 1d0*ekinref,1d0*ekin !,atmp
 ! Ven
-      if(n.lt.nvecut) write(12,'(2F28.14,1x,a)') 0.5d0*everef,0.5d0*eve
+      if(n.lt.nvecut) write(12,'(2F28.14,1x,a)') evew*everef,evew*eve
 ! momatch
       if(abs(totmatch).gt.1d-8) write(12,'(2F28.14,1x,a)') zero, 0.04d0*totmatch 
 ! psh
@@ -577,8 +595,9 @@ include 'polgrad.f90'
          if(abs(alp_ref(i)).gt.1d-2) write(12,'(2F28.14)') alp_ref(i)*f2, alp(i)*f2
          enddo
       endif
+      endif
+
 ! beta
-      else 
 !        f2=0.1
 !        open(unit=119,file='beta_red')  
 !        read(119,'(a)') atmp 
@@ -590,11 +609,9 @@ include 'polgrad.f90'
 !           enddo
 !        enddo
 !        close(119)
-         write(*,*) 'sTDA fit data'
 !        do i=1,fitcount
 !           write(12,'(2F28.14)') fitdat(i)
 !        enddo
-      endif
 
       close(12)
       goto 9999
@@ -628,12 +645,13 @@ subroutine help
          "Options:", &
          "", &
          "-chrg <int>        specify systems total charge", &
+         "-uhf <int>         specify systems #open shells", &
          "-avcn              just calculate coordination numbers", &
          "-apo               just printout shell pop for testing", &
          "-polar/-alpha      calculate polarizibility", &
          "-hyperpolar/-beta  calculate hyperpolarizibility", &
          !"-energy            evaluate (electronic) energy", &
-         "-stda              output stda compatible format", &
+         "-stda              output stda/TM compatible format", &
          "-nogtb             skip gTB calculation", &
          "-par <file>        read parameters from provided file", &
          "-bas <file>        read basis set from provided file", &
@@ -646,8 +664,8 @@ end subroutine help
 
 subroutine head
       implicit none
-      character(len=40),parameter:: date='Wed Jan 19 09:30:34 CET 2022'
-      character(len=10),parameter:: version='3.5'
+      character(len=40),parameter:: date='Sat Feb  5 09:24:27 CET 2022'
+      character(len=10),parameter:: version='3.6'
 
       write(*,*)
       write(*,'(7x,''=============================================='')')

@@ -207,13 +207,9 @@ subroutine setupcbas0(n,at)
       cslexpo =0
       clev    =0
 
-      cs( 5:10)='1s'                       ! 2
-      cs(11:18)='1s2s2p'                   !10
-      cs(19:20)='1s2s2p3s3p'               !18
-      cs(21:30)='1s2s2p'                   !10
-      cs(31:36)='1s2s2p3s3p3d'             !28
-      cs(37:38)='1s2s2p3s3p3d4s4p'         !36
-      cs(39:48)='1s2s2p3s3p3d'             !28
+      cs( 5:12)='1s'                       ! 2
+      cs(13:30)='1s2s2p'                   !10
+      cs(31:48)='1s2s2p3s3p3d'             !28
       cs(49:71)='1s2s2p3s3p3d4s4p4d'       !46
       cs(72:80)='1s2s2p3s3p3d4s4p4d'       !60-14=46 (f-core neglected)
       cs(81:86)='1s2s2p3s3p3d4s4p4d5s5p5d' !78-14=64    "       "

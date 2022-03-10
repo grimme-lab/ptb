@@ -14,6 +14,9 @@
       allocate(at(n),xyz(3,n))
       call rd(.false.,'coord',n,xyz,at)
 
+      write(*,*) n
+      goto 10
+
 !     call system('rm -rf newref')
 !     new=0
 !     do i=1,n
@@ -33,10 +36,10 @@
             if(at(i).eq.list(j)) new = new + 1
          enddo
       enddo
-      if(new.eq.n) then
-         call system('touch okpar')
-      else
-         call system('rm -rf okpar')
+      if(new.ne.0) then
+         call system('pwd; rmec; gtbref')
       endif
+
+ 10   continue     
 
       end

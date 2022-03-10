@@ -8,6 +8,7 @@ module com
       real(wp) :: valel(86)                        ! # of val el.
       real(wp) :: gam(86)                          ! hardness    
       real(wp) :: avcn(86)                         ! average CN  
+      integer  :: metal(86)                        ! a metal with semi-core? (only for fitting)
 !     real(wp) :: en (86)                          ! EN
 !     real(wp) :: rad(86)                          ! radii 
 
@@ -39,6 +40,14 @@ module com
 !    &1.82D0,1.81D0,1.80D0,1.79D0,1.77D0,1.77D0,1.78D0,1.74D0,1.64D0,&
 !    &1.58D0,1.50D0,1.41D0,1.36D0,1.32D0,1.30D0,1.30D0,1.32D0,1.44D0,&
 !    &1.45D0,1.50D0,1.42D0,1.48D0,1.46D0/
+
+      data metal / &
+     &0,                                                          0,&!He
+     &1,1,                                         0, 0, 0, 0, 0, 0,&!Ne
+     &1,1,                                         0, 0, 0, 0, 0, 0,&!Ar
+     &1,1,2,          2, 2, 2, 2, 2, 2, 2, 2, 2,   0, 0, 0, 0, 0, 0,&!Kr
+     &1,1,2,          2, 2, 2, 2, 2, 2, 2, 2, 2,   0, 0, 0, 0, 0, 0,&!Xe
+     &1,1,2,  14*2,   2, 2, 2, 2, 2, 2, 2, 2, 2,   0, 0, 0, 0, 0, 0/ !Rn  
 
       data valel / &
      &1.,                                                                 2.,&!He

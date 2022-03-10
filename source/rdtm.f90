@@ -56,12 +56,12 @@ subroutine rdtm(n,ndim,homo,at,S,focc,ekin,etot,dip,alp,P,rdref)
       call readl(atmp,xx,nn)
       if(nn.ge.3) etot=xx(1)
    endif
-   if(index(atmp,'dipole').ne.0) then
+   if(index(atmp,'$dipole').ne.0) then
       read(10,'(a)',end=30) atmp
       call readl(atmp,xx,nn)
       if(nn.ge.3) dip(1:3)=xx(1:3)
    endif
-   if(index(atmp,'electronic polarizability').ne.0) then
+   if(index(atmp,'electronic polarizability  1/3').ne.0) then
       read(10,'(a)',end=30) atmp
       call readl(atmp,xx,nn)
       alp(1)=xx(1)
@@ -181,15 +181,16 @@ end
 !  write TM mos
 !! ------------------------------------------------------------------------
 
-subroutine wr_tm_mos(nao,nat,at,nopen)
+subroutine wr_tm_mos(nao,nat,nel,at,nopen,homo)
       use bascom
       implicit none          
-      integer, intent(in)  :: nao,nat,at(nat),nopen
+      integer, intent(in)  :: nao,nel,nat,at(nat),nopen,homo
 
-      integer i,j,ii,jj,ish,ijij,ij,lin
+      integer i,j,ii,jj,ish,ijij,ij,lin,ihomoa,ihomob
       integer isao,iat,ishtyp,mli,iperm(nao),llao2(0:3)
       data llao2/1,3,5,7 /
       real*8,allocatable :: stmp(:,:), C(:,:), eps(:)
+      real*8 focca(nao),foccb(nao),gapa,gapb,shift
 
       allocate(stmp(nao,nao),C(nao,nao),eps(nao))
 
@@ -233,33 +234,44 @@ subroutine wr_tm_mos(nao,nat,at,nopen)
       write(68,'(''$scfmo    scfconv=6   format(4d20.14)'')')
       write(68,'(''# SCF total energy is    -9999.9999999999 a.u.'')')
       write(68,'(''#'')')
-      do i=1,nao
+      do i=1,homo
          write(68,'(i6,2x,''a      eigenvalue='',d20.14,''   nsaos='',i0)') i,eps(i),nao
          write(68,'(4d20.14)') stmp(1:nao,i)
       enddo
       write(68,'(''$end'')')
       close(68)
       else
+      call occu(nao,nel,nopen,ihomoa,ihomob,focca,foccb) ! alpha/beta occupation
+      gapa = eps(ihomoa+1)-eps(ihomoa)
+      gapb = eps(ihomob+1)-eps(ihomob)
+      shift= gapa - gapb
       open(unit=68,file='alpha.tmp')
       write(68,'(''$uhfmo_alpha   scfconv=6   format(4d20.14)'')')
       write(68,'(''# SCF total energy is    -9999.9999999999 a.u.'')')
       write(68,'(''#'')')
-      do i=1,nao
+      do i=1,homo
          write(68,'(i6,2x,''a      eigenvalue='',d20.14,''   nsaos='',i0)') i,eps(i),nao
          write(68,'(4d20.14)') stmp(1:nao,i)
       enddo
       write(68,'(''$end'')')
       close(68)
+!     do i=1,nao
+!        write(*,'(i3,2f10.4)') i,focca(i),eps(i)
+!     enddo
       open(unit=68,file='beta.tmp')
       write(68,'(''$uhfmo_beta   scfconv=6   format(4d20.14)'')')
       write(68,'(''# SCF total energy is    -9999.9999999999 a.u.'')')
       write(68,'(''#'')')
-      do i=1,nao
+      eps(ihomob+1:nao) = eps(ihomob+1:nao) + shift  ! shift beta epsilon such that gap is the same as in alpha space
+      do i=1,homo
          write(68,'(i6,2x,''a      eigenvalue='',d20.14,''   nsaos='',i0)') i,eps(i),nao
          write(68,'(4d20.14)') stmp(1:nao,i)
       enddo
       write(68,'(''$end'')')
       close(68)
+!     do i=1,nao
+!        write(*,'(i3,2f10.4)') i,foccb(i),eps(i)
+!     enddo
       endif
 
 end 

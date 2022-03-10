@@ -1,7 +1,9 @@
 
-      subroutine wr_control_atoms(n,at)  
+      subroutine wr_control_atoms(n,at,bas)  
       implicit none
       integer n, at(n)
+      character*(*) bas
+
       character*10000 z
       character*80 a80 
       CHARACTER*2 EL(107)
@@ -17,7 +19,23 @@
      9 'au','hg','tl','pb','bi','po','at','rn',
      1 'fr','ra','ac','th','pa','u ','np','pu','am','cm','bk','cf','xx',
      2 'fm','md','cb','xx','xx','xx','xx','xx'/
-      integer i,j,k,l,nn,ie,ib,ierr,io,idum(86),idum2(n)
+      integer i,j,k,l,nn,ie,ib,ierr,io
+      integer idum(86),smalltag(86),ecptag(86)
+      integer, allocatable :: idum2(:)
+
+      allocate(idum2(n))
+
+      smalltag = 0
+      if(index(bas,'svDZP').ne.0) then
+         smalltag(1)  =1
+         smalltag(6:9)=1
+      endif
+
+      ecptag = 0
+      ecptag(1:4)=-1 ! no ECP
+!     ecptag(5:9)=1  ! smaller d-f cutted ECP, little saving with new (loose) ECP intcut-offs
+!                      adjusted d-f ECP pre-factor (mainly for C)
+!                      improves thermochem but makes geometries worse
  
       idum = 0
       do i=1,n
@@ -33,12 +51,13 @@
                if(at(j).eq.i) idum2(j)=2
             enddo
             z=''
-            call writil(n,2,1,1000,ierr,idum2,z)
+            call writil(n,2,1,10000,ierr,idum2,z)
             l=len(trim(z))
-            nn=l / 75 + 1
+            nn=l / 70 + 1
             ib=1
             do l=1,nn
                ie=ib+74
+               if(z(ib:ib).eq.' ') goto 20
   10           if(z(ie:ie).ne.','.and.l.ne.nn) then
                     ie=ie-1
                     goto 10
@@ -51,16 +70,19 @@
                ib=ie+1  
                write(io,'(a80)') a80
             enddo
-            if(i.gt.1)then
-            write(io,'(''   basis ='',a2,'' vDZP            \'')') el(i)
+  20        continue
+            if(smalltag(i).eq.1)then
+               write(io,'(''   basis ='',a2,'' svDZP       \'')') el(i)
             else
-            write(io,'(''   basis ='',a2,'' vDZP_small      \'')') el(i)
+               write(io,'(''   basis ='',a2,'' vDZP        \'')') el(i)
             endif
-            if(i.gt.4.and.i.lt.11)
-     &      write(io,'(''    ecp  ='',a2,'' ecp2-vDZP \'')') el(i)
-            if(i.gt.10)
-     &      write(io,'(''    ecp  ='',a2,'' ecp-vDZP \'')') el(i)
-            write(io,'(''    jbas ='',a2,'' vDZP'')') el(i)
+            if(ecptag(i).eq.1)then
+               write(io,'(''   ecp  ='',a2,'' ecp2-vDZP \'')') el(i)
+            endif
+            if(ecptag(i).eq.0)then
+               write(io,'(''   ecp  ='',a2,'' ecp-vDZP \'')') el(i)
+            endif
+            write(io,'(''   jbas ='',a2,'' vDZP'')') el(i)
          endif
       enddo
       close(io)

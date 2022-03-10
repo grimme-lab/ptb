@@ -114,8 +114,10 @@ program parascript
               elemrange(2)=18
           CASE (4)
               WRITE(*,'(a,i1,a)')  "Period ",period," selected."
-              elemrange(1)=19
-              elemrange(2)=36
+!             elemrange(1)=19
+!             elemrange(2)=36
+              elemrange(1)=26
+              elemrange(2)=30
           CASE (5)
               WRITE(*,'(a,i1,a)')  "Period ",period," selected."
               elemrange(1)=37

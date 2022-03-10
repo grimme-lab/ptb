@@ -3,8 +3,9 @@ ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
       subroutine timing(t,w)           
       real*8 t,w
       real dtime, etime, timearray(2)
+      integer time
       t=dtime(timearray)
-      w=etime(timearray)
+      w=time()
       end  
 
 ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc

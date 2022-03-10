@@ -1,26 +1,23 @@
-PROG = ~/bin/gtb
+PROG = ~/bin/gngtb
 
 #--------------------------------------------------------------------------
  OSTYPE=LINUXI
 #--------------------------------------------------------------------------
 
-MODULES= iso_fortran_env.o bascom.o parcom.o com.o thresholds.o cbascom.o mocom.o
+MODULES= 
 
 CFILES= symmetry_i.o
 
 OBJS1= 
 
-OBJS2= rdcoord.o readl.o asym.o elem.o readl2.o readline.o prmat.o timing.o echo.o solve.o rdstvint.o \
-       ints.o intpack.o pop.o rdmat.o fermi.o reorder.o bas.o occ.o dtrf2.o lin.o energy.o mrec.o \
-       cma.o dtrf3.o drsp.o mlpop.o calcrab.o pgtb.o eeq.o ncoord.o prdipole.o itabrow.o \
-       sscal.o cbas.o gauss.o printmos.o qsort.o momatch2.o rdtm.o shellocc_ref.o wr_control_atoms.o \
-       egtbcorr.o symmetry.o
+OBJS2= rdcoord.o readline.o readl2.o elem.o readl.o asym.o \
+       symmetry.o symmetry2.o symtranslib.o
      
 OBJS3= 
       
 OBJS4 = 
        
-MAINFILES= main.o 
+MAINFILES= gngtb.o 
 
 OBJS = $(MODULES) $(CFILES) $(OBJS1) $(OBJS2) $(OBJS3) $(OBJS4) $(MAINFILES)
 #--------------------------------------------------------------------------
