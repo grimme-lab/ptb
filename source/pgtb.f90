@@ -24,7 +24,7 @@
 
 subroutine pgtb(pr,prop,n,ndim,nel,nopen,homo,at,chrg,xyz,z,rab, & 
 &               pnt,norm,S,T,D,efield,qeeq_org,S1,S2,psh,pa,&
-&               P,H,eps,eel,ecoul,wbo,dip,alp)
+&               P,H,eps,eel,ecoul,wbo,dip,alp,rdref)
    use iso_fortran_env, only : wp => real64
    use parcom
    use bascom
@@ -70,6 +70,7 @@ subroutine pgtb(pr,prop,n,ndim,nel,nopen,homo,at,chrg,xyz,z,rab, &
    real(wp),intent(out)   :: wbo(n,n)           ! WBOs                 
    real(wp),intent(out)   :: dip(3)             ! dipole moment
    real(wp),intent(out)   :: alp(6)             ! dipole polarizability tensor
+   logical,intent(in),optional    :: rdref     ! TM ref data present
 
 !! ------------------------------------------------------------------------
 !  local
@@ -219,7 +220,7 @@ subroutine pgtb(pr,prop,n,ndim,nel,nopen,homo,at,chrg,xyz,z,rab, &
    Htmp = H 
 
 ! MO match for fit
-   if(cmo_ref(1,1).gt.-98.999d0.and.prop.ge.0.and.prop.lt.4) then
+   if(cmo_ref(1,1).gt.-98.999d0.and.prop.ge.0.and.prop.lt.4.and.(rdref)) then
       call getsymmetry(pr,n,at,xyz,0.01d0,50,highsym) ! get PG to check for MO degen.
       call momatch(pr,highsym,ndim,homo,0,S)          ! which modifies match routine
    endif

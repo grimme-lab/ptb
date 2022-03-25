@@ -334,7 +334,7 @@ include 'polgrad.f90'
 ! SINGLE POINT
       if(prop.gt.0) call dipint(n,ndim,at,xyz,rab,xnorm,pnt,D3)! dipole integrals 
       call pgtb(.true.,prop,n,ndim,nel,nopen,ihomo,at,chrg,xyz,z,rab,pnt,xnorm,S,T,D3,&
-     &          efield,qd4,ML1,ML2,psh,q,P,F,eps,eel,ecoul,wbo,dip,alp) ! gd4 = EEQ to avoid recompute
+     &          efield,qd4,ML1,ML2,psh,q,P,F,eps,eel,ecoul,wbo,dip,alp,rdref) ! gd4 = EEQ to avoid recompute
       call energy(ndim,T,P,ekin) 
       write(*,'('' kinetic energy (calc/ref) :'',2f14.6)') ekin,ekinref
 !     write(*,'('' Coulomb energy (Eh, kcal/mol/Nel) :'',2f12.8)') ecoul,627.51*ecoul/nel 
