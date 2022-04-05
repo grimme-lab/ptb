@@ -491,6 +491,10 @@ subroutine twoscf(pr,prop,n,ndim,nel,nopen,homo,at,xyz,z,rab,cn,S,T,SS,Vecp,Hdia
         write(*,*) ':::::::   small HL gap  :::::::'
         write(*,*) 'WARNING WARNING WARNING WARNING'
      endif
+     write(*,*) "Orbital energies:"
+     do j=1,min(homo+2,ndim)
+         write(*,'(i3,14f8.4)') j,eps(j)
+     enddo
    endif
 
 !  pop
