@@ -1,5 +1,9 @@
       real*8 socc(10000,10,86),aocc(10),tmp
-      integer nmol(86)
+      integer nmol(86),jel
+      character*80 atmp
+
+      call getarg(1,atmp)
+      call elem(atmp,jel)
 
       socc = 0
       nmol = 0
@@ -14,8 +18,9 @@
       goto 10
 99    continue
       
-      do j=1,86
-         if(nmol(j).eq.0) cycle
+      j = jel
+!     do j=1,86
+!        if(nmol(j).eq.0) cycle
          call getnsh(j,nsh)
          aocc = 0
          do k=1,nmol(j)
@@ -27,7 +32,7 @@
          do i=1,nsh
             write(*,'(6x,''socc('',i2,'')='',F18.14)') i, aocc(i)
          enddo
-      enddo
+!     enddo
 
 !     do i=1,n
 !        write(*,*) sum(socc(i,1:nsh))

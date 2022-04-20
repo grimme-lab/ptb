@@ -14,9 +14,6 @@
       allocate(at(n),xyz(3,n))
       call rd(.false.,'coord',n,xyz,at)
 
-      write(*,*) n
-      goto 10
-
 !     call system('rm -rf newref')
 !     new=0
 !     do i=1,n
@@ -37,7 +34,8 @@
          enddo
       enddo
       if(new.ne.0) then
-         call system('pwd; rmec; gtbref')
+!        call system('pwd')
+         call system('pwd; rmec; egtb')
       endif
 
  10   continue     

@@ -1,4 +1,4 @@
-subroutine eeq(n,at,rab,chrg,cn,orig,scal,q)
+subroutine eeq(n,at,rab,chrg,cn,orig,scal,scal2,q)
       use iso_fortran_env, id => output_unit, wp => real64
       implicit none
       integer, intent(in)  :: n            ! number of atoms     
@@ -8,6 +8,7 @@ subroutine eeq(n,at,rab,chrg,cn,orig,scal,q)
       real(wp),intent(in)  :: cn(n)        ! CN                       
       logical ,intent(in)  :: orig         ! logical. if true use original eeq model
       real(wp),intent(in)  :: scal(86)     ! scale orig xi parameters         
+      real(wp),intent(in)  :: scal2(86)    ! new gamma parameters         
       real(wp),intent(out) :: q(n)         ! output charges
 
 !  local variables
@@ -16,7 +17,7 @@ subroutine eeq(n,at,rab,chrg,cn,orig,scal,q)
       integer,allocatable :: ipiv(:)
       real(wp) :: gammij,tsqrt2pi,r2,tmp,rij
       real(wp) :: chieeq(86), gameeq(86), cnfeeq(86), alpeeq(86)
-      real(wp),allocatable :: A (:,:),x (:),work (:), alp(:)
+      real(wp),allocatable :: A (:,:),x (:),work (:), alp(:), gam(:)
 !  parameter
       parameter (tsqrt2pi = 0.797884560802866_wp)
 ! ------------------------------------------------------------------------
@@ -42,17 +43,17 @@ subroutine eeq(n,at,rab,chrg,cn,orig,scal,q)
     1.12334192_wp, 1.01485321_wp, 1.12950808_wp, 1.30804834_wp, 1.33689961_wp, &
     1.27465977_wp /))
    parameter( gameeq =(/&
-   -0.35015861_wp, 1.04121227_wp, 0.09281243_wp, 0.09412380_wp, 0.26629137_wp, &
+   -0.35015861_wp, 1.04121227_wp, 0.09281243_wp, 0.09412380_wp, 0.26629137_wp, &  
     0.19408787_wp, 0.05317918_wp, 0.03151644_wp, 0.32275132_wp, 1.30996037_wp, &
     0.24206510_wp, 0.04147733_wp, 0.11634126_wp, 0.13155266_wp, 0.15350650_wp, &
     0.15250997_wp, 0.17523529_wp, 0.28774450_wp, 0.42937314_wp, 0.01896455_wp, &
     0.07179178_wp,-0.01121381_wp,-0.03093370_wp, 0.02716319_wp,-0.01843812_wp, &
-   -0.15270393_wp,-0.09192645_wp,-0.13418723_wp,-0.09861139_wp, 0.18338109_wp, &
+   -0.15270393_wp,-0.09192645_wp,-0.13418723_wp,-0.09861139_wp, 0.18338109_wp, & ! 30
     0.08299615_wp, 0.11370033_wp, 0.19005278_wp, 0.10980677_wp, 0.12327841_wp, &
     0.25345554_wp, 0.58615231_wp, 0.16093861_wp, 0.04548530_wp,-0.02478645_wp, &
-    0.01909943_wp, 0.01402541_wp,-0.03595279_wp, 0.01137752_wp,-0.03697213_wp, &
+    0.01909943_wp, 0.01402541_wp,-0.03595279_wp, 0.01137752_wp,-0.03697213_wp, & ! 45
     0.08009416_wp, 0.02274892_wp, 0.12801822_wp,-0.02078702_wp, 0.05284319_wp, &
-    0.07581190_wp, 0.09663758_wp, 0.09547417_wp, 0.07803344_wp, 0.64913257_wp, &
+    0.07581190_wp, 0.09663758_wp, 0.09547417_wp, 0.07803344_wp, 0.64913257_wp, & ! 55
     0.15348654_wp, 0.05054344_wp, 0.11000000_wp, 0.11000000_wp, 0.11000000_wp, &
     0.11000000_wp, 0.11000000_wp, 0.11000000_wp, 0.11000000_wp, 0.11000000_wp, &
     0.11000000_wp, 0.11000000_wp, 0.11000000_wp, 0.11000000_wp, 0.11000000_wp, &
@@ -102,24 +103,30 @@ subroutine eeq(n,at,rab,chrg,cn,orig,scal,q)
       nfrag = 1
       m=n+nfrag ! # atoms + chrg constrain + frag constrain
 
-      allocate(A(m,m),x(m),work(m*m),ipiv(m),alp(n))
+      allocate(A(m,m),x(m),work(m*m),ipiv(m),alp(n),gam(n))
 !  setup RHS
       if(orig)then
       do i=1,n
          x(i) =-chieeq(at(i))               + cnfeeq(at(i))*sqrt(cn(i))
        alp(i) = alpeeq(at(i)) 
+       gam(i) = gameeq(at(i)) 
       enddo
       else
       do i=1,n
          x(i) =-chieeq(at(i)) * scal(at(i)) + cnfeeq(at(i))*sqrt(cn(i))
        alp(i) = alpeeq(at(i)) 
+       if(abs(scal2(at(i))).gt.1d-6)then
+       gam(i) =  scal2(at(i))  ! fitted
+       else
+       gam(i) = gameeq(at(i))  ! orig
+       endif
       enddo
       endif
 
       A = 0
 !  setup A matrix  
       do i=1,n
-      A(i,i)=tsqrt2pi/alp(i)+gameeq(at(i))
+      A(i,i)=tsqrt2pi/alp(i)+gam(i)
       k = i*(i-1)/2
       do j=1,i-1
          ij = k+j

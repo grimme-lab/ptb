@@ -17,6 +17,19 @@ subroutine prdipole(dip)
 
 end
 
+subroutine prsec(sec)
+      implicit none
+      real*8 sec(3)
+
+      real*8 dcal
+
+      write(*,'(''second moment  X^2       Y^2        Z^2'')')
+      dcal=(sec(1)+sec(2)+sec(3))/3.d0
+      write(*,'(3f14.8,''  average   (au)            :'',f10.5)')sec(1:3),dcal
+
+end
+
+
 subroutine prpolar(alp)
       implicit none
       real*8 alp(6)

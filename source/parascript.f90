@@ -120,14 +120,18 @@ program parascript
               elemrange(2)=30
           CASE (5)
               WRITE(*,'(a,i1,a)')  "Period ",period," selected."
-              elemrange(1)=37
-              elemrange(2)=54
+!             elemrange(1)=37
+!             elemrange(2)=54
+              elemrange(1)=39
+              elemrange(2)=48
           CASE (6)
               WRITE(*,'(a,i1,a)')  "Period ",period," selected."
-              elemrange(1)=55
-              elemrange(2)=57
-              elemrange(3)=71
-              elemrange(4)=86
+!             elemrange(1)=55
+!             elemrange(2)=57
+!             elemrange(3)=71
+!             elemrange(4)=86
+              elemrange(1)=57
+              elemrange(2)=80
        END SELECT
    elseif (gr) then
        SELECT CASE (group)
@@ -149,7 +153,7 @@ program parascript
           CASE (3)
               elemrange(1)=21
               elemrange(2)=39
-              elemrange(3)=71
+              elemrange(3)=57
               arraysize=3
           CASE (4)
               elemrange(1)=22

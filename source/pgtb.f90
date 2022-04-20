@@ -23,8 +23,8 @@
 
 
 subroutine pgtb(pr,prop,n,ndim,nel,nopen,homo,at,chrg,xyz,z,rab, & 
-&               pnt,norm,S,T,D,efield,qeeq_org,S1,S2,psh,pa,&
-&               P,H,eps,eel,ecoul,wbo,dip,alp,rdref)
+&               pnt,norm,S,T,D,efield,S1,S2,psh,pa,&
+&               P,H,eps,eel,ecoul,wbo,dip,alp)
    use iso_fortran_env, only : wp => real64
    use parcom
    use bascom
@@ -57,7 +57,6 @@ subroutine pgtb(pr,prop,n,ndim,nel,nopen,homo,at,chrg,xyz,z,rab, &
 !! ------------------------------------------------------------------------
 !  Output
 !! ------------------------------------------------------------------------
-   real(wp),intent(out)   :: qeeq_org(n)        ! EEQ charges       
    real*4  ,intent(out)   :: S1(ndim,ndim)      ! Mull-Loew trafo   
    real*4  ,intent(out)   :: S2(ndim,ndim)      !   "   "    "
    real(wp),intent(out)   :: psh(10,n)          ! shell populations 
@@ -70,7 +69,6 @@ subroutine pgtb(pr,prop,n,ndim,nel,nopen,homo,at,chrg,xyz,z,rab, &
    real(wp),intent(out)   :: wbo(n,n)           ! WBOs                 
    real(wp),intent(out)   :: dip(3)             ! dipole moment
    real(wp),intent(out)   :: alp(6)             ! dipole polarizability tensor
-   logical,intent(in),optional    :: rdref     ! TM ref data present
 
 !! ------------------------------------------------------------------------
 !  local
@@ -154,14 +152,14 @@ subroutine pgtb(pr,prop,n,ndim,nel,nopen,homo,at,chrg,xyz,z,rab, &
       enddo
    enddo
 
-   call eeq(n,at,rab,chrg,cnorg,.false.,shell_cnf1(9,:),qeeq)    !  slightly modified EEQ charges qeeq for first iter Ves
-   call eeq(n,at,rab,chrg,cnorg,.true. ,shell_cnf1(9,:),qeeq_org)!  orig EEQ
+   call eeq(n,at,rab,chrg,cnorg,.false.,shell_cnf1(9,:),shell_cnf1(8,:),qeeq)    !  slightly modified EEQ charges qeeq for first iter Ves
+!  call eeq(n,at,rab,chrg,cnorg,.true. ,shell_cnf1(9,:),shell_cnf1(8,:),qeeq_org)!  orig EEQ
 
    if(pr)then
    write(*,'(''EEQ done. sum q : '',f8.3,i5)') sum(qeeq)
-   write(*,'(''    atom   Zeff  qEEQ  mod  orig   srCN     noHCN   CN(EEQ)'')')
+   write(*,'(''    atom   Zeff  qEEQ  mod   srCN   noHCN   CN(EEQ)'')')
    do i=1,n
-       write(*,'(2i5,f5.1,2x,6f8.3)') i,at(i),z(i),qeeq(i),qeeq_org(i),cns(i),cn(i),cnorg(i)
+       write(*,'(2i5,f5.1,2x,6f8.3)') i,at(i),z(i),qeeq(i),cns(i),cn(i),cnorg(i)
    enddo
    endif
 
@@ -200,12 +198,12 @@ subroutine pgtb(pr,prop,n,ndim,nel,nopen,homo,at,chrg,xyz,z,rab, &
    scfpar(1) =  glob_par(11)  ! gpol 
    scfpar(2) =  glob_par(14)  ! Wolfsberg l dep.
    scfpar(4) =  glob_par(16)  ! iter1 off-diag
-   scfpar(5) =  0.024_wp      ! glob_par(14)  ! gamscal 
+   scfpar(5) =  0.020_wp      ! glob_par(14)  ! gamscal 24
    scfpar(6) =  glob_par(13)  ! iter1 two-center
    scfpar(7) =  0.00_wp       ! gamscal in onescf
    scfpar(8) =  glob_par(12)  ! gpol in onescf
    call twoscf(pr,prop,n,ndim,nel,nopen,homo,at,xyz,z,rab,cns,S,T,SS,Vecp,Hdiag,focc,&
-               norm,eT,scfpar,S1,S2,qeeq_org,psh,pa,P,H,ves0,gab,eps,eel,ecoul)  
+               norm,eT,scfpar,S1,S2,psh,pa,P,H,ves0,gab,eps,eel,ecoul)  
 
 !! ------------------------------------------------------------------------
 !  done
@@ -220,7 +218,7 @@ subroutine pgtb(pr,prop,n,ndim,nel,nopen,homo,at,chrg,xyz,z,rab, &
    Htmp = H 
 
 ! MO match for fit
-   if(cmo_ref(1,1).gt.-98.999d0.and.prop.ge.0.and.prop.lt.4.and.(rdref)) then
+   if(cmo_ref(1,1).gt.-98.999d0.and.prop.ge.0.and.prop.lt.4) then
       call getsymmetry(pr,n,at,xyz,0.01d0,50,highsym) ! get PG to check for MO degen.
       call momatch(pr,highsym,ndim,homo,0,S)          ! which modifies match routine
    endif
@@ -291,7 +289,7 @@ end
 !! ------------------------------------------------------------------------
 
 subroutine twoscf(pr,prop,n,ndim,nel,nopen,homo,at,xyz,z,rab,cn,S,T,SS,Vecp,Hdiag,focc,&
-                  norm,eT,scfpar,S1,S2,qeeq_org,psh,pa,P,Hmat,ves,gab,eps,eel,ecoul)
+                  norm,eT,scfpar,S1,S2,psh,pa,P,Hmat,ves,gab,eps,eel,ecoul)
    use iso_fortran_env, only : wp => real64
    use bascom
    use parcom
@@ -323,7 +321,6 @@ subroutine twoscf(pr,prop,n,ndim,nel,nopen,homo,at,xyz,z,rab,cn,S,T,SS,Vecp,Hdia
    real(wp),intent(in)    :: scfpar(8)             ! parameters
    real*4  ,intent(in)    :: S1(ndim,ndim)         ! ML trafo
    real*4  ,intent(in)    :: S2(ndim,ndim)         ! "   "          
-   real(wp),intent(in)    :: qeeq_org(n)           ! original EEQ charges
 
 !! ------------------------------------------------------------------------
 !  Output
@@ -423,7 +420,6 @@ subroutine twoscf(pr,prop,n,ndim,nel,nopen,homo,at,xyz,z,rab,cn,S,T,SS,Vecp,Hdia
 
 ! H1
    if(iter.eq.1)then ! atom-wise, no +U (no P exists)
-!   call calcpauli1(n,ndim,at,z,qeeq_org,S,Hdiag,Hmat) ! add valence X correction based on three-index ECP formula using qeeq
     call calcpauli1(n,ndim,at,z,pa      ,S,Hdiag,Hmat) ! add valence X correction based on three-index ECP formula using qeeq
     ij = 0
     do i=1,ndim
@@ -491,10 +487,6 @@ subroutine twoscf(pr,prop,n,ndim,nel,nopen,homo,at,xyz,z,rab,cn,S,T,SS,Vecp,Hdia
         write(*,*) ':::::::   small HL gap  :::::::'
         write(*,*) 'WARNING WARNING WARNING WARNING'
      endif
-     write(*,*) "Orbital energies:"
-     do j=1,min(homo+2,ndim)
-         write(*,'(i3,14f8.4)') j,eps(j)
-     enddo
    endif
 
 !  pop
@@ -761,59 +753,8 @@ end
 
 !! ------------------------------------------------------------------------
 !  set the average (common) CN of elements
-!  values obtained over gTB fit sets with erfs=-7.5
 !  use code avcn.f
 !! ------------------------------------------------------------------------
-
-subroutine setavcn75
-      use com
-      avcn = 4d0
-      avcn( 1)= 0.9825
-      avcn( 2)= 0.8111
-      avcn( 3)= 2.8248
-      avcn( 4)= 2.6919
-      avcn( 5)= 3.2142
-      avcn( 6)= 3.2628
-      avcn( 7)= 2.5887
-      avcn( 8)= 1.4663
-      avcn( 9)= 1.1590
-      avcn(10)= 0.9148
-      avcn(11)= 2.6499
-      avcn(12)= 3.1677
-      avcn(13)= 3.8252
-      avcn(14)= 3.5936
-      avcn(15)= 3.5561
-      avcn(16)= 2.4625
-      avcn(17)= 1.4978
-      avcn(18)= 1.1531
-      avcn(19)= 2.9026
-      avcn(20)= 4.3389
-      avcn(22)= 4.4908
-      avcn(28)= 3.9784
-      avcn(31)= 3.7216
-      avcn(32)= 3.5874
-      avcn(33)= 3.4617
-      avcn(34)= 2.4051
-      avcn(35)= 1.5849
-      avcn(36)= 1.4875
-      avcn(37)= 3.2477
-      avcn(38)= 3.0585
-      avcn(46)= 3.5821
-      avcn(49)= 3.7836
-      avcn(50)= 3.7569
-      avcn(51)= 3.4263
-      avcn(52)= 2.5471
-      avcn(53)= 1.7595      
-      avcn(54)= 1.5646
-      avcn(55)= 3.5529
-      avcn(56)= 2.9367
-      avcn(81)= 3.5461      
-      avcn(82)= 3.5498
-      avcn(83)= 3.4431
-      avcn(84)= 2.4827
-      avcn(85)= 1.6390
-      avcn(86)= 1.7512
-end
 
 subroutine setavcn ! same but with erfs=-2
       use com
@@ -860,16 +801,36 @@ subroutine setavcn ! same but with erfs=-2
       avcn(19)= 2.7819
       avcn(37)= 3.0927
       avcn(55)= 3.2766
-      avcn(21)= 5.3338
-      avcn(22)= 3.9880
-      avcn(23)= 4.7847
-      avcn(24)= 4.8891
-      avcn(25)= 5.1454
+      avcn(30)= 2.4055
+      avcn(29)= 2.3970
+      avcn(28)= 3.3283
+      avcn(27)= 4.6666
       avcn(26)= 5.4032
-      avcn(27)= 4.6291
-      avcn(28)= 3.3144
-      avcn(29)= 2.3406
-      avcn(30)= 2.4079
+      avcn(25)= 5.1648
+      avcn(24)= 4.8825
+      avcn(23)= 5.2103
+      avcn(22)= 4.1372
+      avcn(21)= 4.6882
+      avcn(48)= 2.5331
+      avcn(47)= 2.5553
+      avcn(46)= 3.3691
+      avcn(45)= 5.1645
+      avcn(44)= 5.5080
+      avcn(43)= 5.1423
+      avcn(42)= 5.7108
+      avcn(41)= 5.2953
+      avcn(40)= 4.4574
+      avcn(39)= 5.3701
+      avcn(80)= 2.5980
+      avcn(79)= 2.4969
+      avcn(78)= 3.5058
+      avcn(77)= 4.9224
+      avcn(76)= 5.5049
+      avcn(75)= 5.1728
+      avcn(74)= 5.4683
+      avcn(73)= 5.1258
+      avcn(72)= 4.3281
+      avcn(57)= 5.7731
 
 end
 

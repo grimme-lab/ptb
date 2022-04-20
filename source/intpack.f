@@ -440,9 +440,11 @@ c           s - p
          call opad1(lin(i),min(i),nin(i),gama,v(1),d)                                 
          call opap4(lin(i),min(i),nin(i),gama,v(2),d)                                 
          do j=1,2                                                          
-            va(j)=va(j)+dd(i)*v(j)*efact                                                   
+!           va(j)=va(j)+dd(i)*v(j)*efact                                                   
+            va(j)=va(j)+dd(i)*v(j)
          enddo
       enddo
+      va(1:2)=va(1:2)*efact
       return                                                                    
   131 continue                                                                  
 c           p - p                                                               
@@ -452,9 +454,11 @@ c           p - p
          call opad1(lin(i),min(i),nin(i),gama,v(1),d)                                 
          call opap4(lin(i),min(i),nin(i),gama,v(2),d)                                 
          do j=1,2                                                          
-            va(j)=va(j)+dd(i)*v(j)*efact                                                   
+!           va(j)=va(j)+dd(i)*v(j)*efact                                                   
+            va(j)=va(j)+dd(i)*v(j)
          enddo
       enddo
+      va(1:2)=va(1:2)*efact
       return                                                                    
   120 continue                                                                  
       if(iff1.ne.1.and.iff2.ne.1) goto 121                                      
@@ -465,9 +469,11 @@ c           s - d
          call opad1(lin(i),min(i),nin(i),gama,v(1),d)                                 
          call opap4(lin(i),min(i),nin(i),gama,v(2),d)                                 
          do j=1,2                                                          
-            va(j)=va(j)+dd(i)*v(j)*efact                                                   
+!           va(j)=va(j)+dd(i)*v(j)*efact                                                   
+            va(j)=va(j)+dd(i)*v(j)
          enddo
       enddo
+      va(1:2)=va(1:2)*efact
       return                                                                    
   121 continue                                                                  
       if(iff1.gt.4.and.iff2.gt.4) goto 122                                      
@@ -478,9 +484,11 @@ c           p - d
          call opad1(lin(i),min(i),nin(i),gama,v(1),d)                                 
          call opap4(lin(i),min(i),nin(i),gama,v(2),d)                                 
          do j=1,2                                                          
-            va(j)=va(j)+dd(i)*v(j)*efact                                                   
+!           va(j)=va(j)+dd(i)*v(j)*efact                                                   
+            va(j)=va(j)+dd(i)*v(j)
          enddo
       enddo
+      va(1:2)=va(1:2)*efact
       return                                                                    
   122 continue                                                                  
 c           d - d                                                               
@@ -490,9 +498,11 @@ c           d - d
          call opad1(lin(i),min(i),nin(i),gama,v(1),d)                                 
          call opap4(lin(i),min(i),nin(i),gama,v(2),d)                                 
          do j=1,2                                                          
-            va(j)=va(j)+dd(i)*v(j)*efact                                                   
+!           va(j)=va(j)+dd(i)*v(j)*efact                                                   
+            va(j)=va(j)+dd(i)*v(j)                                                         
          enddo
       enddo
+      va(1:2)=va(1:2)*efact
       return                                                                    
   110 continue                                                                  
       stop 'no f-fkt.'
@@ -575,9 +585,10 @@ c           s - p
          d = e 
          call opad1(lin(i),min(i),nin(i),gama,v(1),d)                                 
          do j=1,1                                                          
-            va(j)=va(j)+dd(i)*v(j)*efact                                                   
+            va(j)=va(j)+dd(i)*v(j)
          enddo
       enddo
+      va(1)=va(1)*efact
       return                                                                    
   131 continue                                                                  
 c           p - p                                                               
@@ -586,9 +597,10 @@ c           p - p
          d = e 
          call opad1(lin(i),min(i),nin(i),gama,v(1),d)                                 
          do j=1,1                                                          
-            va(j)=va(j)+dd(i)*v(j)*efact                                                   
+            va(j)=va(j)+dd(i)*v(j)
          enddo
       enddo
+      va(1)=va(1)*efact
       return                                                                    
   120 continue                                                                  
       if(iff1.ne.1.and.iff2.ne.1) goto 121                                      
@@ -598,9 +610,10 @@ c           s - d
          d = e 
          call opad1(lin(i),min(i),nin(i),gama,v(1),d)                                 
          do j=1,1                                                          
-            va(j)=va(j)+dd(i)*v(j)*efact                                                   
+            va(j)=va(j)+dd(i)*v(j)
          enddo
       enddo
+      va(1)=va(1)*efact
       return                                                                    
   121 continue                                                                  
       if(iff1.gt.4.and.iff2.gt.4) goto 122                                      
@@ -610,9 +623,10 @@ c           p - d
          d = e 
          call opad1(lin(i),min(i),nin(i),gama,v(1),d)                                 
          do j=1,1                                                          
-            va(j)=va(j)+dd(i)*v(j)*efact                                                   
+            va(j)=va(j)+dd(i)*v(j)
          enddo
       enddo
+      va(1)=va(1)*efact
       return                                                                    
   122 continue                                                                  
 c           d - d                                                               
@@ -621,9 +635,10 @@ c           d - d
          d = e 
          call opad1(lin(i),min(i),nin(i),gama,v(1),d)                                 
          do j=1,1                                                          
-            va(j)=va(j)+dd(i)*v(j)*efact                                                   
+            va(j)=va(j)+dd(i)*v(j)
          enddo
       enddo
+      va(1)=va(1)*efact
       return                                                                    
   110 continue                                                                  
       stop 'no f-fkt.'
@@ -706,9 +721,10 @@ c           s - p
          if(dabs(dd(i))-1.d-8.le.0) cycle                                               
          call opab1(lin(i),min(i),nin(i),gama,v,d)                                 
          do j=1,3                                                          
-            va(j)=va(j)-dd(i)*v(j)*efact                                                   
+            va(j)=va(j)-dd(i)*v(j)
          enddo
       enddo
+      va(1:3)=va(1:3)*efact
       return                                                                    
   131 continue                                                                  
 c           p - p                                                               
@@ -716,9 +732,10 @@ c           p - p
          if(dabs(dd(i))-1.d-8.le.0) cycle                                               
          call opab1(lin(i),min(i),nin(i),gama,v,d)                                 
          do j=1,3                                                          
-            va(j)=va(j)-dd(i)*v(j)*efact                                                   
+            va(j)=va(j)-dd(i)*v(j)
          enddo
       enddo
+      va(1:3)=va(1:3)*efact
       return                                                                    
   120 continue                                                                  
       if(iff1.ne.1.and.iff2.ne.1) goto 121                                      
@@ -727,9 +744,10 @@ c           s - d
          if(dabs(dd(i))-1.d-8.le.0) cycle                                               
          call opab1(lin(i),min(i),nin(i),gama,v,d)                                 
          do j=1,3                                                          
-            va(j)=va(j)-dd(i)*v(j)*efact                                                   
+            va(j)=va(j)-dd(i)*v(j)
          enddo
       enddo
+      va(1:3)=va(1:3)*efact
       return                                                                    
   121 continue                                                                  
       if(iff1.gt.4.and.iff2.gt.4) goto 122                                      
@@ -738,9 +756,10 @@ c           p - d
          if(dabs(dd(i))-1.d-8.le.0) cycle                                               
          call opab1(lin(i),min(i),nin(i),gama,v,d)                                 
          do j=1,3                                                          
-            va(j)=va(j)-dd(i)*v(j)*efact                                                   
+            va(j)=va(j)-dd(i)*v(j)
          enddo
       enddo
+      va(1:3)=va(1:3)*efact
       return                                                                    
   122 continue                                                                  
 c           d - d                                                               
@@ -748,9 +767,134 @@ c           d - d
          if(dabs(dd(i))-1.d-8.le.0) cycle                                               
          call opab1(lin(i),min(i),nin(i),gama,v,d)                                 
          do j=1,3                                                          
-            va(j)=va(j)-dd(i)*v(j)*efact                                                   
+            va(j)=va(j)-dd(i)*v(j)
          enddo
       enddo
+      va(1:3)=va(1:3)*efact
+      return                                                                    
+  110 continue                                                                  
+      stop 'no f-fkt.'
+
+      end                                                                       
+
+c=======================================================================
+c x^2,y^2,z^2 only
+c=======================================================================
+
+      subroutine propa_sec(c,a,b,etaij4,etakl4,iff1,iff2,va)   
+      implicit real*8(a-h,o-z)                                                  
+c aufpunkte,ref point,intarray
+      real*8 c(3),a(3),b(3),va(3)
+c local
+      common /abfunc/ ra(3),rb(3),ga,gb,ia,ib
+      dimension d(3),dd(84),v(3)
+      dimension aa(20),bb(20),e(3)
+      dimension lin(84),min(84),nin(84)                                         
+      data lin/0,1,0,0,2,0,0,1,1,0,3,0,0,2,2,1,0,1,0,1,4,0,0,3,3,1,0,1,0        
+     1 ,2,2,0,2,1,1,5,0,0,3,3,2,2,0,0,4,4,1,0,0,1,1,3,1,2,2,1,6,0,0,3,          
+     2 3,0,5,5,1,0,0,1,4,4,2,0,2,0,3,3,1,2,2,1,4,1,1,2/,min/0,0,1,0,0,          
+     3 2,0,1,0,1,0,3,0,1,0,2,2,0,1,1,0,4,0,1,0,3,3,0,1,2,0,2,1,2,1,0,5,         
+     4 0,2,0,3,0,3,2,1,0,4,4,1,0,1,1,3,2,1,2,0,6,0,3,0,3,1,0,0,1,5,5,2,0        
+     5,0,2,4,4,2,1,3,1,3,2,1,4,1,2/,nin/0,0,0,1,0,0,2,0,1,1,0,0,3,0,1,0,        
+     6 1,2,2,1,0,0,4,0,1,0,1,3,3,0,2,2,1,1,2,0,0,5,0,2,0,3,2,3,0,1,0,1,         
+     7 4,4,3,1,1,1,2,2,0,0,6,0,3,3,0,1,5,5,1,0,0,2,4,4,0,2,1,2,2,3,1,3,         
+     8 1,1,4,2/                                                                 
+
+c --- a,b are centres of gaussians                                              
+      ra = a
+      rb = b
+c --- ga,gb are their exponents                                                 
+      ga=etaij4                                                              
+      gb=etakl4                                                              
+      aa = 0
+      bb = 0
+      aa(iff1)=1.0d0
+      bb(iff2)=1.0d0
+      ia=iff1                                                                   
+      ib=iff2                                                                   
+c --- ia,ib are the canonical indices for monom                                 
+c --- apply product theorem                                                     
+      cij=0.0d0
+      ckl=0.0d0
+      call divpt(a,etaij4,b,etakl4,cij,ckl,e,gama,efact)                  
+
+c --- calculate cartesian prefactor for first gaussian                          
+      call rhftce(aa,a,e,iff1)                                                  
+c --- calculate cartesian prefactor for second gaussian                         
+      call rhftce(bb,b,e,iff2)                                                  
+c --- form their product                                                        
+      call prod(aa,bb,dd,iff1,iff2)                                             
+      va = 0
+c ----- e is center of product gaussian with exponent gama                      
+c ---- reference point is c
+      d  = e - c
+c          aname represents an external function                                
+      if(iff1.gt.10.or.iff2.gt.10) goto 110                                     
+      if(iff1.gt. 4.or.iff2.gt. 4) goto 120                                       
+      if(iff1.gt. 1.or.iff2.gt. 1) goto 130                                       
+c           s - s                                                               
+      call opab4(lin(1),min(1),nin(1),gama,v,d)                                 
+      do j=1,3                                                          
+         va(j)=dd(1)*v(j)*efact                                                   
+      enddo
+      return                                                                    
+  130 continue                                                                  
+      if(iff1.ne.1.and.iff2.ne.1) goto 131                                      
+c           s - p                                                               
+      do i=1,4                                                               
+         if(dabs(dd(i))-1.d-8.le.0) cycle                                               
+         call opab4(lin(i),min(i),nin(i),gama,v,d)                                 
+         do j=1,3                                                          
+            va(j)=va(j)+dd(i)*v(j)
+         enddo
+      enddo
+      va(1:3)=va(1:3)*efact
+      return                                                                    
+  131 continue                                                                  
+c           p - p                                                               
+      do i=1,10                                                              
+         if(dabs(dd(i))-1.d-8.le.0) cycle                                               
+         call opab4(lin(i),min(i),nin(i),gama,v,d)                                 
+         do j=1,3                                                          
+            va(j)=va(j)+dd(i)*v(j)
+         enddo
+      enddo
+      va(1:3)=va(1:3)*efact
+      return                                                                    
+  120 continue                                                                  
+      if(iff1.ne.1.and.iff2.ne.1) goto 121                                      
+c           s - d                                                               
+      do i=1,10                                                              
+         if(dabs(dd(i))-1.d-8.le.0) cycle                                               
+         call opab4(lin(i),min(i),nin(i),gama,v,d)                                 
+         do j=1,3                                                          
+            va(j)=va(j)+dd(i)*v(j)
+         enddo
+      enddo
+      va(1:3)=va(1:3)*efact
+      return                                                                    
+  121 continue                                                                  
+      if(iff1.gt.4.and.iff2.gt.4) goto 122                                      
+c           p - d                                                               
+      do i=1,20                                                              
+         if(dabs(dd(i))-1.d-8.le.0) cycle                                               
+         call opab4(lin(i),min(i),nin(i),gama,v,d)                                 
+         do j=1,3                                                          
+            va(j)=va(j)+dd(i)*v(j)
+         enddo
+      enddo
+      va(1:3)=va(1:3)*efact
+      return                                                                    
+  122 continue                                                                  
+c           d - d                                                               
+      do i=1,35                                                              
+         if(dabs(dd(i))-1.d-8.le.0) cycle                                               
+         call opab4(lin(i),min(i),nin(i),gama,v,d)                                 
+         do j=1,3                                                          
+            va(j)=va(j)+dd(i)*v(j)
+         enddo
+      enddo
+      va(1:3)=va(1:3)*efact
       return                                                                    
   110 continue                                                                  
       stop 'no f-fkt.'
@@ -1147,7 +1291,7 @@ c 300 v(i)=-v(i)
       end
 
       subroutine opab4(l,m,n,ga,v,d)
-c           electronic part of second moment
+c           electronic part of second moment, x^2,y^2,z^2 only
       implicit real*8(a-h,o-z)
       dimension v(*),d(*),g(10)
       g(1)=olap(l,m,n,ga)
@@ -1157,17 +1301,17 @@ c           electronic part of second moment
       g(5)=olap(l+2,m,n,ga)
       g(6)=olap(l,m+2,n,ga)
       g(7)=olap(l,m,n+2,ga)
-      g(8)=olap(l+1,m+1,n,ga)
-      g(9)=olap(l+1,m,n+1,ga)
-      g(10)=olap(l,m+1,n+1,ga)
+!     g(8)=olap(l+1,m+1,n,ga)
+!     g(9)=olap(l+1,m,n+1,ga)
+!     g(10)=olap(l,m+1,n+1,ga)
       v(1)=g(5)+2.d0*d(1)*g(2)+d(1)**2*g(1)
       v(2)=g(6)+2.d0*d(2)*g(3)+d(2)**2*g(1)
       v(3)=g(7)+2.d0*d(3)*g(4)+d(3)**2*g(1)
-      v(4)=g(8)+d(1)*g(3)+d(2)*g(2)+d(1)*d(2)*g(1)
-      v(5)=g(9)+d(1)*g(4)+d(3)*g(2)+d(1)*d(3)*g(1)
-      v(6)=g(10)+d(2)*g(4)+d(3)*g(3)+d(2)*d(3)*g(1)
-      do 300 i=1,6
- 300  v(i)=-v(i)
+!     v(4)=g(8)+d(1)*g(3)+d(2)*g(2)+d(1)*d(2)*g(1)
+!     v(5)=g(9)+d(1)*g(4)+d(3)*g(2)+d(1)*d(3)*g(1)
+!     v(6)=g(10)+d(2)*g(4)+d(3)*g(3)+d(2)*d(3)*g(1)
+!     do 300 i=1,3
+!300  v(i)=-v(i)
       return
       end
 

@@ -31,7 +31,7 @@ program gTB
       integer nopen
       integer na,nb,nel,ihomo
       integer prop
-      integer, parameter :: nvecut = 10     ! fit on Ven*P for molecules with less #atoms than this value 
+      integer nvecut
       integer ia,ib,ish,jsh,ksh,ata,atb,ati
       integer ii,jj,ij,ll
       integer molcount,idum(100),tenmap(6)
@@ -41,11 +41,12 @@ program gTB
 
       real(wp) t0,t1,w0,w1,t00,w00,ddot
       real(wp) etot,eref,enuc,ekinref,ekin,eel,eve,everef,ecoul,egtb
-      real(wp) norm,ff,f2,f1,x,y,qi,ge,r,evew
+      real(wp) norm,ff,f2,f1,x,y,qi,ge,r,evew,etew
       real(wp) dcal,dref,deeq,dang
       real(wp) a1,a2,s8
       real(wp) erfs     
       real(wp) pnt(3),dip(3),dip_ref(3),dipr(3),dipl(3)
+      real(wp) scndmom(3),scndmom_ref(3)
       real(wp) alp(6),alp_ref(6),alpr(6),alpl(6)
       real(wp) efield(3),eftmp(3,6),beta(6,3)
       real(wp) floats(10),edum(86)
@@ -53,7 +54,7 @@ program gTB
       character*2 asym
       character*80 str(10)
       character*80 atmp,arg1,fname,pname,bname
-      logical ex,fail,wrapo,test,test2,tmwr,dgrad,raman,betaref,energ,stda,acn,rdref,nogtb,tmel
+      logical ex,fail,wrapo,test,test2,tmwr,dgrad,raman,betaref,energ,stda,acn,rdref,nogtb,tmel,ok,rpbe
       integer TID, OMP_GET_NUM_THREADS, OMP_GET_THREAD_NUM, nproc
 
       call timing(t00,w00)           
@@ -69,6 +70,7 @@ program gTB
       stda    =.false.
       acn     =.false.
       nogtb   =.false.
+      rpbe    =.false.
       eref    = 0
       ekinref = 0
       prop = 1
@@ -76,6 +78,7 @@ program gTB
       chrg = 0
       nopen= 0
       alp_ref(1)=-99
+      nvecut = 10     ! fit on Ven*P for molecules with less #atoms than this value 
       pname='~/.atompara'
       bname="~/.basis_vDZP"
 
@@ -211,6 +214,11 @@ program gTB
          call readline(atmp,floats,str,ns,nf)
          nopen=int(floats(1))
       endif
+      inquire(file='.RPBE',exist=ex)
+      if(ex)then
+         tmwr=.true.
+         rpbe=.true.
+      endif
 
 ! how many atoms?
       call rd0(fname,n)
@@ -249,6 +257,10 @@ program gTB
       idum=0
       do i=1,n
          if (metal(at(i)).ne.0) increase_eps_weight = .true.  ! increase orbital energy weight in fit 
+         if (tmwr.and.shell_xi(1,at(i)).ge.0d0) then
+             write(*,*) i,at(i)
+             stop 'element parameter missing'
+         endif
          z(i)=valel(at(i))
          idum(at(i))=idum(at(i))+1
       enddo
@@ -270,6 +282,12 @@ program gTB
 ! valence basis
       call setupbas (n,at,ndim)
       write(*,*) 'basis setup done. Ndim',ndim
+
+      tmel = .false.
+      do i=1,n
+         if (bas_nsh(at(i)).gt.6) tmel = .true.  ! reduce Z/r weight in fit if TM present
+      enddo
+!     if(tmel) nvecut = 0  ! never use Ven in fit
 
 ! core basis
       call setupcbas0(n,at)   
@@ -334,7 +352,13 @@ include 'polgrad.f90'
 ! SINGLE POINT
       if(prop.gt.0) call dipint(n,ndim,at,xyz,rab,xnorm,pnt,D3)! dipole integrals 
       call pgtb(.true.,prop,n,ndim,nel,nopen,ihomo,at,chrg,xyz,z,rab,pnt,xnorm,S,T,D3,&
-     &          efield,qd4,ML1,ML2,psh,q,P,F,eps,eel,ecoul,wbo,dip,alp,rdref) ! gd4 = EEQ to avoid recompute
+     &          efield,ML1,ML2,psh,q,P,F,eps,eel,ecoul,wbo,dip,alp) ! gd4 = EEQ to avoid recompute
+! fit case
+      if(rpbe)then
+         call system('egtb2')
+         goto 9999
+      endif
+
       call energy(ndim,T,P,ekin) 
       write(*,'('' kinetic energy (calc/ref) :'',2f14.6)') ekin,ekinref
 !     write(*,'('' Coulomb energy (Eh, kcal/mol/Nel) :'',2f12.8)') ecoul,627.51*ecoul/nel 
@@ -342,6 +366,11 @@ include 'polgrad.f90'
       call energy(ndim,V,P,eve) 
       call energy(ndim,V,Pref,everef) 
       write(*,'('' Z/r pot energy (calc/ref) :'',2f14.6)') eve,everef  
+      endif
+      if(prop.gt.0) then
+         call secint(n,ndim,at,xyz,rab,xnorm,pnt,D3)! R^2 integrals 
+         call secmom(n,ndim,xyz,z,xnorm,P,D3,pnt,scndmom)
+         call secmom(n,ndim,xyz,z,xnorm,Pref,D3,pnt,scndmom_ref)
       endif
 
 ! ENERGY ONLY FROM P and q
@@ -393,18 +422,17 @@ include 'polgrad.f90'
          fragchrg(molvec(i))=fragchrg(molvec(i))-q(i)+z(i) 
       enddo
 
-      tmel = .false.
       write(*,'(/,''     ------  P-gTB results ------'')')
       write(*,'(''  # element  Z   pop.                shell populations'')')
       do i=1,n    
          ns = bas_nsh(at(i))
-         if (ns.gt.6) tmel = .true.  ! reduce Z/r weight in fit if TM present
          floats(1:ns)=psh(1:ns,i)
          write(*,'(i3,5x,a2,f5.1,f8.4,5x,10f7.3,5x)') i,asym(at(i)),z(i),q(i),floats(1:ns)
       enddo
       if(molcount.gt.1) write(*,*) 'CT cal',fragchrg
       call prwbo(n,at,wbo)
       call prdipole(dip)
+      call prsec(scndmom)
       if(prop.eq.3) write(*,'(''polarizability computed with beta-parameterized response correction!'')')
       if(prop.eq.2) call prpolar(alp)
       if(prop.eq.3) call prbeta (beta)
@@ -435,6 +463,7 @@ include 'polgrad.f90'
 
       call prwbo(n,at,wbo_ref)
       call prdipole(dip_ref) 
+      call prsec(scndmom_ref)
       if(alp_ref(1).gt.0) call prpolar(alp_ref) 
       if(nogtb) goto 9999
 
@@ -538,11 +567,23 @@ include 'polgrad.f90'
       open(unit=12,file='.data')  
       if(rdref)then
       evew = 0.1d0
-      if(tmel) evew = 0.05d0
+      etew = 1.0d0
+      if(tmel) then
+         evew = 0.05d0 
+         etew = 1.00d0 
+      endif
+      inquire(file='.no_kinetic_energy',exist=ex)
+      ok = .not. ex
+!     ok = (100d0*abs(ekinref-ekin)/ekinref .lt. 0.6) .or. (ekinref .lt. 100d0)
+      if(ok)then ! some systems are ok but T is too bad for fit
 ! Ekin
-      if(abs(ekinref) .gt.1d-8) write(12,'(2F28.14,1x,a)') 1d0*ekinref,1d0*ekin !,atmp
+        if(abs(ekinref) .gt.1d-8) write(12,'(2F28.14,1x,a)') etew*ekinref,etew*ekin !,atmp
 ! Ven
-      if(n.lt.nvecut) write(12,'(2F28.14,1x,a)') evew*everef,evew*eve
+        if(n.lt.nvecut) write(12,'(2F28.14,1x,a)') evew*everef,evew*eve
+      else
+!       call system('touch .no_kinetic_energy')
+        write(*,*) 'excluding T/Ven in fit'
+      endif
 ! momatch
       if(abs(totmatch).gt.1d-8) write(12,'(2F28.14,1x,a)') zero, 0.04d0*totmatch 
 ! psh
@@ -556,6 +597,13 @@ include 'polgrad.f90'
       do i=1,3
          write(12,'(2F28.14,1x,a)') f2*dip_ref(i),f2*dip(i) !,trim(atmp)
       enddo
+
+! sec mom
+      f2=0.02
+      do i=1,3
+         write(12,'(2F28.14,1x,a)') f2*scndmom_ref(i),f2*scndmom(i) !,trim(atmp)
+      enddo
+
 ! wbo
       f2=0.20 ! 0.25=10 % HCNO
       x =0.01 ! cut-off
@@ -626,6 +674,8 @@ include 'polgrad.f90'
 !     call molecho(6,n,nel,na,nb,xyz,rab,at,z)
 
  9999 continue
+
+      if(tmwr) call system('touch .gtbok')
 
                                           call timing(t1,w1)           
                                           call prtime(6,t1-t00,w1-w00,'all')

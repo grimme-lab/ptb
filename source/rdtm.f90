@@ -36,6 +36,7 @@ subroutine rdtm(n,ndim,homo,at,S,focc,ekin,etot,dip,alp,P,rdref)
 
    pr    = .false.
    rdref = .false.
+   cmo_ref(1,1)=-1d42
 
    inquire(file='energy', exist=ex)
    if(.not.ex) return
@@ -262,7 +263,7 @@ subroutine wr_tm_mos(nao,nat,nel,at,nopen,homo)
       write(68,'(''$uhfmo_beta   scfconv=6   format(4d20.14)'')')
       write(68,'(''# SCF total energy is    -9999.9999999999 a.u.'')')
       write(68,'(''#'')')
-      eps(ihomob+1:nao) = eps(ihomob+1:nao) + shift  ! shift beta epsilon such that gap is the same as in alpha space
+      eps(ihomob+1:nao) = eps(ihomob+1:nao) + shift  ! shift beta epsilon such that gap is the same as in alpha space !!!
       do i=1,homo
          write(68,'(i6,2x,''a      eigenvalue='',d20.14,''   nsaos='',i0)') i,eps(i),nao
          write(68,'(4d20.14)') stmp(1:nao,i)
