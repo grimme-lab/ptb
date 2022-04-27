@@ -40,7 +40,8 @@ ifeq ($(OSTYPE),LINUXI)
   LIBS = $(MKLROOT)/lib/intel64/libmkl_blas95_lp64.a $(MKLROOT)/lib/intel64/libmkl_lapack95_lp64.a -Wl,--start-group $(MKLROOT)/lib/intel64/libmkl_intel_lp64.a $(MKLROOT)/lib/intel64/libmkl_core.a $(MKLROOT)/lib/intel64/libmkl_intel_thread.a -Wl,--end-group -lpthread -lm
   PREFLAG = -E -P
 
-   FFLAGS = -xHost -O3 -align array64byte
+  FFLAGS = -O3 -align array64byte
+#  FFLAGS = -xHost -O3 -align array64byte
 #  FFLAGS = -check all -g -debug all -traceback -fpe0 -xHost
 #  FFLAGS = -O1 
 #  FFLAGS = -O -axAVX -qopenmp -align array64byte 

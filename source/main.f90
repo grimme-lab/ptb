@@ -607,7 +607,6 @@ include 'polgrad.f90'
 ! wbo
       f2=0.20 ! 0.25=10 % HCNO
       x =0.01 ! cut-off
-!     if(tmel) x = 0.005
       do i=2,n
          do j=1,i-1 
             if(abs(wbo_ref(j,i)).gt.x) write(12,'(2F28.14,1x,a)') wbo_ref(j,i)*f2, wbo(j,i)*f2 !,trim(atmp)

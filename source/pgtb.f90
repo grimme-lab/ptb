@@ -342,7 +342,7 @@ subroutine twoscf(pr,prop,n,ndim,nel,nopen,homo,at,xyz,z,rab,cn,S,T,SS,Vecp,Hdia
 !  real(wp),parameter :: cmn   = 1_wp-cok     
    real(wp),parameter :: au2ev = 27.2113957_wp
    real(wp) :: r,tmp,pol,hi,hj,hij,xk,t8,t9,qa,qb,keav,eh1,dmp,tmp2
-   real(wp) :: xiter(2),ziter(2),ssh
+   real(wp) :: xiter(2),ziter(2),ssh,gap1,gap2
    real(wp) :: t0,t1,w0,w1
    real(wp) :: gq(n), geff(n), xab(n*(n+1)/2)
 
@@ -474,14 +474,16 @@ subroutine twoscf(pr,prop,n,ndim,nel,nopen,homo,at,xyz,z,rab,cn,S,T,SS,Vecp,Hdia
    call solve2 (mode,n,ndim,nel,nopen,homo,at,eT,focc,Hmat,S,P,eps,eel,fail) 
    if(fail) stop 'diag error'
 
+   if(iter.eq.1) gap1 = (eps(homo+1)-eps(homo))*au2ev
    if(iter.eq.2.and.pr)then
+     gap2 = (eps(homo+1)-eps(homo))*au2ev
      ii=max(homo-9,1)
      jj=min(homo+2,ndim)
      xk=eps(homo+1)-eps(homo)
      write(*,'('' frontier MO occupations   : '',14f8.4)') focc(ii:jj)
      write(*,'('' (shifted) level energies  : '',14f8.4)')  eps(ii:jj)
-     write(*,'('' gap (eV)                  : '',f9.3)') xk*au2ev    
-     write(*,'('' virtual MO correction (eV): '',f9.3)') (glob_par(4) + glob_par(5)*xk)*au2ev     
+!    write(*,'('' virtual MO correction (eV): '',f9.3)') (glob_par(4) + glob_par(5)*xk)*au2ev     
+     write(*,'('' gaps (1st,2nd, eV)        : '',2f9.3,f12.6)') gap1,gap2
      if(xk.lt.0.05) then
         write(*,*) 'WARNING WARNING WARNING WARNING'
         write(*,*) ':::::::   small HL gap  :::::::'
