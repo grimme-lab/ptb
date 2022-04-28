@@ -8,6 +8,7 @@ program gTB
       use parcom   ! TB method parameters
       use com      ! general stuff         
       use mocom    ! ref MOs for fit and momatch value
+      use dftd4     
 
       use iso_fortran_env, only : wp => real64
       implicit none
@@ -41,7 +42,7 @@ program gTB
 
       real(wp) t0,t1,w0,w1,t00,w00,ddot
       real(wp) etot,eref,enuc,ekinref,ekin,eel,eve,everef,ecoul,egtb
-      real(wp) norm,ff,f2,f1,x,y,qi,ge,r,evew,etew
+      real(wp) norm,ff,f2,f1,x,y,qi,ge,r,evew,etew,edisp
       real(wp) dcal,dref,deeq,dang
       real(wp) a1,a2,s8
       real(wp) erfs     
@@ -359,6 +360,14 @@ include 'polgrad.f90'
          goto 9999
       endif
 
+! for E-PTB
+      qd4 = z - q  ! q from pop                s8          s9          a1          a2         beta_1 (orig 3.0)
+      call dftd4_dispersion(at,xyz,qd4,1.0d0,glob_par(2),glob_par(1),glob_par(3),glob_par(4),glob_par(5),2.0d0,edisp)
+      write(*,'('' D4 dispersion energy      :'',2f14.6)') edisp
+      open(unit=124,file='.EDISP')
+      write(124,'(F16.8)') edisp
+      close(124)
+
       call energy(ndim,T,P,ekin) 
       write(*,'('' kinetic energy (calc/ref) :'',2f14.6)') ekin,ekinref
 !     write(*,'('' Coulomb energy (Eh, kcal/mol/Nel) :'',2f12.8)') ecoul,627.51*ecoul/nel 
@@ -422,7 +431,7 @@ include 'polgrad.f90'
          fragchrg(molvec(i))=fragchrg(molvec(i))-q(i)+z(i) 
       enddo
 
-      write(*,'(/,''     ------  P-gTB results ------'')')
+      write(*,'(/,''     ------  PTB results ------'')')
       write(*,'(''  # element  Z   pop.                shell populations'')')
       do i=1,n    
          ns = bas_nsh(at(i))
@@ -688,7 +697,7 @@ subroutine help
       use, intrinsic :: iso_fortran_env, only : output_unit
       implicit none
       write(output_unit, '(a)') &
-         "Usage: gtb <input> [options]...", &
+         "Usage: ptb <input> [options]...", &
          "", &
          "Geometry input must be given with the first argument.", &
          "Accepted formats are Turbomole coord and xyz format.", &
@@ -715,8 +724,7 @@ end subroutine help
 
 subroutine head
       implicit none
-      character(len=40),parameter:: date='Sat Feb  5 09:24:27 CET 2022'
-
+      character(len=40),parameter:: date='Do 28. Apr 14:28:45 CEST 2022'
       character(len=10),parameter:: version='3.7'
 
       write(*,*)

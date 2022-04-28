@@ -103,10 +103,10 @@ subroutine pgtb(pr,prop,n,ndim,nel,nopen,homo,at,chrg,xyz,z,rab, &
 !  initizialization
 !! ------------------------------------------------------------------------
    if(pr)then
-   write(*,*) '----------------'
-   write(*,*) '| P-gTB  model |'
-   write(*,*) '| SG 2020-2021 |'
-   write(*,*) '----------------'
+   write(*,*) '-----------------------'
+   write(*,*) '|      PTB  model      |'
+   write(*,*) '| SG, MM, AH 2020-2022 |'
+   write(*,*) '-----------------------'
    write(*,*) 'prop :',prop
    endif
 
@@ -464,7 +464,7 @@ subroutine twoscf(pr,prop,n,ndim,nel,nopen,homo,at,xyz,z,rab,cn,S,T,SS,Vecp,Hdia
     enddo
    endif
 
-   if(pr)write(*,*) 'gTB H matrix iteration ',iter, ' done. Now diag ...'
+   if(pr)write(*,*) 'PTB H matrix iteration ',iter, ' done. Now diag ...'
 
 !  solve 
    mode = iter

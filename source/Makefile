@@ -7,7 +7,7 @@ PROG = ~/bin/ptb
 SOURCES = accuracy.f90 la.f90 blas_level1.f90 blas_level2.f90 blas_level3.f90 lapack_eig.f90
 $(foreach src, $(SOURCES), $(eval $(src) := $(patsubst %.f90, %.o, $(src))))
 
-MODULES= iso_fortran_env.o bascom.o parcom.o com.o thresholds.o cbascom.o mocom.o \
+MODULES= iso_fortran_env.o bascom.o parcom.o com.o thresholds.o cbascom.o mocom.o dftd4.o \
 			$(foreach src, $(SOURCES), $($(src)))
 
 CFILES= symmetry_i.o
