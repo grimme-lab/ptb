@@ -716,11 +716,12 @@ end subroutine help
 subroutine head
       implicit none
       character(len=40),parameter:: date='Sat Feb  5 09:24:27 CET 2022'
-      character(len=10),parameter:: version='3.6'
+
+      character(len=10),parameter:: version='3.7'
 
       write(*,*)
       write(*,'(7x,''=============================================='')')
-      write(*,'(7x,''|                 g T B                      |'')')
+      write(*,'(7x,''|                 P T B                      |'')')
       write(*,'(7x,''|                S.Grimme                    |'')')
       write(*,'(7x,''|          Universitaet Bonn, MCTC           |'')')
       write(*,'(7x,''=============================================='')')
