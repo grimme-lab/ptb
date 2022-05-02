@@ -24,7 +24,7 @@ Subroutine get_schoenflies (n, iat, xyz, sfsym, paramar)
       End Interface c_interface
 
      !Dummy Arguments
-      Character (Len=*)     :: sfsym
+      Character (Len=*), Target     :: sfsym
       Integer, Intent (In)  :: n
       Integer, Intent (In)  :: iat (n)
       Real * 8, Intent (In) :: xyz (3, n)
