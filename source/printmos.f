@@ -15,7 +15,7 @@ ccccccccccccccccccccccccccccccccccccccccccc
 ! ipao(nbf)    : # primitives in contracted AO 
 ! ibf(ncent)   : # of contracted AOs on atom
 
-      subroutine printmos(ncent,at,xyz,nmo,homo,norm,mowrcut)
+      subroutine printmos(ncent,at,xyz,nmo,homo,norm,mowrcut,eval,tmp)
 
       use bascom
       implicit none
@@ -24,6 +24,8 @@ ccccccccccccccccccccccccccccccccccccccccccc
       real*8,  intent ( in ) :: xyz(3,ncent)
       real*8,  intent ( in ) :: norm(nmo)    
       real*8,  intent ( in ) :: mowrcut           
+      real*8,  intent ( in ) :: eval(nmo)
+      real*8,  intent ( inout ) :: tmp(nmo,nmo)
 
       ! temporary variables
       integer nbf
@@ -34,22 +36,24 @@ ccccccccccccccccccccccccccccccccccccccccccc
       integer lladr(0:3),ll(0:3)
       data lladr  /1,3,6,10/
       data ll     /0,1,4,10/
-      real*8,allocatable :: eval(:)
       real*8,allocatable :: occ (:)
       real*8,allocatable :: cmo(:,:)
-      real*8,allocatable :: tmp(:,:)
 
-      allocate(cmo(ncao,nmo),tmp(nmo,nmo),occ(nmo),eval(nmo))
+      allocate(cmo(ncao,nmo),occ(nmo))
 
-      rewind(42)
-      read(42) tmp
-      read(42) eval
+!     rewind(42)
+!     read(42) tmp
+!     read(42) eval
       
-      Do i=1,nmo 
+      do i=1,nmo 
          tmp(i,:)=tmp(i,:)*norm(i)
       enddo
 
       call sao2cao(nmo,tmp,cmo,ncent,at)
+
+      do i=1,nmo 
+         tmp(i,:)=tmp(i,:)/norm(i)
+      enddo
 
       nbf=ncao
       nprim=prim_npr

@@ -2,23 +2,18 @@ C     *****************************************************************
 
       FUNCTION ASYM(I)
       CHARACTER*2 ASYM
-      CHARACTER*2 ELEMNT(107), AS
-      DATA ELEMNT/'h ','he',
-     1 'li','be','b ','c ','n ','o ','f ','ne',
-     2 'na','mg','al','si','p ','s ','cl','ar',
-     3 'k ','ca','sc','ti','v ','cr','mn','fe','co','ni','cu',
-     4 'zn','ga','ge','as','se','br','kr',
-     5 'rb','sr','y ','zr','nb','mo','tc','ru','rh','pd','ag',
-     6 'cd','in','sn','sb','te','i ','xe',
-     7 'cs','ba','la','ce','pr','nd','pm','sm','eu','gd','tb','dy',
-     8 'ho','er','tm','yb','lu','hf','ta','w ','re','os','ir','pt',
-     9 'au','hg','tl','pb','bi','po','at','rn',
-     1 'fr','ra','ac','th','pa','u ','np','pu','am','cm','bk','cf','xx',
-     2 'fm','md','cb','xx','xx','xx','xx','xx'/
-      AS=ELEMNT(I)
-      CALL UPPER(AS)
-      ASYM=AS
-      if(i.eq.103) asym='XX'
+      CHARACTER*2 ELEMNT(86), AS
+      DATA ELEMNT/'H ','He',
+     1 'Li','Be','B ','C ','N ','O ','F ','Ne',
+     2 'Na','Mg','Al','Si','P ','S ','Cl','Ar',
+     3 'K ','Ca','Sc','Ti','V ','Cr','Mn','Fe','Co','Ni','Cu',
+     4 'Zn','Ga','Ge','As','Se','Br','Kr',
+     5 'Rb','Sr','Y ','Zr','Nb','Mo','Tc','Ru','Rh','Pd','Ag',
+     6 'Cd','In','Sn','Sb','Te','I ','Xe',
+     7 'Cs','Ba','La','ce','pr','nd','pm','sm','eu','gd','tb','dy',
+     8 'ho','er','tm','yb','lu','Hf','Ta','W ','Re','Os','Ir','Pt',
+     9 'Au','Hg','Tl','Pb','Bi','Po','At','Rn'/
+      ASYM=ELEMNT(I)
       RETURN
       END
 

@@ -9,6 +9,7 @@ module bascom
       real(wp) bas_ec(2,5,10,86)  ! read data: exp/contr,max contr,max shells,elements
       integer  bas_lsh (10,86) 
       integer  bas_npr (10,86)
+      real(wp) dpshdq  (10,86)
 
       integer, allocatable :: prim_npr(:)  
       integer, allocatable :: prim_count(:)  

@@ -19,6 +19,7 @@ subroutine calcrab(n,at,xyz,rab)
             k = k + 1
             r = sqrt(rab2)
             rab(k) = r
+            if(r.lt.1d-6) stop 'cold fusion!'
          enddo
          k = k +1
          rab(k)=1.d-12 ! avoid NANs

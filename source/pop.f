@@ -35,6 +35,39 @@
 
       end
 
+! just shells
+
+      subroutine mpop2(n,ndim,P,S,qsh)
+      use bascom
+      implicit none
+      integer n,ndim
+      real*8 qsh(10,n)
+      real*8 P(ndim*(ndim+1)/2)
+      real*8 S(ndim*(ndim+1)/2)
+
+      integer i,j,ij,ii,jj,ish,jsh
+      real*8 ps
+
+      qsh= 0
+      ij = 0
+      do i=1,ndim
+         ii=aoat(i)
+         ish=shell2ao(i)
+         do j=1,i-1
+            ij=ij+1
+            jj=aoat(j)
+            jsh=shell2ao(j)
+            ps=p(ij)*s(ij)
+            qsh(ish,ii)=qsh(ish,ii)+ps
+            qsh(jsh,jj)=qsh(jsh,jj)+ps
+         enddo
+         ij=ij+1
+         ps=p(ij)*s(ij)
+         qsh(ish,ii)=qsh(ish,ii)+ps    
+      enddo
+
+      end
+
 ! just atoms
 
       subroutine mpop3(n,ndim,P,S,q)

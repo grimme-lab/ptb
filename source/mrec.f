@@ -100,8 +100,8 @@ c D3 values
             if (r2.gt.cn_thr) cycle
             rcovj=rcov(iz(iat))
 c covalent distance in Bohr
-            ff=1.10
-            if(iz(i).eq.1.and.iz(iat).eq.1) ff=1.1
+            ff=1.00
+!           if(iz(i).eq.1.and.iz(iat).eq.1) ff=1.1
             rco=(rcovi+rcovj)*ff   ! this scaling reduces the size of the clusters
             rr=rco/r
 c counting function exponential has a better long-range behavior than MHGs inverse damping

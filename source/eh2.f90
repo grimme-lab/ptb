@@ -133,7 +133,7 @@
              close(1)
       endif
 
-      call system('rmec; egtb')
+      call system('eptb')
       call rdenergy(e_mol)   
 
 !-----------------------------------------------------------      

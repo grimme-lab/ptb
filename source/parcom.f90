@@ -9,6 +9,10 @@ module parcom
 
       real(wp) ener_par1 (10,86)
       real(wp) ener_par2 (10,86)
+      real(wp) ener_par3 (10,86)
+      real(wp) ener_par4 (10,86)
+      real(wp) ener_par5 (10,86)
+      real(wp) ener_par6 (10,86)
 
       real(wp) shell_xi  (10,86)
       real(wp) shell_cnf1(10,86)

@@ -24,15 +24,14 @@
 
 !--------------------------- read coord
       call rd0('coord',n)
-      allocate(at(n),xyz(3,n),g(3,n),dum(3,n),ict(n,120),
-     .         dgen(n))
+      allocate(at(n),xyz(3,n),g(3,n),dum(3,n),ict(n,120),dgen(n))
       call rd(.false.,'coord',n,xyz,at)
 
       e = 0
       g = 0
 
 !--------------------------- energy at input point
-      call system('egtb')
+      call runenergy     
       call rdenergy(e)   
 !---------------------------      
       call system('mv energy energy.tmp')
@@ -46,13 +45,13 @@
          xyz(3,1)=xyz(3,1)+step
 !---------------------------    right step
          call wrcoord(n,at,xyz)
-         call system('egtb')
+         call runenergy     
          call rdenergy(er)   
 !---------------------------      
          xyz(3,1)=xyz(3,1)-step*2d0
 !---------------------------    left one
          call wrcoord(n,at,xyz)
-         call system('egtb')
+         call runenergy     
          call rdenergy(el)   
 !---------------------------    back
          xyz(3,1)=xyz(3,1)+step
@@ -81,12 +80,12 @@
                xyz(j,i)=xyz(j,i)+step
 !---------------------------    right step
                call wrcoord(n,at,xyz)
-               call system('egtb')
+               call runenergy     
                call rdenergy(er)   
                xyz(j,i)=xyz(j,i)-step*2d0
 !---------------------------    left one
                call wrcoord(n,at,xyz)
-               call system('egtb')
+               call runenergy     
                call rdenergy(el)   
 !---------------------------    back
                xyz(j,i)=xyz(j,i)+step
@@ -123,6 +122,15 @@
       write(43,'(''$end'')')
       close(43)
       call system('mv energy.tmp energy')
+
+      end
+
+!-----------------------------------------------------------      
+
+      subroutine runenergy
+
+!     call system('egtb')
+      call system('rm -rf ptb_dump gradient; ptb coord -energy > tmp')
 
       end
 

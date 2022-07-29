@@ -22,10 +22,12 @@
 !     write(*,*) n,new
 !     if(new.gt.0) call system('touch newref')
 
-      open(unit=1,file='~/.elist')
-      read(1,*) nl
-      read(1,*) list(1:nl)
-      close(1)
+!     open(unit=1,file='~/.elist')
+!     read(1,*) nl
+!     read(1,*) list(1:nl)
+!     close(1)
+      nl = 1
+      list(1)=5
 
       new=0
       do i=1,n
@@ -34,8 +36,8 @@
          enddo
       enddo
       if(new.ne.0) then
-!        call system('pwd')
-         call system('pwd; rmec; egtb')
+         call system('pwd')
+         call system('gtbref2 -nocef')
       endif
 
  10   continue     

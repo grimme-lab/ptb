@@ -1,4 +1,4 @@
-subroutine eeq(n,at,rab,chrg,cn,orig,scal,scal2,q)
+subroutine eeq(n,at,rab,chrg,cn,orig,scal,scal2,scal3,scal4,q)
       use iso_fortran_env, id => output_unit, wp => real64
       implicit none
       integer, intent(in)  :: n            ! number of atoms     
@@ -9,6 +9,8 @@ subroutine eeq(n,at,rab,chrg,cn,orig,scal,scal2,q)
       logical ,intent(in)  :: orig         ! logical. if true use original eeq model
       real(wp),intent(in)  :: scal(86)     ! scale orig xi parameters         
       real(wp),intent(in)  :: scal2(86)    ! new gamma parameters         
+      real(wp),intent(in)  :: scal3(86)    ! scale CN fac
+      real(wp),intent(in)  :: scal4(86)    ! scale alpha 
       real(wp),intent(out) :: q(n)         ! output charges
 
 !  local variables
@@ -113,8 +115,8 @@ subroutine eeq(n,at,rab,chrg,cn,orig,scal,scal2,q)
       enddo
       else
       do i=1,n
-         x(i) =-chieeq(at(i)) * scal(at(i)) + cnfeeq(at(i))*sqrt(cn(i))
-       alp(i) = alpeeq(at(i)) 
+         x(i) =-chieeq(at(i)) * scal(at(i)) + scal3(at(i))*cnfeeq(at(i))*sqrt(cn(i))
+       alp(i) = alpeeq(at(i)) * scal4(at(i))
        if(abs(scal2(at(i))).gt.1d-6)then
        gam(i) =  scal2(at(i))  ! fitted
        else

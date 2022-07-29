@@ -12841,10 +12841,11 @@ subroutine get_dispersion(mol, disp, param, cutoff, charges, energy, gradient, s
    call param%get_dispersion2(mol, lattr, cutoff%disp2, disp%r4r2, &
       & c6, dc6dcn, dc6dq, energies, dEdcn, dEdq, gradient, sigma)
 
-   allocate(q(mol%nat))
-   q(:) = 0.0_wp
-   call disp%weight_references(mol, cn, q, gwvec, gwdcn, gwdq)
-   call disp%get_atomic_c6(mol, gwvec, gwdcn, gwdq, c6, dc6dcn, dc6dq)
+!CSG comment 4 lines for C9(q) dep.
+!  allocate(q(mol%nat))
+!  q(:) = 0.0_wp
+!  call disp%weight_references(mol, cn, q, gwvec, gwdcn, gwdq)
+!  call disp%get_atomic_c6(mol, gwvec, gwdcn, gwdq, c6, dc6dcn, dc6dq)
 
    call get_lattice_points(mol%periodic, mol%lattice, cutoff%disp3, lattr)
    call param%get_dispersion3(mol, lattr, cutoff%disp3, disp%r4r2, &

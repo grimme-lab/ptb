@@ -15,47 +15,50 @@ program gTB
 
       real(wp),allocatable :: xyz(:,:),rab(:),z(:), wbo(:,:), cn(:)
       real(wp),allocatable :: psh(:,:),q(:), psh_ref(:,:), q_ref(:), wbo_ref(:,:), qd4(:)
-      real(wp),allocatable :: psh_gtb(:,:),q_gtb(:), wbo_gtb(:,:)
-      real(wp),allocatable :: S(:),T(:),P(:),SS(:),F(:),V(:),D3(:,:)
+      real(wp),allocatable :: S(:),T(:),P(:),tmpmat(:),F(:),D3(:,:)
       real(wp),allocatable :: eps(:),focc(:),xnorm(:)
-      real(wp),allocatable :: Pref(:)
       real(wp),allocatable :: fragchrg_ref(:),fragchrg(:)
       real(wp),allocatable :: dipgrad(:,:),dipgrad_ref(:,:)
       real(wp),allocatable :: fdgrad(:,:,:),fdgrad_ref(:,:,:)
+      real(wp),allocatable :: grad(:,:),grad_ref(:,:),dum(:,:)
       real*4  ,allocatable :: ML1(:,:),ML2(:,:)
 
       integer, allocatable :: at(:)
       integer ,allocatable ::molvec(:)
+      integer ,allocatable :: dgen(:)
+      integer ,allocatable :: ict(:,:)
 
       integer n
       integer ndim
       integer nopen
       integer na,nb,nel,ihomo
       integer prop
-      integer nvecut
       integer ia,ib,ish,jsh,ksh,ata,atb,ati
       integer ii,jj,ij,ll
+      integer ntrans
       integer molcount,idum(100),tenmap(6)
       integer i,j,k,l,m,ns,nf,nn,lin,llao(4)
       data llao/1,3,5,7 /
       real(wp) chrg ! could be fractional for model systems
 
       real(wp) t0,t1,w0,w1,t00,w00,ddot
-      real(wp) etot,eref,enuc,ekinref,ekin,eel,eve,everef,ecoul,egtb
-      real(wp) norm,ff,f2,f1,x,y,qi,ge,r,evew,etew,edisp
+      real(wp) etot,eref,enuc,ekinref,ekin,eve,everef,egtb
+      real(wp) norm,ff,f2,f1,x,y,qi,ge,r,etew,edisp,step
       real(wp) dcal,dref,deeq,dang
       real(wp) a1,a2,s8
-      real(wp) erfs     
+      real(wp) erfs,er,el
       real(wp) pnt(3),dip(3),dip_ref(3),dipr(3),dipl(3)
       real(wp) scndmom(3),scndmom_ref(3)
       real(wp) alp(6),alp_ref(6),alpr(6),alpl(6)
       real(wp) efield(3),eftmp(3,6),beta(6,3)
       real(wp) floats(10),edum(86)
+      real(wp) trans(9,120)
       real(wp),parameter :: zero = 0_wp
       character*2 asym
       character*80 str(10)
       character*80 atmp,arg1,fname,pname,bname
-      logical ex,fail,wrapo,test,test2,tmwr,dgrad,raman,betaref,energ,stda,acn,rdref,nogtb,tmel,ok,rpbe
+      logical ex,fail,wrapo,test,test2,tmwr,dgrad,raman,ok_ekin,energ
+      logical stda,acn,rdref,nogtb,ok,rpbe,fitshellq,ldum,lgrad
       integer TID, OMP_GET_NUM_THREADS, OMP_GET_THREAD_NUM, nproc
 
       call timing(t00,w00)           
@@ -66,12 +69,12 @@ program gTB
       tmwr    =.false.
       dgrad   =.false.
       raman   =.false.
-      betaref =.false.
       energ   =.false.
       stda    =.false.
       acn     =.false.
       nogtb   =.false.
       rpbe    =.false.
+      lgrad   =.false.
       eref    = 0
       ekinref = 0
       prop = 1
@@ -79,7 +82,6 @@ program gTB
       chrg = 0
       nopen= 0
       alp_ref(1)=-99
-      nvecut = 10     ! fit on Ven*P for molecules with less #atoms than this value 
       pname='~/.atompara'
       bname="~/.basis_vDZP"
 
@@ -127,10 +129,15 @@ program gTB
       if(index(arg1,'-beta') .ne.0) prop =3       ! hyperpolar      
       if(index(arg1,'-hyperpolar') .ne.0) prop =3 ! hyperpolar      
       if(index(arg1,'-energy') .ne.0)energ=.true. ! energy          
+      if(index(arg1,'-e'     ) .ne.0)energ=.true. ! energy          
       if(index(arg1,'-stda')   .ne.0)stda=.true.  ! stda write      
       if(index(arg1,'-tmwr')   .ne.0)tmwr=.true.  ! TM write      
       if(index(arg1,'-test').ne.0) test =.true.   ! more data output
       if(index(arg1,'-nogtb').ne.0) nogtb =.true. ! 
+!     if(index(arg1,'-fitshellq').ne.0) then
+!             fitshellq =.true.                   ! output file for test   
+!             nogtb =.true. 
+!     endif
       if(index(arg1,'-par').ne.0)then          
       call getarg(i+1,pname)
       endif
@@ -166,14 +173,14 @@ program gTB
       read(1,*) glob_par(11:20)
       do i=1,72 ! change here for new elements
          read(1,*) j
-         read(1,*) expscal  (1,1:10,j)   ! 1 -10  E    
-         read(1,*) ener_par1 (1:10,j)    ! 11-20  E        
-         read(1,*) ener_par2 (1:10,j)    ! 21-30  E   
-         read(1,*) floats    (1:10)      ! 31-40  
-         read(1,*) floats    (1:10)      ! 61-70  
-         read(1,*) floats    (1:10)      ! 61-70  
-         read(1,*) floats    (1:10)      ! 61-70  
-         read(1,*) shell_xi  (1:10,j)    ! 71-80  shellQ
+         read(1,*) ener_par1 (1:10,j)    ! 1 -10       
+         read(1,*) ener_par2 (1:10,j)    ! 11-20       
+         read(1,*) expscal  (1,1:10,j)   ! 21-30  
+         read(1,*) ener_par6 (1:10,j)    ! 31-40  
+         read(1,*) ener_par4 (1:10,j)    ! 41-50       
+         read(1,*) ener_par5 (1:10,j)    ! 51-60       
+         read(1,*) expscal  (2,1:10,j)   ! 61-70  PTB
+         read(1,*) shell_xi  (1:10,j)    ! 71-80    "   
          read(1,*) shell_cnf1(1:10,j)    ! 81-90    "
          read(1,*) shell_cnf2(1:10,j)    ! 91-100   "
          read(1,*) shell_cnf3(1:10,j)    ! 101-110  "
@@ -181,8 +188,6 @@ program gTB
          read(1,*) shell_cnf4(1:10,j)    ! 121-130  "
          read(1,*) shell_resp(1:10,j,1)  ! 131-140  "
          read(1,*) shell_resp(1:10,j,2)  ! 141-150  "
-!        write(*,*) j
-!        write(*,'(20F15.10)') shell_cnf1(1:5,j)*shell_cnf4(9,j),shell_cnf4(10,j)/shell_cnf4(9,j)
       enddo
       close(1)
 
@@ -226,9 +231,9 @@ program gTB
 
       allocate(at(n),xyz(3,n),z(n),q(n),cn(n),rab(n*(n+1)/2),        &
      &         psh(10,n),psh_ref(10,n),q_ref(n),qd4(n),wbo(n,n),     &
-     &         wbo_ref(n,n),wbo_gtb(n,n),q_gtb(n),psh_gtb(10,n),     &
-     &         dipgrad(3,3*n),dipgrad_ref(3,3*n),                    &
-     &         fdgrad(3,3*n,9), fdgrad_ref(3,3*n,9), molvec(n) )
+     &         wbo_ref(n,n),grad(3,n),grad_ref(3,n),dum(3,n),        &
+     &         dipgrad(3,3*n),dipgrad_ref(3,3*n),ict(n,120),dgen(n), &
+     &         fdgrad(3,3*n,9),fdgrad_ref(3,3*n,9),molvec(n))
 
 ! read coordinates
       call rd(.true.,fname,n,xyz,at)
@@ -254,10 +259,8 @@ program gTB
             
       call setavcn   ! av. el. CNs with erfs=-2.0
 
-      increase_eps_weight = .false.
       idum=0
       do i=1,n
-         if (metal(at(i)).ne.0) increase_eps_weight = .true.  ! increase orbital energy weight in fit 
          if (tmwr.and.shell_xi(1,at(i)).ge.0d0) then
              write(*,*) i,at(i)
              stop 'element parameter missing'
@@ -272,23 +275,20 @@ program gTB
       write(*,*) 'basis read done.'
       call setupbas0(n,at,ndim)   
 
-      allocate(S(ndim*(ndim+1)/2),P(ndim*(ndim+1)/2), SS(ndim*(ndim+1)/2), &
-     &         T(ndim*(ndim+1)/2),F(ndim*(ndim+1)/2), D3(ndim*(ndim+1)/2,3), &
-     &         ML1(ndim,ndim),ML2(ndim,ndim), xnorm(ndim),focc(ndim),eps(ndim),&
-     &         epsref(ndim),Pref(ndim*(ndim+1)/2),cmo_ref(ndim,ndim),V(ndim*(ndim+1)/2))  
+      allocate(S(ndim*(ndim+1)/2),P(ndim*(ndim+1)/2),F(ndim*(ndim+1)/2),tmpmat(ndim*(ndim+1)/2), &
+     &         D3(ndim*(ndim+1)/2,3),ML1(ndim,ndim),ML2(ndim,ndim),xnorm(ndim),focc(ndim),eps(ndim)) 
 
-      call mrec(molcount,xyz,n,at,molvec)  ! fragments (for CT check)
+      if(n.lt.200) then
+         call mrec(molcount,xyz,n,at,molvec)  ! fragments (for CT check), crashes for large systems
+      else
+         molcount=1
+         molvec(1:n)=1
+      endif
       allocate(fragchrg(molcount),fragchrg_ref(molcount))
 
 ! valence basis
       call setupbas (n,at,ndim)
       write(*,*) 'basis setup done. Ndim',ndim
-
-      tmel = .false.
-      do i=1,n
-         if (bas_nsh(at(i)).gt.6) tmel = .true.  ! reduce Z/r weight in fit if TM present
-      enddo
-!     if(tmel) nvecut = 0  ! never use Ven in fit
 
 ! core basis
       call setupcbas0(n,at)   
@@ -303,33 +303,45 @@ program gTB
       if(nopen.eq.0.and.na.ne.nb) nopen = na - nb ! case .UHF does not exist i.e. radical
       write(*,*) 'nopen  ',nopen
       
-! exact S and T
-      if(n.lt.nvecut)then
-      call stvint(n,ndim,at,xyz,rab,z,S,T,V,xnorm) ! + Vints for fit (small mol.)
-      else
-      call stint (n,ndim,at,xyz,rab,S,T,xnorm)
-      endif
+! exact S
+      call sint (n,ndim,at,xyz,rab,S,xnorm)
+      tmpmat = S
+                                          call timing(t1,w1)           
+                                          call prtime(6,t1-t00,w1-w00,'startup and initial S')
+
       if(n.eq.1) call prmat(6,S,ndim,0,'overlap matrix')
 
 ! read DFT reference
       pnt = 0
-      if((.not.energ).and.(.not.stda).and.(.not.tmwr)) call rdtm(n,ndim,ihomo,at,S,focc,ekinref,eref,dip_ref,alp_ref,Pref,rdref)
+      if((.not.energ).and.(.not.stda).and.(.not.tmwr)) call rdtm(n,ndim,ihomo,at,S,focc,ekinref,eref,dip_ref,alp_ref,rdref)
+      if(rdref)then
+         inquire(file='.no_kinetic_energy',exist=ex)
+         ok_ekin = .not. ex
+      endif
 !     if(rdref.and.mod(nel,2).ne.0) stop 'open-shell DFT ref. not implemented'
 
       if(nogtb) then
          call mlpop14(ndim,S,ML1,ML2) ! ML precalc, x=1/4
          goto 888
       endif
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-!     inquire(file='beta_red',exist=ex)
-!     if(ex)    prop=3
 
       if(alp_ref(1).gt.0.and.prop.lt.2) prop = 2 ! switch on polar calc
       if(energ)                         prop = 0
       if(stda)                          prop = 4
       if(tmwr)                          prop = 5
 
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+! GRADIENT
+      if(prop.eq.0) then
+         inquire(file='gradient',exist=ex)
+         if(ex)then
+         lgrad=.true.
+include 'grad.f90'
+         call calcrab(n,at,xyz,rab)
+         S = tmpmat
+         endif
+      endif
 ! DIPGRAD
       if(prop.gt.0.and.prop.lt.4) then
          inquire(file='dipgrad',exist=ex)
@@ -337,7 +349,7 @@ program gTB
          dgrad=.true.
 include 'dipgrad.f90'
          call calcrab(n,at,xyz,rab)
-         call stint(n,ndim,at,xyz,rab,S,T,xnorm)    ! exact S and T
+         S = tmpmat
          endif
 ! RAMAN
          inquire(file='polgrad',exist=ex)
@@ -345,81 +357,71 @@ include 'dipgrad.f90'
          raman=.true.
 include 'polgrad.f90'
          call calcrab(n,at,xyz,rab)
-         call stint(n,ndim,at,xyz,rab,S,T,xnorm)    ! exact S and T
+         S = tmpmat
          efield = 0
          endif
       endif
 
-! SINGLE POINT
-      if(prop.gt.0) call dipint(n,ndim,at,xyz,rab,xnorm,pnt,D3)! dipole integrals 
-      call pgtb(.true.,prop,n,ndim,nel,nopen,ihomo,at,chrg,xyz,z,rab,pnt,xnorm,S,T,D3,&
-     &          efield,ML1,ML2,psh,q,P,F,eps,eel,ecoul,wbo,dip,alp) ! gd4 = EEQ to avoid recompute
+! SINGLE POINT PTB
+      inquire(file='ptb_dump',exist=ex)
+      ldum = ( .not. energ ) .or. (energ .and. (.not.ex) )      ! run it in normal case or in energy mode if dump does not exist
+      if(ldum) then
+       if(prop.gt.0) call dipint(n,ndim,at,xyz,rab,xnorm,pnt,D3)! dipole integrals 
+       call pgtb(.true.,prop,n,ndim,nel,nopen,ihomo,at,chrg,xyz,z,rab,pnt,xnorm,S,D3,&
+     &          efield,ML1,ML2,psh,q,P,F,eps,wbo,dip,alp) 
+      endif
+
 ! fit case
       if(rpbe)then
-         call system('egtb2')
+         call system('egtb4') ! run TM
          goto 9999
       endif
 
-! for E-PTB
-      qd4 = z - q  ! q from pop                s8          s9          a1          a2         beta_1 (orig 3.0)
-      call dftd4_dispersion(at,xyz,qd4,1.0d0,glob_par(2),glob_par(1),glob_par(3),glob_par(4),glob_par(5),2.0d0,edisp)
-      write(*,'('' D4 dispersion energy      :'',2f14.6)') edisp
+! ENERGY ONLY 
+      if(energ) then
+         call ptb_energy(.true.,n,ndim,nopen,at,z,xyz,rab,q,psh,wbo,S,P,eref,etot)
+         open(unit=12,file='.data')  
+!        write(12,*) eref/float(n),etot/float(n)
+         write(12,*) eref*10d0,etot*10d0
+         if(lgrad)then
+            f2 =10.0
+            do i=1,n
+               do j=1,3
+                  write(12,*) f2*grad_ref(j,i),f2*grad(j,i)
+               enddo
+            enddo
+         endif
+         close(12)
+         open(unit=111,file='energy')
+         write(111,'(''$energy'')')   
+         write(111,'('' 1      '',f16.8,''   99.9 99.9 99.9 99.9'')') etot 
+         write(111,'(''$end'')')   
+         close(111)
+         goto 9999
+      endif
+
+! for RPBE-PTB
+      if(prop.gt.0) then
+      qd4 = z - q  ! q from pop                s8          s9          a1          a2       beta_1/2 (orig 3.0,2.0)
+      call dftd4_dispersion(at,xyz,qd4,1.0d0,glob_par(2),glob_par(1),glob_par(3),glob_par(4),2.0d0,3.3d0,edisp)
+      write(*,'('' D4 dispersion energy      :'',f14.6)') edisp
       open(unit=124,file='.EDISP')
       write(124,'(F16.8)') edisp
       close(124)
-
-      call energy(ndim,T,P,ekin) 
-      write(*,'('' kinetic energy (calc/ref) :'',2f14.6)') ekin,ekinref
-!     write(*,'('' Coulomb energy (Eh, kcal/mol/Nel) :'',2f12.8)') ecoul,627.51*ecoul/nel 
-      if(rdref.and.n.lt.nvecut)then
-      call energy(ndim,V,P,eve) 
-      call energy(ndim,V,Pref,everef) 
-      write(*,'('' Z/r pot energy (calc/ref) :'',2f14.6)') eve,everef  
       endif
+
+      if(rdref.and.ok_ekin)then
+      call tint(n,ndim,at,xyz,rab,tmpmat,xnorm)
+      call energy(ndim,tmpmat,P,ekin) 
+      write(*,'('' total energy (wo disp,DFT):'',2f14.6)') eref
+      write(*,'('' kinetic energy (calc/DFT) :'',2f14.6)') ekin,ekinref
+      endif
+
       if(prop.gt.0) then
          call secint(n,ndim,at,xyz,rab,xnorm,pnt,D3)! R^2 integrals 
          call secmom(n,ndim,xyz,z,xnorm,P,D3,pnt,scndmom)
-         call secmom(n,ndim,xyz,z,xnorm,Pref,D3,pnt,scndmom_ref)
+         if(rdref) call secmom(n,ndim,xyz,z,xnorm,Pref,D3,pnt,scndmom_ref)
       endif
-
-! ENERGY ONLY FROM P and q
-!     if(energ.and.(.not.stda)) then
-!        call gtbenergy(.true.,n,ndim,at,z,xyz,rab,q,psh,P,wbo,eref,etot)
-!        open(unit=12,file='.data')  
-!        write(12,*) eref/float(n),etot/float(n)
-!        write(12,*) eref,etot
-!        close(12)
-!        open(unit=111,file='energy')
-!        write(111,'(''$energy'')')   
-!        write(111,'('' 1      '',f16.8,''   99.9 99.9 99.9 99.9'')') etot 
-!        write(111,'(''$end'')')   
-!        close(111)
-!        goto 9999
-!     endif
-
-! BETA 
-!     if(prop.eq.3.or.ex)then
-!        prop=3
-!        if(ex)betaref=.true.
-!        y=0.0005_wp ! field strength
-!        write(*,'(''beta response ff-strength :'',3f10.5)') y 
-!        alp = 0
-!        do m=1,3
-!           efield=0_wp           
-!           efield(m)=y           
-!           write(*,'(''Efield, dir :'',3f8.5,i4)')efield,m
-!           call pgtb(.false.,102,n,ndim,nel,nopen,ihomo,at,chrg,xyz,z,rab,pnt,xnorm,S,D3,&
-!    &               efield,qd4,ML1,ML2,psh,q,P,F,eps,eel,wbo,dipr,alpr) ! ALPHA calc
-!           efield(m)=-y          
-!           write(*,'(''Efield, dir :'',3f8.5,i4)')efield,m
-!           call pgtb(.false.,102,n,ndim,nel,nopen,ihomo,at,chrg,xyz,z,rab,pnt,xnorm,S,D3,&
-!    &                efield,qd4,ML1,ML2,psh,q,P,F,eps,eel,wbo,dipl,alpl) ! other direction
-!           beta(1:6,m)=(alpr(1:6)-alpl(1:6))/(2_wp*y)
-!           alp=alp+0.5_wp*(alpr+alpl)/3_wp ! very good approx. to true alpha (avoids extra call)
-!!          call prpolar(alpr) 
-!!          call prpolar(alpl) 
-!        enddo
-!     endif
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! OUTPUT
@@ -462,6 +464,33 @@ include 'polgrad.f90'
          write(*,'(i3,5x,a2,f5.1,f8.4,5x,10f7.3)') i,asym(at(i)),z(i),q_ref(i),floats(1:ns)
          if(nogtb.and.i.eq.1) write(133,'(2i3,5x,a2,f8.4,5x,10f7.3)') i,at(i),asym(at(i)),z(i)-q_ref(i),floats(1:ns)
       enddo
+
+!     open(unit=11,file='dft_dump',form='unformatted')
+!     write(11) q_ref
+!     write(11) psh_ref
+!     write(11) wbo_ref
+!     write(11) Pref
+!     close(11)
+
+!     if(dpdq) then
+!        open(unit=421,file='.datadpdq')
+!        write(421,'(2i4,10F16.10)') at(1),bas_nsh(at(1)),psh_ref(1:bas_nsh(at(1)),1)  ! write for run_dpsh_dq script
+!        close(421)             
+!        stop
+!     endif
+
+!     if(fitshellq) then
+!        open(unit=112,file='.data')  
+!        q=z-q_ref ! put DFT charges into the psh model
+!        call guess_qsh(n,at,z,q,psh)
+!        do i=1,n
+!           do j=1,bas_nsh(at(i))
+!              write(112,*) psh_ref(j,i),psh(j,i)
+!           enddo
+!        enddo
+!        close(112)
+!     endif
+
       if(wrapo) stop
 
       fragchrg_ref=0
@@ -474,94 +503,11 @@ include 'polgrad.f90'
       call prdipole(dip_ref) 
       call prsec(scndmom_ref)
       if(alp_ref(1).gt.0) call prpolar(alp_ref) 
+
       if(nogtb) goto 9999
 
       if(test) then
-         open(unit=112,file='.datap')  
-         open(unit=113,file='.dataq')  
-         open(unit=114,file='.datab')  
-         open(unit=115,file='.datad')  
-         do i=1,n
-         write(113,*) z(i)-q_ref(i),z(i)-q(i) 
-         do j=1,bas_nsh(at(i))
-            write(112,*) psh_ref(j,i),psh(j,i) 
-         enddo
-         enddo
-         close(112)
-         close(113)
-         do i=2,n
-         do j=1,i-1 
-            if(abs(wbo_ref(j,i)).gt.0.1) write(114,'(2F16.8,4i4)') wbo_ref(j,i), wbo(j,i), j, i, at(j),at(i)
-         enddo
-         enddo
-         close(114)
-         do i=1,3
-         if(abs(dip_ref(i)).gt.0.01) write(115,*) dip_ref(i),dip(i)
-         enddo
-         close(115)
-         if(raman)then
-         open(unit=126,file='.datara')  
-         do m=1,6
-         do i=1,n
-         do j=1,3
-         if(abs(fdgrad_ref(j,i,m)).gt.1d-5) write(126,'(2F22.14)') fdgrad_ref(j,i,m), fdgrad(j,i,m)
-         enddo
-         enddo
-         enddo
-         close(126)
-         endif
-         if(dgrad)then
-         open(unit=116,file='.datadg')  
-         do i=1,3*n
-         do j=1,3
-         if(abs(dipgrad_ref(j,i)).gt.1d-5) write(116,'(2F22.14)') dipgrad_ref(j,i), dipgrad(j,i)
-         enddo
-         enddo
-         close(116)
-         open(unit=116,file='.datadg2')  
-         do i=1,3*n
-         do j=1,3
-         write(116,'(2F22.14)') dipgrad_ref(j,i)
-         enddo
-         enddo
-         write(116,*)
-         do i=1,3*n
-         do j=1,3
-         write(116,'(2F22.14)') dipgrad(j,i)
-         enddo
-         enddo
-         close(116)
-         if(alp_ref(1).gt.0)then
-         open(unit=117,file='.datapol')  
-         do i=1,6  
-         if(abs(alp_ref(i)).gt.1d-2) write(117,'(2F22.14)') alp_ref(i), alp(i)
-         enddo
-         close(117)
-         endif
-         endif
-         if(betaref)then
-         open(unit=119,file='beta_red')  
-         open(unit=118,file='.databet')  
-         open(unit=120,file='.databet2')  
-         read(119,'(a)') atmp 
-         do i=1,3
-            do j=1,6
-               read(119,*) x
-               if(abs(x).gt.0.1) write(118,*) x,beta(j,i)
-                                 write(120,*) x
-            enddo
-         enddo
-         write(120,*)
-         do i=1,3
-            do j=1,6
-                                 write(120,*) beta(j,i)
-            enddo
-         enddo
-         close(118)
-         close(119)
-         close(120)
-         endif
-         goto 9999
+include 'testout.f90'
       endif
 
 !     call system('pwd > tmpgtb')
@@ -575,26 +521,17 @@ include 'polgrad.f90'
 
       open(unit=12,file='.data')  
       if(rdref)then
-      evew = 0.1d0
-      etew = 1.0d0
-      if(tmel) then
-         evew = 0.05d0 
-         etew = 1.00d0 
-      endif
-      inquire(file='.no_kinetic_energy',exist=ex)
-      ok = .not. ex
-!     ok = (100d0*abs(ekinref-ekin)/ekinref .lt. 0.6) .or. (ekinref .lt. 100d0)
-      if(ok)then ! some systems are ok but T is too bad for fit
+      etew = 1.05d0
+      if(ok_ekin)then ! some systems are ok but T is too bad for fit
 ! Ekin
         if(abs(ekinref) .gt.1d-8) write(12,'(2F28.14,1x,a)') etew*ekinref,etew*ekin !,atmp
-! Ven
-        if(n.lt.nvecut) write(12,'(2F28.14,1x,a)') evew*everef,evew*eve
       else
-!       call system('touch .no_kinetic_energy')
-        write(*,*) 'excluding T/Ven in fit'
+        write(*,*) 'excluding T in fit'
       endif
 ! momatch
-      if(abs(totmatch).gt.1d-8) write(12,'(2F28.14,1x,a)') zero, 0.04d0*totmatch 
+      inquire(file='.no_momatch',exist=ex)
+      ok = .not. ex
+      if(abs(totmatch).gt.1d-8.and.ok) write(12,'(2F28.14,1x,a)') zero, 0.04d0*totmatch 
 ! psh
       do i=1,n
          do j=1,bas_nsh(at(i))
@@ -604,7 +541,7 @@ include 'polgrad.f90'
 ! mu
       f2=0.20 ! 0.3 = 15 % HCNO
       do i=1,3
-         write(12,'(2F28.14,1x,a)') f2*dip_ref(i),f2*dip(i) !,trim(atmp)
+         if(abs(dip_ref(i)).gt.1d-4) write(12,'(2F28.14,1x,a)') f2*dip_ref(i),f2*dip(i) !,trim(atmp)
       enddo
 
 ! sec mom
@@ -650,26 +587,10 @@ include 'polgrad.f90'
       if(alp_ref(1).gt.0)then
          f2=0.008 ! 0.01
          do i=1,6  
-         if(abs(alp_ref(i)).gt.1d-2) write(12,'(2F28.14)') alp_ref(i)*f2, alp(i)*f2
+         if(abs(alp_ref(i)).gt.1d-1) write(12,'(2F28.14)') alp_ref(i)*f2, alp(i)*f2
          enddo
       endif
       endif
-
-! beta
-!        f2=0.1
-!        open(unit=119,file='beta_red')  
-!        read(119,'(a)') atmp 
-!        do i=1,3
-!           do j=1,6
-!              read(119,*) x
-!              y = beta(j,i)
-!              write(12,'(2F28.14)') f2*sign(sqrt(abs(x)),x), f2*sign(sqrt(abs(y)),y)
-!           enddo
-!        enddo
-!        close(119)
-!        do i=1,fitcount
-!           write(12,'(2F28.14)') fitdat(i)
-!        enddo
 
       close(12)
       goto 9999

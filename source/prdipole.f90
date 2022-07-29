@@ -6,7 +6,7 @@ subroutine prdipole(dip)
 
       write(*,'(''dipole moment  X         Y          Z'')')
       dcal=sqrt(dip(1)**2+dip(2)**2+dip(3)**2)
-      write(*,'(3f14.8,''  total     (au/Debye)      :'',2f10.5)')dip(1:3),dcal,dcal*2.5418    
+      write(*,'(3f16.6,''  total     (au/Debye)      :'',2f11.4)')dip(1:3),dcal,dcal*2.5418    
 
 !     dref=sqrt(dipref(1)**2+dipref(2)**2+dipref(3)**2)
 !     write(*,'(3f12.6,''  reference (au/Debye): '',2f10.5)')dipref(1:3),dref,dref*2.5418    
@@ -25,7 +25,7 @@ subroutine prsec(sec)
 
       write(*,'(''second moment  X^2       Y^2        Z^2'')')
       dcal=(sec(1)+sec(2)+sec(3))/3.d0
-      write(*,'(3f14.8,''  average   (au)            :'',f10.5)')sec(1:3),dcal
+      write(*,'(3f16.6,''  average   (au)            :'',f11.4)')sec(1:3),dcal
 
 end
 
@@ -37,10 +37,10 @@ subroutine prpolar(alp)
       real*8 av  
 
       av=(alp(1)+alp(3)+alp(6))/3d0    
-      write(*,'(''dipole polarizability      X         Y           Z'',5x,''total (au/A^3) :'',2f10.5)')av,av*0.148185
-      write(*,'(15x,'' X '',3f16.8)') alp(1)
-      write(*,'(15x,'' Y '',3f16.8)') alp(2:3)
-      write(*,'(15x,'' Z '',3f16.8)') alp(4:6)
+      write(*,'(''dipole polarizability      X         Y           Z'',5x,''total (au/A^3) :'',2f11.4)')av,av*0.148185
+      write(*,'(15x,'' X '',3f16.6)') alp(1)
+      write(*,'(15x,'' Y '',3f16.6)') alp(2:3)
+      write(*,'(15x,'' Z '',3f16.6)') alp(4:6)
 
 
 end

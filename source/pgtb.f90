@@ -12,6 +12,7 @@
 !                        25 % for 5 gemm (Dmat, Vpauli, pops)
 !                        non-linalg is < 5 %
 !! ------------------------------------------------------------------------
+!        read(1,*) expscal  (2,1:10,j)   ! 61-70   
 !        read(1,*) shell_xi  (1:10,j)    ! 71-80  
 !        read(1,*) shell_cnf1(1:10,j)    ! 81-90    
 !        read(1,*) shell_cnf2(1:10,j)    ! 91-100   
@@ -19,12 +20,12 @@
 !        read(1,*) expscal  (3,1:10,j)   ! 111-120  
 !        read(1,*) shell_cnf4(1:10,j)    ! 121-130  
 !        read(1,*) shell_resp(1:10,j,1)  ! 131-140  
-!        read(1,*) empty                 ! 141-150
+!        read(1,*) shell_resp(1:10,j,2)  ! 141-150  
 
 
 subroutine pgtb(pr,prop,n,ndim,nel,nopen,homo,at,chrg,xyz,z,rab, & 
-&               pnt,norm,S,T,D,efield,S1,S2,psh,pa,&
-&               P,H,eps,eel,ecoul,wbo,dip,alp)
+&               pnt,norm,S,D,efield,S1,S2,psh,pa,&
+&               P,H,eps,wbo,dip,alp)
    use iso_fortran_env, only : wp => real64
    use parcom
    use bascom
@@ -51,7 +52,6 @@ subroutine pgtb(pr,prop,n,ndim,nel,nopen,homo,at,chrg,xyz,z,rab, &
    real(wp),intent(in)    :: pnt(3)             ! property reference point
    real(wp),intent(in)    :: norm(ndim)         ! SAO normalization factors
    real(wp),intent(in)    :: S(ndim*(ndim+1)/2) ! exact overlap maxtrix in SAO
-   real(wp),intent(in)    :: T(ndim*(ndim+1)/2) ! exact T maxtrix in SAO
    real(wp),intent(in)    :: D(ndim*(ndim+1)/2,3)!dipole integrals
    real(wp),intent(in)    :: efield(3)          ! electric field
 !! ------------------------------------------------------------------------
@@ -64,8 +64,6 @@ subroutine pgtb(pr,prop,n,ndim,nel,nopen,homo,at,chrg,xyz,z,rab, &
    real(wp),intent(inout) :: P(ndim*(ndim+1)/2) ! density matrix
    real(wp),intent(inout) :: H(ndim*(ndim+1)/2) ! unperturbed Hamilton Matrix
    real(wp),intent(out)   :: eps(ndim)          ! eigenvalues
-   real(wp),intent(out)   :: eel                ! electronic energy
-   real(wp),intent(out)   :: ecoul              ! Coulomb energy
    real(wp),intent(out)   :: wbo(n,n)           ! WBOs                 
    real(wp),intent(out)   :: dip(3)             ! dipole moment
    real(wp),intent(out)   :: alp(6)             ! dipole polarizability tensor
@@ -78,7 +76,10 @@ subroutine pgtb(pr,prop,n,ndim,nel,nopen,homo,at,chrg,xyz,z,rab, &
    real(wp),allocatable :: SS(:)                ! scaled overlap/perturbed H
    real(wp),allocatable :: Vecp(:)              ! ECP ints
    real(wp),allocatable :: Htmp(:)              ! modified H                    
+   real(wp),allocatable :: dq(:,:)              ! dipole and quadrupole ints
+   real(wp),allocatable :: cammd(:,:),cammq(:,:)! 
    real(wp),allocatable :: P1  (:)              ! perturbed P     
+   real(wp),allocatable :: U(:,:)               ! MOs             
    real(wp)             :: alpha(3,3)         
    real(wp)             :: dip1(3),dip2(3)
 
@@ -87,10 +88,10 @@ subroutine pgtb(pr,prop,n,ndim,nel,nopen,homo,at,chrg,xyz,z,rab, &
    real(wp),parameter   :: erfs   =-2.000_wp   ! erf expo for CN (about 1/5 orig. value)
 
    integer  :: i,j,k,ish,jsh,ati,ia,ii,lin
-   integer  :: ns, iter, ibeta
+   integer  :: ns, iter
    integer  :: llao(4)
-   data llao /1,3,5,7 /
-   real(wp) :: r,r2,rcovij,arg,tmp,hi,hj,hij,pol,t8,t9,xk,w0,w1,t0,t1
+   data llao / 1,3,5,7 /
+   real(wp) :: r,r2,rcovij,arg,tmp,hi,hj,hij,pol,t8,t9,xk,w0,w1,t0,t1,dum(3)
    real(wp) :: scfpar(8)
    real(wp) :: scal(10,n)
    real(wp),allocatable :: cn(:), cns(:), cnorg(:), xnrm(:), qeeq(:)
@@ -103,10 +104,10 @@ subroutine pgtb(pr,prop,n,ndim,nel,nopen,homo,at,chrg,xyz,z,rab, &
 !  initizialization
 !! ------------------------------------------------------------------------
    if(pr)then
-   write(*,*) '-----------------------'
-   write(*,*) '|      PTB  model      |'
-   write(*,*) '| SG, MM, AH 2020-2022 |'
-   write(*,*) '-----------------------'
+   write(*,*) '              -----------------------'
+   write(*,*) '              |      PTB  model      |'
+   write(*,*) '              | SG, MM, AH 2020-2022 |'
+   write(*,*) '              -----------------------'
    write(*,*) 'prop :',prop
    endif
 
@@ -114,13 +115,11 @@ subroutine pgtb(pr,prop,n,ndim,nel,nopen,homo,at,chrg,xyz,z,rab, &
 
    totmatch=0
    scfpar = 0
-   ibeta  = 1
-   if(prop.eq.3.or.prop.eq.102) ibeta = 2  ! different correction (parameters) for beta
 
    allocate( SS(ndim*(ndim+1)/2), focc(ndim), Hdiag(ndim), &
   &          ves0(nsh), ves1(nsh), gab(nsh,nsh), &
   &          Htmp(ndim*(ndim+1)/2),xnrm(ndim), &
-  &          Vecp(ndim*(ndim+1)/2), &
+  &          Vecp(ndim*(ndim+1)/2), U(ndim,ndim), &
   &          qeeq(n), cn(n), cns(n), cnorg(n), source = 0.0_wp )
 
    if(prop.gt.100) goto 999  ! just property evaluation for given H,P,pa...
@@ -136,9 +135,8 @@ subroutine pgtb(pr,prop,n,ndim,nel,nopen,homo,at,chrg,xyz,z,rab, &
    if(pr)write(*,*) 'done.'
 
 !  CNs
-   call ncoord_erf(n,at,rab,erfs,cns) ! the org. EEQ was parameterized with erfs=-7.5, same expo. here for both new CN
+   call ncoord_erf(n,at,rab,erfs,cns) ! special CN with lower exponent than erfs=-7.5 original
                                       ! for this erfs, the avcn values must be generated, see avcn.f and setavcn!
-   call ncoord_erf(n,at,rab,-7.5_wp,cnorg) 
 !  special CN with fitted radii
    cn = 0_wp
    do i = 2, n
@@ -152,23 +150,23 @@ subroutine pgtb(pr,prop,n,ndim,nel,nopen,homo,at,chrg,xyz,z,rab, &
       enddo
    enddo
 
-   call eeq(n,at,rab,chrg,cnorg,.false.,shell_cnf1(9,:),shell_cnf1(8,:),qeeq)    !  slightly modified EEQ charges qeeq for first iter Ves
-!  call eeq(n,at,rab,chrg,cnorg,.true. ,shell_cnf1(9,:),shell_cnf1(8,:),qeeq_org)!  orig EEQ
+!  EEQ   
+   call ncoord_erf(n,at,rab,-7.5_wp,cnorg) 
+   call eeq(n,at,rab,chrg,cnorg,.false., &
+!             xi scal          gam            CN fac scal      alpha scal
+  &         shell_cnf1(9,:),shell_cnf1(8,:),shell_cnf2(8,:), shell_cnf3(8,:), &
+  &         qeeq)    !  slightly modified EEQ charges qeeq for first iter Ves
 
    if(pr)then
    write(*,'(''EEQ done. sum q : '',f8.3,i5)') sum(qeeq)
    write(*,'(''    atom   Zeff  qEEQ  mod   srCN   noHCN   CN(EEQ)'')')
    do i=1,n
-       write(*,'(2i5,f5.1,2x,6f8.3)') i,at(i),z(i),qeeq(i),cns(i),cn(i),cnorg(i)
+      write(*,'(2i5,f5.1,2x,6f8.3)') i,at(i),z(i),qeeq(i),cns(i),cn(i),cnorg(i)
    enddo
    endif
 
-!  special overlap matrix for H0
-   call modbas(n,at,3) 
-   call sint(n,ndim,at,xyz,rab,SS,eps) ! scaled S 
-   call modbas(n,at,4) 
 
-   ! atomic H0 
+! atomic H0 
    jsh = 0
    ii  = 0
    do i = 1, n
@@ -193,17 +191,18 @@ subroutine pgtb(pr,prop,n,ndim,nel,nopen,homo,at,chrg,xyz,z,rab, &
 !  set up the H matrix twice
 !! ------------------------------------------------------------------------
 
-!    0.3876991369   0.9416938677   0.4680146099   0.0421282612   0.0000000000   1.0883439565  -0.3320393628
    pa = qeeq ! initialization of atomic charges, true pa on output
+
    scfpar(1) =  glob_par(11)  ! gpol 
    scfpar(2) =  glob_par(14)  ! Wolfsberg l dep.
    scfpar(4) =  glob_par(16)  ! iter1 off-diag
-   scfpar(5) =  0.020_wp      ! glob_par(14)  ! gamscal 24
+   scfpar(3) =  glob_par(19)  ! -0.3  gamscal_iter1 
+   scfpar(5) =  glob_par(20)  ! -0.02 gamscal_iter2 
    scfpar(6) =  glob_par(13)  ! iter1 two-center
-   scfpar(7) =  0.00_wp       ! gamscal in onescf
+   scfpar(7) =  glob_par(18)  ! gamscal in onescf
    scfpar(8) =  glob_par(12)  ! gpol in onescf
-   call twoscf(pr,prop,n,ndim,nel,nopen,homo,at,xyz,z,rab,cns,S,T,SS,Vecp,Hdiag,focc,&
-               norm,eT,scfpar,S1,S2,psh,pa,P,H,ves0,gab,eps,eel,ecoul)  
+   call twoscf(pr,prop,n,ndim,nel,nopen,homo,at,xyz,z,rab,cns,S,SS,Vecp,Hdiag,focc,&
+               norm,eT,scfpar,S1,S2,psh,pa,P,H,ves0,gab,eps,U)  
 
 !! ------------------------------------------------------------------------
 !  done
@@ -218,15 +217,19 @@ subroutine pgtb(pr,prop,n,ndim,nel,nopen,homo,at,chrg,xyz,z,rab, &
    Htmp = H 
 
 ! MO match for fit
-   if(cmo_ref(1,1).gt.-98.999d0.and.prop.ge.0.and.prop.lt.4) then
+   if(allocated(cmo_ref).and.prop.ge.0.and.prop.lt.4) then
       call getsymmetry(pr,n,at,xyz,0.01d0,50,highsym) ! get PG to check for MO degen.
-      call momatch(pr,highsym,ndim,homo,0,S)          ! which modifies match routine
+      call momatch(pr,highsym,ndim,homo,0,S,eps,U)    ! which modifies match routine
    endif
 
 ! stda
-   if(prop.eq.4) call printmos(n,at,xyz,ndim,homo,norm,2d0) ! cut virt. > 2 Eh because very high lying gTB MOs are crap
-   if(prop.eq.5) call wr_tm_mos(ndim,n,nel,at,nopen,ndim)   ! write for TM all mos (incl. virts!)
-   close(42,status='delete')
+   if(prop.eq.4) call printmos(n,at,xyz,ndim,homo,norm,2d0,eps,U) ! cut virt. > 2 Eh because very high lying gTB MOs are crap
+! TM
+   if(prop.eq.5) then
+      call wr_tm_mos(ndim,n,nel,at,nopen,ndim,eps,U)                              ! write for TM all mos (incl. virts!)
+!     call fock2(n,ndim,at,xyz,z,rab,cns,S,SS,Vecp,Hdiag,scfpar,S1,S2,psh,pa,P,H) ! in the "third" SCF step using second F(P2)
+!     call fmotrafo(ndim,homo,H,U)                                                ! detemine Fia max 
+   endif
 
 ! just with field
    if(sum(abs(efield)).gt.1.d-6) then
@@ -234,12 +237,39 @@ subroutine pgtb(pr,prop,n,ndim,nel,nopen,homo,at,chrg,xyz,z,rab, &
          Htmp(:)=Htmp(:)-efield(j)*D(:,j)  ! the field perturbation on unperturbed H
       enddo
       if(prop.ne.102) then  ! if this is not a beta calc, p,q,mu... are computed with field P
-         call solve2(2,n,ndim,nel,nopen,homo,at,eT,focc,Htmp,S,P,eps,eel,fail) ! solve with efield
+         call solve2(2,ndim,nel,nopen,homo,eT,focc,Htmp,S,P,eps,U,fail) ! solve with efield
       endif
    endif
 
 ! WBO
   if(prop.ge.0) call wiberg(n,ndim,at,rab,P,S,wbo)
+
+! dump for energy calc
+  if(prop.eq.0) then
+      allocate(dq(9,ndim*(ndim+1)/2),cammd(3,n),cammq(6,n))
+      call dqint(n,ndim,at,xyz,rab,norm,pnt,dq) ! dipole and r^2 ints
+      call camm(n,ndim,xyz,P,S,dq,cammd,cammq)  ! CAMM (Mulliken) analysis
+! check dipole moment
+!     call mpop3(n,ndim,P,S,qeeq)
+!     dum(3)=0
+!     do i=1,n
+!        write(*,'(3F12.6)') cammd(1:3,i)
+!        dum(1:3)=dum(1:3)+cammd(1:3,i)+(z(i)-qeeq(i))*xyz(1:3,i)
+!     enddo
+!     write(*,'(3F12.6)') dum(1:3)
+      open(unit=11,file='ptb_dump',form='unformatted')
+      write(11) pa 
+      write(11) psh
+      write(11) wbo
+      write(11) P  
+      write(11) cammd
+      write(11) cammq
+      if(nopen.ne.0) then
+         call spinden(n,ndim,nel,nopen,homo,eT,S,eps,U,scal)
+         write(11) scal ! scal just dummy
+      endif
+      close(11)
+  endif
 
 ! dipole moment 
    if(abs(prop).gt.0)then
@@ -249,11 +279,15 @@ subroutine pgtb(pr,prop,n,ndim,nel,nopen,homo,at,chrg,xyz,z,rab, &
 ! polarizability by simple perturbative treatment 
 ! this is only done in alpha,beta cases
    if(abs(prop).eq.2.or.prop.eq.102)then
+!     special overlap matrix for H0, later this should be done together with S and SSS computations for efficiency
+      call modbas(n,at,3) 
+      call sint(n,ndim,at,xyz,rab,SS,eps) ! scaled S 
+      call modbas(n,at,4) 
 ! six perturbed dipole moment calcs H = H_final + H_resp + field1 + field2
      allocate(P1(ndim*(ndim+1)/2),patmp(n),pshtmp(10,n))
      do k=1,3
         call addsym(ndim, ffs,Htmp,D(1,k),H)                                           ! perturb field free H with field 
-        call solve2(1,n,ndim,nel,nopen,homo,at,eT,focc,H,S,P1,eps,tmp,fail)            ! solve 
+        call solve3(ndim,nel,nopen,homo,eT,focc,H,S,P1)                                ! solve (special routine just for P1)
         call mlpop2(n,ndim,P1,S1,S2,patmp,pshtmp)                                      ! pops
         patmp = z - patmp
         H = Vecp 
@@ -263,7 +297,7 @@ subroutine pgtb(pr,prop,n,ndim,nel,nopen,homo,at,chrg,xyz,z,rab, &
         call dipmom2(n,ndim,xyz,z,norm,P1,D,pnt,dip1)                                  ! get dipole moment
 
         call addsym(ndim,-ffs,Htmp,D(1,k),H)                                           ! other direction
-        call solve2(1,n,ndim,nel,nopen,homo,at,eT,focc,H,S,P1,eps,tmp,fail)   
+        call solve3(ndim,nel,nopen,homo,eT,focc,H,S,P1)                 
         call mlpop2(n,ndim,P1,S1,S2,patmp,pshtmp)                         
         patmp = z - patmp
         H = Vecp 
@@ -288,8 +322,8 @@ end
 !  set up and diag the H matrix twice
 !! ------------------------------------------------------------------------
 
-subroutine twoscf(pr,prop,n,ndim,nel,nopen,homo,at,xyz,z,rab,cn,S,T,SS,Vecp,Hdiag,focc,&
-                  norm,eT,scfpar,S1,S2,psh,pa,P,Hmat,ves,gab,eps,eel,ecoul)
+subroutine twoscf(pr,prop,n,ndim,nel,nopen,homo,at,xyz,z,rab,cn,S,SS,Vecp,Hdiag,focc,&
+                  norm,eT,scfpar,S1,S2,psh,pa,P,Hmat,ves,gab,eps,U)
    use iso_fortran_env, only : wp => real64
    use bascom
    use parcom
@@ -311,7 +345,6 @@ subroutine twoscf(pr,prop,n,ndim,nel,nopen,homo,at,xyz,z,rab,cn,S,T,SS,Vecp,Hdia
    real(wp),intent(in)    :: rab(n*(n+1)/2)        ! distances  
    real(wp),intent(in)    :: cn(n)                 ! CN           
    real(wp),intent(in)    :: S(ndim*(ndim+1)/2)    ! exact overlap maxtrix in SAO
-   real(wp),intent(in)    :: T(ndim*(ndim+1)/2)    ! exact T maxtrix in SAO
    real(wp),intent(in)    :: SS(ndim*(ndim+1)/2)   ! scaled overlap maxtrix in SAO
    real(wp),intent(in)    :: Vecp(ndim*(ndim+1)/2) ! ECP ints
    real(wp),intent(in)    :: Hdiag(ndim)           ! diagonal of H0
@@ -326,62 +359,53 @@ subroutine twoscf(pr,prop,n,ndim,nel,nopen,homo,at,xyz,z,rab,cn,S,T,SS,Vecp,Hdia
 !  Output
 !! ------------------------------------------------------------------------
    real(wp),intent(inout)   :: psh(10,n)             ! shell populations 
-   real(wp),intent(inout)   :: pa(n)                 ! atom      "
+   real(wp),intent(inout)   :: pa(n)                 ! atom      "       (on input: qeeq)
    real(wp),intent(inout)   :: P   (ndim*(ndim+1)/2) ! density matrix
    real(wp),intent(inout)   :: Hmat(ndim*(ndim+1)/2) ! Hamiltonian matrix
    real(wp),intent(inout)   :: ves(nsh)              ! 
    real(wp),intent(inout)   :: gab(nsh,nsh)          ! 
    real(wp),intent(out)     :: eps (ndim)            ! orbital energies
-   real(wp),intent(out)     :: eel                   ! electronic energy = sum eps
-   real(wp),intent(out)     :: ecoul                 ! Coulomb energy 
+   real(wp),intent(out)     :: U(ndim,ndim)          ! orbitals
 
 !  local
    logical  :: fail
    integer  :: i,j,k,l,ish,ati,atj,ia,ib,jsh,ii,jj,lin,ij,li,lj,iter,iish,jjsh,mode
-!  real(wp),parameter :: cok   = 0.95_wp  ! OK mixing in 1. iter, not as important as in second iter
-!  real(wp),parameter :: cmn   = 1_wp-cok     
    real(wp),parameter :: au2ev = 27.2113957_wp
-   real(wp) :: r,tmp,pol,hi,hj,hij,xk,t8,t9,qa,qb,keav,eh1,dmp,tmp2
-   real(wp) :: xiter(2),ziter(2),ssh,gap1,gap2
+   real(wp) :: r,tmp,pol,hi,hj,hij,xk,t8,t9,qa,qb,keav,eh1,tmp2
+   real(wp) :: xiter(2),yiter(2),ziter(2),ssh,gap1,gap2
    real(wp) :: t0,t1,w0,w1
-   real(wp) :: gq(n), geff(n), xab(n*(n+1)/2)
+   real(wp) :: gq(n), xab(n*(n+1)/2), scal(10,nsh)
+   real(wp), allocatable :: SSS(:)
+
+!  special overlap matrix for XC term
+   call modbas(n,at,2) 
+   allocate(SSS(ndim*(ndim+1)/2))
+   call sint(n,ndim,at,xyz,rab,SSS,eps) 
 
 
    ziter(1)=scfpar(4)
    ziter(2)=1_wp
    xiter(1)=scfpar(6)
    xiter(2)=1_wp
+   yiter(1)=scfpar(7)
+   yiter(2)=1_wp
 
-   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
    do iter=1, 2         ! two "iterations": in the first, q (=pa) = q(EEQ) and NO P (=+U)
 
-   if(iter.eq.1) then   ! atom-wise ES, no shell pop available
-      do i=1, n
-         geff(i) = 1_wp / gam(at(i))
-      enddo
-      do i=1, n
-         eh1 = 0_wp
-         do l=1,n
-            k=lin(l,i)
-            xk =2_wp /(geff(i) + geff(l))                   ! harm. av.
-!           tmp= cok/sqrt(rab(k)**2+1_wp/xk**2) + cmn/(rab(k)+1_wp/xk)  
-            tmp= 1d0/sqrt(rab(k)**2+1_wp/xk**2)
-            eh1=eh1+pa(l)*tmp                               ! contraction with charge (DFTB2 atomic term)
-         enddo
-         gq(i) = eh1 * 0.5_wp 
-      enddo
-   else                  ! shell-wise xTB like
-      call setgab  (n,at,rab,pa,scfpar(5),gab)  ! the gab contain q as higher order effect on Ves
-      call setespot(n,at,psh,gab,ves) 
-      ves = ves * 0.5_wp
-   endif    
+   call shscalP(iter,n,at,psh,scal)
+   call modbasd(n,at,scal)         ! scale exponents shell/atom-wise with psh dep.
+   call sint(n,ndim,at,xyz,rab,SS,eps)
 
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! H0 +  third-order (atomic charge exists in 1. AND 2. iter)
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
    do i=1, n
-      geff(i) = pa(i)**2*shell_cnf4(1,at(i)) ! geff is temp.
+      gq(i) = yiter(iter)*pa(i)**2*shell_cnf4(1,at(i)) ! temp. for third order diag.
    enddo
 
-   Hmat = 0_wp
+   Hmat = Vecp
+
    ij = 0
    do i=1,ndim
       ia = aoat(i)
@@ -403,7 +427,7 @@ subroutine twoscf(pr,prop,n,ndim,nel,nopen,homo,at,xyz,z,rab,cn,S,T,SS,Vecp,Hdia
             lj  = bas_lsh(jsh,atj)
             xk  = (shell_cnf4(2,ati)+shell_cnf4(2,atj)) * xiter(iter)
             pol = ((hi-hj)/hij)**2
-            keav= 0.5_wp*(shell_cnf2(9,ati)+dble(li)*scfpar(2) + shell_cnf2(9,atj)+dble(lj)*scfpar(2))
+            keav= 0.5d0*(shell_resp(8+li,ati,2)+shell_resp(8+lj,atj,2))
             tmp = ssh * keav * (1_wp-pol*scfpar(1)) * (1_wp+xk/r) ! fit yields same values for iter1,2
          else                         ! same atoms
             if(ish.ne.jsh) then       ! s-s', p-p', d-d' off-diagonal, li=lj because S=0 otherwise
@@ -413,65 +437,97 @@ subroutine twoscf(pr,prop,n,ndim,nel,nopen,homo,at,xyz,z,rab,cn,S,T,SS,Vecp,Hdia
                tmp = ssh
             endif
          endif
-!                                               third order diagonal
-         Hmat(ij) = Hmat(ij) + tmp + Vecp(ij) - S(ij)*(geff(ia)+geff(ib))
+!                                    third order diagonal
+         Hmat(ij) = Hmat(ij) + tmp - S(ij)*(gq(ia)+gq(ib))
       enddo
    enddo
 
-! H1
-   if(iter.eq.1)then ! atom-wise, no +U (no P exists)
-    call calcpauli1(n,ndim,at,z,pa      ,S,Hdiag,Hmat) ! add valence X correction based on three-index ECP formula using qeeq
-    ij = 0
-    do i=1,ndim
-      ia = aoat(i)
-      do j=1,i  
-         ib = aoat(j)
-         ij = ij + 1
-         Hmat(ij) = Hmat(ij) - (gq(ia)+gq(ib)) * S(ij)
-      enddo
-    enddo
-   else ! shell-wise ES + U terms with density from 1. iter
-!   for +U LR damping
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! H1, XC
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+   if(iter.eq.1) call guess_qsh(n,at,z,pa,psh)         ! guess psh from q EEQ 
+
+   call calcpauli12(iter,n,ndim,at,psh,SSS,Hdiag,Hmat) ! add valence X correction based on three-index ECP formula using psh and
+                                                       ! special, exponent-scaled overlap SSS
+   if(iter.eq.2)then 
+!   for XC LR damping
     k = 0
     do i=1,n
       gq(i) = 1_wp-(shell_xi(9,at(i))*pa(i)+shell_xi(10,at(i))*pa(i)**2) ! gq is temp., important charge scaling
       hi = shell_cnf3(10,at(i)) + (cn(i)-avcn(at(i)))*shell_resp(10,at(i),1)
       do j=1,i
          k = k + 1
-         r = hi + shell_cnf3(10,at(j)) + (cn(j)-avcn(at(j)))*shell_resp(10,at(j),1)
+         r = hi + shell_cnf3(10,at(j)) + (cn(j)-avcn(at(j)))*shell_resp(10,at(j),1)  ! sum of special radii
          t8= (rab(k)-r)/r
-         xab(k) = 0.5_wp*(1_wp+erf(-1.8_wp*t8)) ! paramter not very important
+         xab(k) = 0.5_wp*(1_wp+erf(-1.8_wp*t8)) ! parameter not important due to redundancy with shell_cnf3(10,)
       enddo
     enddo
-    call calcpauli2(n,ndim,at,psh,S,Hdiag,Hmat) ! add valence X correction based on three-index ECP formula, now using psh
     k = 0
     do i=1,ndim
       ia = aoat(i)
       ati= at(ia)
       ish= shell2ao(i)
-      iish=shmap(ish,ia)
       hi = shell_cnf2(ish,ati)*gq(ia)
-      do j=1,i
+      do j=1,i-1
+         k  = k + 1
+         ib = aoat(j)
+         atj= at(ib)
+         jsh= shell2ao(j)
+         hj = shell_cnf2(jsh,atj)*gq(ib)
+!                            this part is INDO two-c like      
+         Hmat(k) = Hmat(k) + P(k) * (hi + hj) * xab(lin(ib,ia)) 
+      enddo
+      k = k + 1
+      Hmat(k) = Hmat(k) + 2d0*P(k) * shell_xi(8,ati) * hi * xab(lin(ia,ia)) ! scaled diag
+    enddo
+   endif
+ 
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! H1, ES
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+   if(iter.eq.1)then 
+!                                       OK/MN mix
+      call setgab1(n,at,rab,pa,0.25d0,1.50d0,gab)  ! the gab contain q as higher order effect on Ves
+   else
+      call setgab2(n,at,rab,pa,0.00d0,1.00d0,gab)
+   endif
+
+   call setespot(n,at,psh,gab,ves) 
+   ves = ves * 0.5_wp
+
+   k = 0
+   do i=1,ndim
+      ia = aoat(i)
+      ati= at(ia)
+      ish= shell2ao(i)
+      iish=shmap(ish,ia)
+      do j=1,i-1
          k  = k + 1
          ib = aoat(j)
          atj= at(ib)
          jsh= shell2ao(j)
          jjsh=shmap(jsh,ib)
-         hj = shell_cnf2(jsh,atj)*gq(ib)
-!                            this part is INDO two-c like         shell ES
-         Hmat(k) = Hmat(k) + P(k) * (hi + hj) * xab(lin(ib,ia)) - S(k)*(ves(iish)+ves(jjsh)) 
+         Hmat(k) = Hmat(k) - S(k)*(ves(iish)+ves(jjsh)) 
       enddo
-    enddo
-   endif
+      k = k + 1
+      Hmat(k) = Hmat(k) - 2d0*S(k)*ves(iish) 
+   enddo
 
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! done
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
    if(pr)write(*,*) 'PTB H matrix iteration ',iter, ' done. Now diag ...'
 
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !  solve 
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
    mode = iter
    if(iter.eq.2.and.prop.eq.4) mode = 3     ! stda write
    if(iter.eq.2.and.prop.eq.5) mode = 4     ! TM write
    if(              prop.lt.0) mode = -iter ! IR/Raman  
-   call solve2 (mode,n,ndim,nel,nopen,homo,at,eT,focc,Hmat,S,P,eps,eel,fail) 
+   call solve2 (mode,ndim,nel,nopen,homo,eT,focc,Hmat,S,P,eps,U,fail) 
    if(fail) stop 'diag error'
 
    if(iter.eq.1) gap1 = (eps(homo+1)-eps(homo))*au2ev
@@ -482,7 +538,6 @@ subroutine twoscf(pr,prop,n,ndim,nel,nopen,homo,at,xyz,z,rab,cn,S,T,SS,Vecp,Hdia
      xk=eps(homo+1)-eps(homo)
      write(*,'('' frontier MO occupations   : '',14f8.4)') focc(ii:jj)
      write(*,'('' (shifted) level energies  : '',14f8.4)')  eps(ii:jj)
-!    write(*,'('' virtual MO correction (eV): '',f9.3)') (glob_par(4) + glob_par(5)*xk)*au2ev     
      write(*,'('' gaps (1st,2nd, eV)        : '',2f9.3,f12.6)') gap1,gap2
      if(xk.lt.0.05) then
         write(*,*) 'WARNING WARNING WARNING WARNING'
@@ -491,84 +546,31 @@ subroutine twoscf(pr,prop,n,ndim,nel,nopen,homo,at,xyz,z,rab,cn,S,T,SS,Vecp,Hdia
      endif
    endif
 
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !  pop
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
    call mlpop2(n, ndim, P, S1, S2, pa, psh)
    if(iter.eq.1) pa = z - pa  ! output are populations but here q is used for convenience
 
    enddo
-   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! end iter
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-!  call calces(n,at,scfpar(5),rab,z,psh,gab,ecoul)
+   call modbas(n,at,4)
 
 end
 
 !! ------------------------------------------------------------------------
-!  add Pauli Term to H in first iter
+!  add Pauli term to H in 1./2. iter
 !! ------------------------------------------------------------------------
 
-subroutine calcpauli1(n,nao,at,z,q,S,Hdiag,Hmat)
-      use  bascom
-      use  parcom
-      use gtb_la, only : la_symm
-      implicit none          
-      integer, intent(in)   :: nao,n,at(n)
-      real*8,  intent(in)   :: z(n),q(n)
-      real*8,  intent(in)   :: S(nao*(nao+1)/2)    
-      real*8,  intent(in)   :: Hdiag(nao)    
-      real*8,  intent(inout):: Hmat(nao*(nao+1)/2)    
-
-      integer i,j,k,l,nl,m,atk,jsh,llao2(0:3)
-      data llao2/1,3,5,7 /
-      real*8 atocc(10), f1,f2
-      real*4,allocatable :: stmp(:,:), sdum(:,:), xtmp(:,:)
-
-      allocate(stmp(nao,nao),sdum(nao,nao),xtmp(nao,nao))
-
-      call blowsym84(nao,S,sdum)
-
-!     N^2 step
-      do i=1,nao                          
-         m=0 
-         do k=1,n       
-            atk=at(k)
-            f1=(z(k)-q(k))/z(k)             ! Nel factor
-            f1=f1*shell_cnf2(10,atk)        ! element scaling
-            call shellocc_ref(atk,atocc)    ! ref. atomic pop.
-            do jsh=1,bas_nsh(atk)           ! shells of atom nn
-               nl=llao2(bas_lsh(jsh,atk))
-               f2=f1/dble(nl)               ! AO degen
-               do l=1,nl                    ! AOs of shell jsh
-                  m = m + 1
-                  stmp(m,i)= Hdiag(m) * sdum(m,i) * atocc(jsh) * f2
-               enddo
-            enddo
-         enddo
-      enddo
-
-!     N^3 step
-!     call la_gemm('N','N',nao,nao,nao,1.0e0,sdum,nao,stmp,nao,0.0e0,xtmp,nao)
-      call la_symm('L','L',nao,nao,1e0,sdum,nao,stmp,nao,0e0,xtmp,nao)   
-
-      k = 0 
-      do i=1, nao 
-         do j=1, i
-            k = k + 1 
-            Hmat(k) = Hmat(k) + xtmp(j,i)                         
-         enddo
-      enddo
-
-      end
-
-!! ------------------------------------------------------------------------
-!  add Pauli Term to H in second iter
-!! ------------------------------------------------------------------------
-
-subroutine calcpauli2(n,nao,at,psh,S,Hdiag,Hmat)
+subroutine calcpauli12(iter,n,nao,at,psh,S,Hdiag,Hmat)
       use  bascom
       use  parcom
       use gtb_la, only : la_gemm, la_symm
       implicit none          
-      integer, intent(in)   :: nao,n,at(n)
+      integer, intent(in)   :: iter,nao,n,at(n)
       real*8,  intent(in)   :: psh(10,n)
       real*8,  intent(in)   :: S(nao*(nao+1)/2)    
       real*8,  intent(in)   :: Hdiag(nao)    
@@ -584,15 +586,17 @@ subroutine calcpauli2(n,nao,at,psh,S,Hdiag,Hmat)
       call blowsym84(nao,S,sdum)
 
 !     N^2 step
+      if(iter.eq.1)then
       do i=1,nao                          
          m=0 
          do k=1,n       
             atk=at(k)
-            do jsh=1,bas_nsh(atk)                ! shells of atom nn
+            do jsh=1,bas_nsh(atk)                ! shells of atom
                l =bas_lsh(jsh,atk)
                nl=llao2(l)
-!              f1=shell_resp(l+1,atk,1)/dble(nl) ! element,l scaling
-               f1=shell_resp(jsh,atk,1)/dble(nl) ! element shell wise scaling
+               f1=shell_cnf2(10,atk)/dble(nl)
+                                                 ! element scaling in first iter to decouple 1. and 2. iter and
+                                                 ! to account for missing P-dependent term of 2. iter
                do l=1,nl                         ! AOs of shell jsh
                   m = m + 1
                   stmp(m,i)= Hdiag(m) * sdum(m,i) * psh(jsh,k) * f1
@@ -600,9 +604,25 @@ subroutine calcpauli2(n,nao,at,psh,S,Hdiag,Hmat)
             enddo
          enddo
       enddo
+      else
+      do i=1,nao                          
+         m=0 
+         do k=1,n       
+            atk=at(k)
+            do jsh=1,bas_nsh(atk)          
+               l =bas_lsh(jsh,atk)
+               nl=llao2(l)
+               f1=shell_resp(jsh,atk,1)/dble(nl) ! shell wise scaling
+               do l=1,nl                  
+                  m = m + 1
+                  stmp(m,i)= Hdiag(m) * sdum(m,i) * psh(jsh,k) * f1
+               enddo
+            enddo
+         enddo
+      enddo
+      endif
 
 !     N^3 step
-!     call la_gemm('N','N',nao,nao,nao,1.0e0,sdum,nao,stmp,nao,0.0e0,xtmp,nao)
       call la_symm('L','L',nao,nao,1.0e0,sdum,nao,stmp,nao,0.0e0,xtmp,nao)   
 
       k = 0 
@@ -619,7 +639,7 @@ subroutine calcpauli2(n,nao,at,psh,S,Hdiag,Hmat)
 !  set up Coulomb potential due to 2nd order fluctuation shell-wise
 !! ------------------------------------------------------------------------
 
-subroutine setgab(n,at,rab,q,gamscal,gab)
+subroutine setgab1(n,at,rab,q,gsc,cok,gab)
    use bascom
    use parcom
    use com
@@ -628,16 +648,17 @@ subroutine setgab(n,at,rab,q,gamscal,gab)
       integer, intent(in)  :: at(n)
       real*8,  intent(in)  :: rab(n*(n+1)/2)  
       real*8,  intent(in)  :: q(n)
-      real*8,  intent(in)  :: gamscal
+      real*8,  intent(in)  :: gsc
+      real*8,  intent(in)  :: cok       
       real*8,  intent(out) :: gab(nsh,nsh)
 
       integer i,j,k,ati,atj,ish,jsh,ii,jj,lin
-      real*8 gish,gjsh,xk,r2,geff(n),ff
-      real*8,parameter :: cok   = 0.9d0
-      real*8,parameter :: cmn   = 1d0-cok
+      real*8 gish,gjsh,xk,r2,geff(n),ff,cmn
+
+      cmn   = 1d0-cok ! MN - OK mixing, OK fraction as input
 
       do i=1,n
-         geff(i) = (1d0 - gamscal*q(i))*gam(at(i))
+         geff(i) = (1d0 + gsc*q(i))*gam(at(i))
       enddo
 
 !     DFTB second order term J matrix
@@ -646,7 +667,55 @@ subroutine setgab(n,at,rab,q,gamscal,gab)
       ati = at(i)
       do ish=1, bas_nsh(ati)
          ii = ii + 1
-         gish = shell_cnf3(ish,ati) * geff(i) ! important higher-order effect
+         gish = shell_resp(ish,ati,2) * geff(i) ! important higher-order effect
+         jj = 0
+         do j=1,n
+            k = lin(j,i)
+            r2= rab(k)**2
+            atj = at(j)
+            do jsh=1, bas_nsh(atj)
+               jj = jj + 1
+               if (jj.gt.ii) cycle
+               gjsh = shell_resp(jsh,atj,2) * geff(j)
+               xk   = 2d0 /(1d0/gish + 1d0/gjsh)    ! harm. av.
+               gab(jj,ii)= cok/sqrt(r2+1d0/xk**2) + cmn/(rab(k)+1d0/xk) !Ohno-Klopman-Mataga average
+               gab(ii,jj)= gab(jj,ii)
+            enddo
+         enddo
+      enddo
+      enddo
+
+end
+
+subroutine setgab2(n,at,rab,q,gsc,cok,gab)
+   use bascom
+   use parcom
+   use com
+      implicit none 
+      integer, intent(in)  :: n
+      integer, intent(in)  :: at(n)
+      real*8,  intent(in)  :: rab(n*(n+1)/2)  
+      real*8,  intent(in)  :: q(n)
+      real*8,  intent(in)  :: gsc
+      real*8,  intent(in)  :: cok       
+      real*8,  intent(out) :: gab(nsh,nsh)
+
+      integer i,j,k,ati,atj,ish,jsh,ii,jj,lin
+      real*8 gish,gjsh,xk,r2,geff(n),ff,cmn
+
+      cmn   = 1d0-cok ! MN - OK mixing, OK fraction as input
+
+      do i=1,n
+         geff(i) = (1d0 - gsc*q(i))*gam(at(i))
+      enddo
+
+!     DFTB second order term J matrix
+      ii = 0
+      do i=1, n
+      ati = at(i)
+      do ish=1, bas_nsh(ati)
+         ii = ii + 1
+         gish = shell_cnf3(ish,ati) * geff(i) 
          jj = 0
          do j=1,n
             k = lin(j,i)
@@ -703,53 +772,6 @@ subroutine setespot(n,at,qsh,gab,ves)
          vesi=vesi+qshi*gab(i,i)
          ves(i)=ves(i)+vesi
       enddo
-
-end  
-
-subroutine calces(n,at,scfpar,rab,z,qsh,gab,ecoul)
-   use iso_fortran_env, only : wp => real64
-   use bascom
-      implicit none 
-      integer, intent(in)  :: n
-      integer, intent(in)  :: at(n)
-      real*8,  intent(in)  :: scfpar          
-      real*8,  intent(in)  :: rab(n*(n+1)/2)  
-      real*8,  intent(in)  :: z(n)
-      real*8,  intent(in)  :: qsh(10,n)
-      real*8,  intent(in)  :: gab(nsh,nsh)
-      real*8,  intent(out) :: ecoul    
-
-      integer i,j,ati,ish,iish
-      real*8  atocc(10)
-      real*8  qshtmp(nsh)
-      real*8  q(n)
-
-      iish = 0
-      do i=1,n
-         ati = at(i)
-         q(i)= 0
-         do ish=1,bas_nsh(ati)
-            iish = iish + 1
-            call shellocc_ref(ati,atocc) ! ref. atomic pop.
-            qshtmp(iish)=atocc(ish)-qsh(ish,i)
-            q(i)=q(i)+qsh(ish,i)
-         enddo
-         q(i)=z(i)-q(i)
-      enddo
-
-      call setgab  (n,at,rab,q,scfpar,gab)  ! the gab contain q as higher order effect on Ves
-
-      ecoul=0
-      do i=1,iish-1
-         do j=i+1,iish
-            ecoul =ecoul + qshtmp(i)*qshtmp(j)*gab(j,i)
-         enddo
-      enddo
-      ecoul=ecoul*2.0d0
-      do i=1,iish
-         ecoul =ecoul + qshtmp(i)*qshtmp(i)*gab(i,i)
-      enddo
-      ecoul=ecoul*0.5d0
 
 end  
 
@@ -929,34 +951,32 @@ End
 !! ------------------------------------------------------------------------
 !  solve eigenvalue problem
 !! ------------------------------------------------------------------------
-subroutine solve2(mode,n,ndim,nel,nopen,homo,at,et,focc,H,S,P,e,eel,fail)
+subroutine solve2(mode,ndim,nel,nopen,homo,et,focc,H,S,P,e,U,fail)
       use parcom
       use bascom, only: nsh
       use gtb_la, only : la_sygvx, la_sygvd
       implicit none
-      integer mode,n,ndim,nel,nopen,homo
-      integer at(n)
+      integer mode,ndim,nel,nopen,homo
+      real*8 et        
+      real*8 focc(ndim)
       real*8 H(ndim*(ndim+1)/2)
       real*8 S(ndim*(ndim+1)/2)
       real*8 P(ndim*(ndim+1)/2)
       real*8 e(ndim)
-      real*8 focc(ndim)
-      real*8 eel       
-      real*8 et        
-      real*8 gappar    
+      real*8 U(ndim,ndim)
       logical fail
 
       integer i,j,info,lwork,liwork,ij,iu
       integer ihomoa,ihomob
       real*8 nfoda,nfodb,ga,gb,efa,efb,gap,w1,w0,t1,t0
       integer,allocatable ::iwork(:),ifail(:)
-      real*8 ,allocatable ::D(:,:),hdum(:,:),sdum(:,:),work(:)
+      real*8 ,allocatable ::sdum(:,:),work(:)
       real*8 ,allocatable ::focca(:), foccb(:)
+      real*8 ,allocatable ::hdum(:,:)            
 
       fail =.false.
-      allocate (D(ndim,ndim),hdum(ndim,ndim),sdum(ndim,ndim),focca(ndim),foccb(ndim))  
+      allocate (sdum(ndim,ndim),focca(ndim),foccb(ndim))  
 
-      call blowsym(ndim,H,hdum)
       call blowsym(ndim,S,sdum)
 
       iu=min(homo+4,ndim)                 ! normal case 
@@ -966,43 +986,42 @@ subroutine solve2(mode,n,ndim,nel,nopen,homo,at,et,focc,H,S,P,e,eel,fail)
 ! diag case branch
       if(iu.eq.ndim) then                  
 ! full diag (faster if all eigenvalues are taken)
+       call blowsym(ndim,H,U)    
        allocate (work(1),iwork(1))
-       call la_sygvd(1,'V','U',ndim,hdum,ndim,sdum,ndim,e,work,-1,IWORK,LIWORK,INFO)
+       call la_sygvd(1,'V','U',ndim,U,ndim,sdum,ndim,e,work,-1,IWORK,LIWORK,INFO)
        lwork=int(work(1))
        liwork=iwork(1)
        deallocate(work,iwork)
        allocate (work(lwork),iwork(liwork)) 
-       call la_sygvd(1,'V','U',ndim,hdum,ndim,sdum,ndim,e,work,LWORK,IWORK,LIWORK,INFO)
-       D = hdum
+       call la_sygvd(1,'V','U',ndim,U,ndim,sdum,ndim,e,work,LWORK,IWORK,LIWORK,INFO)
       else
 ! for a large basis, taking only the occ.+few virt eigenvalues is faster than a full diag
+       allocate(hdum(ndim,ndim))  
+       call blowsym(ndim,H,hdum) 
        allocate(iwork(5*ndim),ifail(ndim),work(1))
        call la_sygvx(1,'V','I','U',ndim, hdum, ndim, sdum, ndim, ga, gb, &
-     &               1, IU, 1d-7, ij, e, D, ndim, WORK, -1, IWORK, &
+     &               1, IU, 1d-7, ij, e, U, ndim, WORK, -1, IWORK, &
      &              IFAIL, INFO )
        lwork=idint(work(1))
        deallocate(work)
        allocate(work(lwork))          
        call la_sygvx(1,'V','I','U',ndim, hdum, ndim, sdum, ndim, ga, gb, &
-     &               1, IU, 1d-7, ij, e, D, ndim, WORK, LWORK, IWORK, &
+     &               1, IU, 1d-7, ij, e, U, ndim, WORK, LWORK, IWORK, &
      &               IFAIL, INFO )
        do i=iu+1,ndim     
          e(i)=10d0
-         D(1:ndim,i)=0d0
-         D(i,i)     =1d0
+         U(1:ndim,i)=0d0
+         U(i,i)     =1d0
        enddo
 ! end of diag case branch      
       endif
 
       if(info.ne.0) fail=.true.
-      deallocate(hdum)
 
       if(mode.ge.2)then ! only if SP calc and in 2. iter
 !        global shift to match DFT absolute orbital energies (this has no effect on anything in gTB)
+!        and second parameter reduces gap by roughly 15 % (1-g17)
          e = e + glob_par(15) + glob_par(17)*e
-         open(unit=42,file='gtb_tmpmos',form='unformatted') 
-         write(42) D
-         write(42) e
       endif
 
       ga=0
@@ -1025,10 +1044,77 @@ subroutine solve2(mode,n,ndim,nel,nopen,homo,at,et,focc,H,S,P,e,eel,fail)
       endif
       focc = focca + foccb
 
-      call dmat(ndim,focc,D,sdum)
+      call dmat(ndim,focc,U,sdum)
       call packsym(ndim,sdum,P)
 
-      eel = sum(focc*e)
+      end
+
+!! ------------------------------------------------------------------------
+!  solve eigenvalue problem in case of polarizability calc
+!! ------------------------------------------------------------------------
+subroutine solve3(ndim,nel,nopen,homo,et,focc,H,S,P)
+      use parcom
+      use bascom, only: nsh
+      use gtb_la, only : la_sygvx, la_sygvd
+      implicit none
+      integer ndim,nel,nopen,homo
+      real*8 H(ndim*(ndim+1)/2)
+      real*8 S(ndim*(ndim+1)/2)
+      real*8 P(ndim*(ndim+1)/2)
+      real*8 focc(ndim)
+      real*8 et        
+
+      integer i,j,info,lwork,liwork,ij,iu
+      integer ihomoa,ihomob
+      real*8 nfoda,nfodb,ga,gb,efa,efb,gap,w1,w0,t1,t0
+      integer,allocatable ::iwork(:),ifail(:)
+      real*8 ,allocatable ::hdum(:,:),sdum(:,:),work(:)
+      real*8 ,allocatable ::focca(:), foccb(:), e(:)
+
+      allocate (hdum(ndim,ndim),sdum(ndim,ndim),focca(ndim),foccb(ndim),e(ndim))  
+
+      call blowsym(ndim,H,hdum)
+      call blowsym(ndim,S,sdum)
+
+      iu=min(homo+4,ndim)                 ! normal case 
+      allocate (work(1),iwork(1))
+      call la_sygvd(1,'V','U',ndim,hdum,ndim,sdum,ndim,e,work,-1,IWORK,LIWORK,INFO)
+      lwork=int(work(1))
+      liwork=iwork(1)
+      deallocate(work,iwork)
+      allocate (work(lwork),iwork(liwork)) 
+      call la_sygvd(1,'V','U',ndim,hdum,ndim,sdum,ndim,e,work,LWORK,IWORK,LIWORK,INFO)
+
+      do i=iu+1,ndim     
+        e(i)=10d0
+        hdum(1:ndim,i)=0d0
+        hdum(i,i)     =1d0
+      enddo
+
+      e = e + glob_par(15) + glob_par(17)*e
+
+      ga=0
+      gb=0
+! Fermi smearing                                          
+!     convert restricted occ first to alpha/beta             
+      if(nel.gt.0) then
+         call occu(ndim,nel,nopen,ihomoa,ihomob,focca,foccb)
+      else
+         focca=0.0d0
+         foccb=0.0d0
+         ihomoa=0
+         ihomob=0
+      endif
+      if(ihomoa+1.le.ndim) then 
+         call FERMISMEAR(.false.,ndim,ihomoa,et,e,focca,nfoda,efa,ga)
+      endif
+      if(ihomob+1.le.ndim.and.nel.gt.1) then
+         call FERMISMEAR(.false.,ndim,ihomob,et,e,foccb,nfodb,efb,gb)
+      endif
+      focc = focca + foccb
+
+      call dmat(ndim,focc,hdum,sdum)
+      call packsym(ndim,sdum,P)
 
       end
 
@@ -1072,14 +1158,14 @@ subroutine onescf(n,ndim,nel,nopen,homo,at,rab,cn,S,SS,Hmat,Hdiag,focc,&
    real(wp),intent(inout)   :: P (ndim*(ndim+1)/2) ! density matrix as a result of the field perturbation
 
 !  local
-   logical  :: fail
+!  logical  :: fail
    integer  :: i,j,k,l,ish,ati,atj,ia,ib,jsh,ii,jj,lin,ij,li,iish,jjsh,mode
-   real(wp) :: r,tmp,pol,hi,hj,hij,xk,t8,t9,qa,qb,keav,eh1,dmp,tmp2,ssh,eel
+   real(wp) :: r,tmp,pol,hi,hj,hij,xk,t8,t9,qa,qb,keav,eh1,tmp2,ssh
    real(wp) :: vi,vj         
-   real(wp) :: gq(n),geff(n),ves(nsh),eps(ndim),xab(nsh,nsh)
+   real(wp) :: gq(n),geff(n),ves(nsh),xab(nsh,nsh)
 
-   call setgab  (n,at,rab,pa,scfpar(7),xab)  ! the gab contain q as higher order effect on Ves, parameter different from twoscf
-   call setespot(n,at,psh,xab,ves) 
+   call setgab2 (n,at,rab,pa,0.0d0,0.75d0,xab)  ! the gab contain q as higher order effect on Ves, parameter zero here
+   call setespot(n,at,psh,xab,ves)              ! the OK/MN mixing is different from twoscf but the effect is small
    ves = ves * 0.5_wp
 
 ! H0 +  third-order (atomic charge exists in 1. AND 2. iter)
@@ -1131,11 +1217,11 @@ subroutine onescf(n,ndim,nel,nopen,homo,at,rab,cn,S,SS,Hmat,Hdiag,focc,&
          k = k + 1
          r = hi + shell_cnf3(10,at(j)) + (cn(j)-avcn(at(j)))*shell_resp(10,at(j),1)
          t8= (rab(k)-r)/r
-         xab(j,i) = 0.5_wp*(1_wp+erf(-2_wp*t8)) 
+         xab(j,i) = 0.5_wp*(1_wp+erf(-1.8_wp*t8)) 
          xab(i,j) = xab(j,i)
       enddo
     enddo
-    call calcpauli2(n,ndim,at,psh,S,Hdiag,Hmat) 
+    call calcpauli12(2,n,ndim,at,psh,S,Hdiag,Hmat) 
 
     k = 0
     do i=1,ndim
@@ -1145,7 +1231,7 @@ subroutine onescf(n,ndim,nel,nopen,homo,at,rab,cn,S,SS,Hmat,Hdiag,focc,&
       iish=shmap(ish,ia)
       hi = shell_cnf2(ish,ati)*gq(ia)*expscal(3,10,ati)                  ! adapted +U scaling
       vi = ves(iish)*expscal(3,9,ati)+ves0(iish)*(1_wp-expscal(3,9,ati)) ! mixing of field perturbed and field free ES potential 
-      do j=1,i                                                           ! with element wise parameter
+      do j=1, i - 1                                                      ! with element wise parameter
          k  = k + 1
          ib = aoat(j)
          atj= at(ib)
@@ -1156,10 +1242,11 @@ subroutine onescf(n,ndim,nel,nopen,homo,at,rab,cn,S,SS,Hmat,Hdiag,focc,&
 !                            this part is INDO two-c like         shell ES
          Hmat(k) = Hmat(k) + P(k) * (hi + hj) * xab(ib,ia) - S(k)*(vi+vj) 
       enddo
+      k = k + 1
+      Hmat(k) = Hmat(k) + 2d0*P(k) * shell_xi(8,ati) * hi * xab(ia,ia) - 2d0*S(k)*vi
     enddo
 
-   call solve2 (1,n,ndim,nel,nopen,homo,at,eT,focc,Hmat,S,P,eps,eel,fail) 
-   if(fail) stop 'diag error onescf'
+   call solve3 (ndim,nel,nopen,homo,eT,focc,Hmat,S,P)            
 
 end
 
@@ -1167,27 +1254,28 @@ end
 !  MO match score for occupied space and scaled LUMO contribution
 !! ------------------------------------------------------------------------
 
-subroutine momatch(pr,ex,ndim,nocc,nvirt,S)
+subroutine momatch(pr,ex,ndim,nocc,nvirt,S,e,C)
       use mocom  
       use gtb_la, only : la_symm, la_gemm
       implicit none          
       logical, intent(in)  :: pr,ex
       integer, intent(in)  :: ndim,nocc,nvirt
+      real*8 , intent(in)  :: C(ndim,ndim),e(ndim)
       real*8 , intent(in)  :: S(ndim*(ndim+1)/2)
       
       integer i,j,k,l,match
-      real*8,allocatable :: SS(:,:), C2(:,:), C(:,:), e(:), srt(:)
-      real*8 norm, wei, ss2, ss4, smax, gap_ref, homo_ref, ff, lumoweight
+      real*8,allocatable :: SS(:,:), C2(:,:), srt(:)
+      real*8 norm, wei, ss2, ss4, smax, gap_ref, gap, homo_ref, ff, lumoweight 
       real*8,parameter :: mothr      = 0.3d0    ! lower weight for MOs .lt. HOMO of this vaue
       real*8,parameter :: au2ev = 27.2113957d0 
 
-      allocate(SS(ndim,ndim),C2(ndim,ndim),C(ndim,ndim),e(ndim),srt(nocc))
+      allocate(SS(ndim,ndim),C2(ndim,ndim),srt(nocc))
 
-      lumoweight = 0.40d0   ! LUMO weight for fit
       ff = 1.d0
+      lumoweight = 1.d0   ! LUMO weight for fit
       if(increase_eps_weight) then
-         ff = 3.d0 ! increase eps weight for metals to improve LS procedure
-         lumoweight = 0.20d0
+         ff = 2.d0 ! increase eps weight for metals to improve LS procedure (both 4.0)
+         lumoweight = 2.d0
       endif
 
       if(pr) then
@@ -1196,9 +1284,9 @@ subroutine momatch(pr,ex,ndim,nocc,nvirt,S)
          write(*,*) ' MO  DFT #   eps (DFT)    eps      penalty       Smax(1,2)'
       endif
 
-      rewind 42   
-      read  (42) C  ! gTB MOs, DFT on cmo_ref        (see mocom)
-      read  (42) e  !  "  eigenvalues, DFT on epsref   "   2
+!     rewind 42   
+!     read  (42) C  ! gTB MOs, DFT on cmo_ref        (see mocom)
+!     read  (42) e  !  "  eigenvalues, DFT on epsref   "   2
 
       call blowsym(ndim,S,SS)
       CALL la_symm('L','L',ndim,ndim,1.D0,SS,ndim,C,ndim,0.D0,C2,ndim)  
@@ -1243,48 +1331,80 @@ subroutine momatch(pr,ex,ndim,nocc,nvirt,S)
       if(pr)write(*,*) 'MO match score occupied MOs   :', totmatch  
 
       gap_ref = (epsref(nocc+1) - epsref(nocc))*au2ev
-      if(gap_ref.lt.13d0) then ! only reasonable gaps included in fit
-         do j=nocc+1,nocc+2
-          totmatch = totmatch + abs(epsref(j) - e(j)) * dble(nocc) * lumoweight  ! add LUMO deviation without assignment
-         enddo                                                                   ! ie assume its right (because it should be the EA)
+      gap     = (e     (nocc+1) - e     (nocc))*au2ev
+      if(gap_ref .lt. 13.0d0) then ! only reasonable gaps included in fit
+         j = nocc + 1
+         if (gap_ref .gt. gap) then 
+             totmatch = totmatch + abs(epsref(j) - e(j)) * 20.d0 * lumoweight  ! add LUMO deviation without assignment
+         else
+             totmatch = totmatch + abs(epsref(j) - e(j)) * 10.d0 * lumoweight  ! but less weight if TB gap is too large
+         endif
       endif
 
       if(pr) then
          write(*,*) 'total MO match score with gap :', totmatch  ! should be zero for perfect MOs
-         write(*,'('' gap (eV)  DFT vs. gTB         : '',2f9.5)') gap_ref,(e(nocc+1) - e(nocc))*au2ev
+         write(*,'('' LUMO(eV)  DFT vs. gTB         : '',2f9.5)') epsref(nocc+1)*au2ev, e(nocc+1)*au2ev
+         write(*,'('' gap (eV)   "   "   "          : '',2f9.5)') gap_ref, gap
       endif
-      return
          
-!     add some virt. but overlap only in penalty
-      deallocate(srt)
-      allocate(srt(ndim-nocc+1))
-      do i=nocc + 1, nocc + nvirt
-         k = 0
-         ss4 = 0
-         smax = 0
-         do j=nocc + 1, ndim        
-            ss2 = SS(j,i)**2
-            k = k + 1
-            srt(k) = -ss2
-            ss4 = ss4 + ss2**2
-            if(ss2.gt.smax)then 
-               smax = ss2
-               match = j
-            endif
-         enddo
-         call qqsort(srt,1,ndim-nocc+1)
-         if(abs(e(i)-epsref(match)).lt.0.2d0)then
-             norm = (1d0-ss4)*0.05d0 
-         else
-             norm = 0d0
-         endif
-         totmatch = totmatch + norm
-         if(pr)write(*,'(2i4,6f11.4)') i,match,epsref(match),e(i),norm,-srt(1),-srt(2)
-      enddo 
-
-      if(pr)then
-         write(*,*) 'total MO match score incl virt:', totmatch  
-      endif
+!     add some virt. overlap only in penalty
+!     deallocate(srt)
+!     allocate(srt(ndim-nocc+1))
+!     do i=nocc + 1, nocc + nvirt
+!        k = 0
+!        ss4 = 0
+!        smax = 0
+!        do j=nocc + 1, ndim        
+!           ss2 = SS(j,i)**2
+!           k = k + 1
+!           srt(k) = -ss2
+!           ss4 = ss4 + ss2**2
+!           if(ss2.gt.smax)then 
+!              smax = ss2
+!              match = j
+!           endif
+!        enddo
+!        call qqsort(srt,1,ndim-nocc+1)
+!        if(abs(e(i)-epsref(match)).lt.0.2d0)then
+!            norm = (1d0-ss4)*0.05d0 
+!        else
+!            norm = 0d0
+!        endif
+!        totmatch = totmatch + norm
+!        if(pr)write(*,'(2i4,6f11.4)') i,match,epsref(match),e(i),norm,-srt(1),-srt(2)
+!     enddo 
+!     if(pr)then
+!        write(*,*) 'total MO match score incl virt:', totmatch  
+!     endif
 
       end
 
+subroutine shscalP(iter,n,at,psh,scal)
+   use iso_fortran_env, only : wp => real64
+   use parcom
+   use bascom
+   implicit none 
+!! ------------------------------------------------------------------------
+!  Input
+!! ------------------------------------------------------------------------
+   integer, intent(in)    :: iter               ! PTB iteration   
+   integer, intent(in)    :: n                  ! number of atoms 
+   integer, intent(in)    :: at(n)              ! ordinal number of atoms
+   real(wp),intent(in)    ::psh(10,n)           ! shell populations       
+!! ------------------------------------------------------------------------
+   real(wp),intent(out)   ::scal(10,n)          ! exponent scaling factors
+!! ------------------------------------------------------------------------
+   integer  :: i,ish
+   real(wp) :: atocc(10), qa, tmp
+
+   do i=1,n
+      call shellocc_ref(at(i),atocc) ! ref. atomic pop.
+      tmp = 0d0
+      if(iter.eq.2) tmp = shell_resp(9,at(i),1)
+      do ish=1,bas_nsh(at(i))
+         qa = atocc(ish)-psh(ish,i)
+         scal(ish,i) = expscal(3,ish,at(i)) * (1d0 + tmp*qa) 
+      enddo
+   enddo
+
+end

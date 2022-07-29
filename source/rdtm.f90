@@ -1,4 +1,4 @@
-subroutine rdtm(n,ndim,homo,at,S,focc,ekin,etot,dip,alp,P,rdref)
+subroutine rdtm(n,ndim,homo,at,S,focc,ekin,etot,dip,alp,rdref)
    use iso_fortran_env, only : wp => real64
    use mocom ! fit only
    implicit none
@@ -11,7 +11,7 @@ subroutine rdtm(n,ndim,homo,at,S,focc,ekin,etot,dip,alp,P,rdref)
    integer, intent(in)    :: homo               ! as the name says       
    integer, intent(in)    :: at(n)              ! element numbers
    real(wp),intent(in)    :: S(ndim*(ndim+1)/2) ! exact overlap maxtrix in SAO
-   real(wp),intent(in)    :: focc(ndim)         ! occupations
+   real(wp),intent(inout) :: focc(ndim)         ! occupations
 !! ------------------------------------------------------------------------
 !  Output
 !! ------------------------------------------------------------------------
@@ -19,24 +19,22 @@ subroutine rdtm(n,ndim,homo,at,S,focc,ekin,etot,dip,alp,P,rdref)
    real(wp), intent(out)  :: etot
    real(wp), intent(out)  :: dip(3)
    real(wp), intent(out)  :: alp(6)
-   real(wp), intent(out)  :: P(ndim*(ndim+1)/2) ! exact P maxtrix in SAO
    logical , intent(out)  :: rdref
 
 !! ------------------------------------------------------------------------
 !  local
 !! ------------------------------------------------------------------------
-   real(wp)             :: xx(10), x
+   real(wp)             :: xx(10), x, dq
    real(wp),allocatable :: stmp(:,:)
    integer              :: nn, iret
    integer              :: lin        
    integer              :: i, j, k 
-   character*80         :: atmp
+   character*255        :: atmp
    logical              :: pr
    logical              :: ex
 
    pr    = .false.
    rdref = .false.
-   cmo_ref(1,1)=-1d42
 
    inquire(file='energy', exist=ex)
    if(.not.ex) return
@@ -55,12 +53,17 @@ subroutine rdtm(n,ndim,homo,at,S,focc,ekin,etot,dip,alp,P,rdref)
    if(index(atmp,'subenergy').ne.0) then
       read(10,'(a)',end=30) atmp
       call readl(atmp,xx,nn)
-      if(nn.ge.3) etot=xx(1)
+      if(nn.ge.3) etot=xx(1)-xx(7)
    endif
    if(index(atmp,'$dipole').ne.0) then
       read(10,'(a)',end=30) atmp
       call readl(atmp,xx,nn)
       if(nn.ge.3) dip(1:3)=xx(1:3)
+   endif
+   if(index(atmp,'$charge from').ne.0) then
+      read(10,'(a)',end=30) atmp
+      call readl(atmp,xx,nn)
+      dq = xx(1)
    endif
    if(index(atmp,'electronic polarizability  1/3').ne.0) then
       read(10,'(a)',end=30) atmp
@@ -79,6 +82,9 @@ subroutine rdtm(n,ndim,homo,at,S,focc,ekin,etot,dip,alp,P,rdref)
 
    inquire(file='mos', exist=ex)
    if(.not.ex) return
+
+   allocate(epsref(ndim),Pref(ndim*(ndim+1)/2),cmo_ref(ndim,ndim))  
+
    open(unit=10,file='mos',iostat=iret)
    if(iret.ne.0) return
    read(10,'(a)',end=40) atmp
@@ -111,8 +117,14 @@ subroutine rdtm(n,ndim,homo,at,S,focc,ekin,etot,dip,alp,P,rdref)
    enddo
    if(abs(x-5d0).gt.1d-6) stop 'TM mos are bogous'
 
+!  logical, intent(in)    :: dpdq               ! special data gen case
+!  if(dpdq) then
+!     focc(1:homo)=focc(1:homo)-dq/dble(homo)
+!     write(*,*) 'change occ for Pref: sum focc', sum(focc)
+!  endif
+
    call dmat(ndim,focc,cmo_ref,stmp)
-   call packsym(ndim,stmp,P)
+   call packsym(ndim,stmp,Pref)
 
    if (pr) then
       write(*,*) 'norm :', x/5d0
@@ -182,18 +194,39 @@ end
 !  write TM mos
 !! ------------------------------------------------------------------------
 
-subroutine wr_tm_mos(nao,nat,nel,at,nopen,homo)
+subroutine wr_tm_mos(nao,nat,nel,at,nopen,homo,e,C)
       use bascom
       implicit none          
       integer, intent(in)  :: nao,nel,nat,at(nat),nopen,homo
+      real*8,  intent(in)  :: C(nao,nao),e(nao)              
 
       integer i,j,ii,jj,ish,ijij,ij,lin,ihomoa,ihomob
       integer isao,iat,ishtyp,mli,iperm(nao),llao2(0:3)
       data llao2/1,3,5,7 /
-      real*8,allocatable :: stmp(:,:), C(:,:), eps(:)
-      real*8 focca(nao),foccb(nao),gapa,gapb,shift
+      real*8,allocatable :: stmp(:,:)
+      real*8 focca(nao),foccb(nao),eps(nao),gapa,gapb,shift,bkt,ferm,eloss
 
-      allocate(stmp(nao,nao),C(nao,nao),eps(nao))
+      allocate(stmp(nao,nao))
+
+      eps = e
+
+      BKT = 12000*3.166808578545117E-06
+      shift=e(homo)
+      focca=0
+ 10   do i=1,homo
+         ferm = 2.0/(EXP((E(I)-shift)/BKT)+1.0)
+         focca(i) = ferm
+      enddo
+      eloss = dble(nel) - sum(focca)
+      if(eloss.gt.0.5) then
+         shift = shift + 0.005
+         goto 10
+      endif
+      open(unit=22,file='occ.tmp')
+      do i=1,homo
+         write(22,'(''a '',i4,''  ('',f14.8,'')'')') i,focca(i)
+      enddo
+      close(22)
 
 ! permutation array 
 ! order in TM (define, infsao option):
@@ -219,11 +252,6 @@ subroutine wr_tm_mos(nao,nat,nel,at,nopen,homo)
             endif
          enddo
       enddo
-!     open(unit=42,file='gtb_tmpmos',form='unformatted')
-      rewind 42
-      read(42) C
-      read(42) eps
-!     close(42)
 
       do i=1,nao
          ii=iperm(i)
@@ -235,7 +263,7 @@ subroutine wr_tm_mos(nao,nat,nel,at,nopen,homo)
       write(68,'(''$scfmo    scfconv=6   format(4d20.14)'')')
       write(68,'(''# SCF total energy is    -9999.9999999999 a.u.'')')
       write(68,'(''#'')')
-      do i=1,homo
+      do i=1,nao 
          write(68,'(i6,2x,''a      eigenvalue='',d20.14,''   nsaos='',i0)') i,eps(i),nao
          write(68,'(4d20.14)') stmp(1:nao,i)
       enddo
@@ -250,7 +278,7 @@ subroutine wr_tm_mos(nao,nat,nel,at,nopen,homo)
       write(68,'(''$uhfmo_alpha   scfconv=6   format(4d20.14)'')')
       write(68,'(''# SCF total energy is    -9999.9999999999 a.u.'')')
       write(68,'(''#'')')
-      do i=1,homo
+      do i=1,nao 
          write(68,'(i6,2x,''a      eigenvalue='',d20.14,''   nsaos='',i0)') i,eps(i),nao
          write(68,'(4d20.14)') stmp(1:nao,i)
       enddo
@@ -264,7 +292,7 @@ subroutine wr_tm_mos(nao,nat,nel,at,nopen,homo)
       write(68,'(''# SCF total energy is    -9999.9999999999 a.u.'')')
       write(68,'(''#'')')
       eps(ihomob+1:nao) = eps(ihomob+1:nao) + shift  ! shift beta epsilon such that gap is the same as in alpha space !!!
-      do i=1,homo
+      do i=1,nao 
          write(68,'(i6,2x,''a      eigenvalue='',d20.14,''   nsaos='',i0)') i,eps(i),nao
          write(68,'(4d20.14)') stmp(1:nao,i)
       enddo

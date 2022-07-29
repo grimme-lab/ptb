@@ -6,6 +6,7 @@ module mocom
 
       real(wp),allocatable :: cmo_ref(:,:)  
       real(wp),allocatable :: epsref (:)  
+      real(wp),allocatable :: Pref (:)  
       real(wp),allocatable :: totmatch    
       real(wp)             :: fitdat(10000)
       integer              :: fitcount         
