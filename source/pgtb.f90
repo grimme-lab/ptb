@@ -30,6 +30,7 @@ subroutine pgtb(pr,prop,n,ndim,nel,nopen,homo,at,chrg,xyz,z,rab, &
    use parcom
    use bascom
    use com
+   use aescom
    use mocom ! fit only
    implicit none
 
@@ -76,8 +77,6 @@ subroutine pgtb(pr,prop,n,ndim,nel,nopen,homo,at,chrg,xyz,z,rab, &
    real(wp),allocatable :: SS(:)                ! scaled overlap/perturbed H
    real(wp),allocatable :: Vecp(:)              ! ECP ints
    real(wp),allocatable :: Htmp(:)              ! modified H                    
-   real(wp),allocatable :: dq(:,:)              ! dipole and quadrupole ints
-   real(wp),allocatable :: cammd(:,:),cammq(:,:)! 
    real(wp),allocatable :: P1  (:)              ! perturbed P     
    real(wp),allocatable :: U(:,:)               ! MOs             
    real(wp)             :: alpha(3,3)         
@@ -196,13 +195,13 @@ subroutine pgtb(pr,prop,n,ndim,nel,nopen,homo,at,chrg,xyz,z,rab, &
    scfpar(1) =  glob_par(11)  ! gpol 
    scfpar(2) =  glob_par(14)  ! Wolfsberg l dep.
    scfpar(4) =  glob_par(16)  ! iter1 off-diag
-   scfpar(3) =  glob_par(19)  ! -0.3  gamscal_iter1 
-   scfpar(5) =  glob_par(20)  ! -0.02 gamscal_iter2 
+   scfpar(3) =  0.0d0 !glob_par(19)  ! -0.3  gamscal_iter1 
+   scfpar(5) =  0.0d0 !glob_par(20)  ! -0.02 gamscal_iter2 
    scfpar(6) =  glob_par(13)  ! iter1 two-center
-   scfpar(7) =  glob_par(18)  ! gamscal in onescf
+   scfpar(7) =  1.0d0 !glob_par(18)  ! gamscal in onescf
    scfpar(8) =  glob_par(12)  ! gpol in onescf
    call twoscf(pr,prop,n,ndim,nel,nopen,homo,at,xyz,z,rab,cns,S,SS,Vecp,Hdiag,focc,&
-               norm,eT,scfpar,S1,S2,psh,pa,P,H,ves0,gab,eps,U)  
+               norm,pnt,eT,scfpar,S1,S2,psh,pa,P,H,ves0,gab,eps,U)  
 
 !! ------------------------------------------------------------------------
 !  done
@@ -246,15 +245,15 @@ subroutine pgtb(pr,prop,n,ndim,nel,nopen,homo,at,chrg,xyz,z,rab, &
 
 ! dump for energy calc
   if(prop.eq.0) then
-      allocate(dq(9,ndim*(ndim+1)/2),cammd(3,n),cammq(6,n))
-      call dqint(n,ndim,at,xyz,rab,norm,pnt,dq) ! dipole and r^2 ints
-      call camm(n,ndim,xyz,P,S,dq,cammd,cammq)  ! CAMM (Mulliken) analysis
+      allocate(pint(9,ndim*(ndim+1)/2),qm(n),dipm(3,n),qp(6,n))
+      call dqint(n,ndim,at,xyz,rab,norm,pnt)    ! dipole and r^2 ints
+      call camm(n,ndim,xyz,z,P,S)               ! CAMM (Mulliken) analysis
+      deallocate(pint)         
 ! check dipole moment
-!     call mpop3(n,ndim,P,S,qeeq)
 !     dum(3)=0
 !     do i=1,n
 !        write(*,'(3F12.6)') cammd(1:3,i)
-!        dum(1:3)=dum(1:3)+cammd(1:3,i)+(z(i)-qeeq(i))*xyz(1:3,i)
+!        dum(1:3)=dum(1:3)+dipm(1:3,i)+qm(i)*xyz(1:3,i)
 !     enddo
 !     write(*,'(3F12.6)') dum(1:3)
       open(unit=11,file='ptb_dump',form='unformatted')
@@ -262,13 +261,17 @@ subroutine pgtb(pr,prop,n,ndim,nel,nopen,homo,at,chrg,xyz,z,rab, &
       write(11) psh
       write(11) wbo
       write(11) P  
-      write(11) cammd
-      write(11) cammq
+      write(11) qm   
+      write(11) dipm 
+      write(11) qp   
+      write(11) eps  
+      write(11) norm 
       if(nopen.ne.0) then
          call spinden(n,ndim,nel,nopen,homo,eT,S,eps,U,scal)
          write(11) scal ! scal just dummy
       endif
       close(11)
+      deallocate(qm,dipm,qp)
   endif
 
 ! dipole moment 
@@ -323,10 +326,11 @@ end
 !! ------------------------------------------------------------------------
 
 subroutine twoscf(pr,prop,n,ndim,nel,nopen,homo,at,xyz,z,rab,cn,S,SS,Vecp,Hdiag,focc,&
-                  norm,eT,scfpar,S1,S2,psh,pa,P,Hmat,ves,gab,eps,U)
+                  norm,pnt,eT,scfpar,S1,S2,psh,pa,P,Hmat,ves,gab,eps,U)
    use iso_fortran_env, only : wp => real64
    use bascom
    use parcom
+   use aescom
    use com
    implicit none 
 !! ------------------------------------------------------------------------
@@ -350,6 +354,7 @@ subroutine twoscf(pr,prop,n,ndim,nel,nopen,homo,at,xyz,z,rab,cn,S,SS,Vecp,Hdiag,
    real(wp),intent(in)    :: Hdiag(ndim)           ! diagonal of H0
    real(wp),intent(in)    :: focc (ndim)           ! fractional occ.
    real(wp),intent(in)    :: norm (ndim)           ! SAO normalization factors
+   real(wp),intent(in)    :: pnt(3)                ! property ref point       
    real(wp),intent(in)    :: eT                    ! el. temp.
    real(wp),intent(in)    :: scfpar(8)             ! parameters
    real*4  ,intent(in)    :: S1(ndim,ndim)         ! ML trafo
@@ -376,6 +381,7 @@ subroutine twoscf(pr,prop,n,ndim,nel,nopen,homo,at,xyz,z,rab,cn,S,SS,Vecp,Hdiag,
    real(wp) :: t0,t1,w0,w1
    real(wp) :: gq(n), xab(n*(n+1)/2), scal(10,nsh)
    real(wp), allocatable :: SSS(:)
+   real(wp), allocatable :: vs(:),vd(:,:),vq(:,:)
 
 !  special overlap matrix for XC term
    call modbas(n,at,2) 
@@ -489,7 +495,7 @@ subroutine twoscf(pr,prop,n,ndim,nel,nopen,homo,at,xyz,z,rab,cn,S,SS,Vecp,Hdiag,
 
    if(iter.eq.1)then 
 !                                       OK/MN mix
-      call setgab1(n,at,rab,pa,0.25d0,1.50d0,gab)  ! the gab contain q as higher order effect on Ves
+      call setgab1(n,at,rab,pa,0.25d0,1.60d0,gab)  ! the gab contain q as higher order effect on Ves
    else
       call setgab2(n,at,rab,pa,0.00d0,1.00d0,gab)
    endif
@@ -514,6 +520,16 @@ subroutine twoscf(pr,prop,n,ndim,nel,nopen,homo,at,xyz,z,rab,cn,S,SS,Vecp,Hdiag,
       k = k + 1
       Hmat(k) = Hmat(k) - 2d0*S(k)*ves(iish) 
    enddo
+
+!  if(iter.eq.2.and.abs(glob_par(8)).gt.1d-6) then 
+!     if(pr) write(*,*) 'adding multipole-ES...'
+!     allocate(pint(9,ndim*(ndim+1)/2),qm(n),dipm(3,n),qp(6,n),vs(n),vd(3,n),vq(6,n))
+!     call dqint(n,ndim,at,xyz,rab,norm,pnt)    ! dipole and r^2 ints
+!     call camm(n,ndim,xyz,z,P,S)               ! CAMM (Mulliken) analysis
+!     call setvsdq(n,at,xyz,rab,vs,vd,vq)       ! part of potential
+!     call addaes(n,ndim,vs,vd,vq,S,Hmat)
+!     deallocate(pint,qm,dipm,qp,vs,vd,vq)
+!  endif
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! done
@@ -594,12 +610,12 @@ subroutine calcpauli12(iter,n,nao,at,psh,S,Hdiag,Hmat)
             do jsh=1,bas_nsh(atk)                ! shells of atom
                l =bas_lsh(jsh,atk)
                nl=llao2(l)
-               f1=shell_cnf2(10,atk)/dble(nl)
+               f1=psh(jsh,k) * shell_cnf2(10,atk)/dble(nl)
                                                  ! element scaling in first iter to decouple 1. and 2. iter and
                                                  ! to account for missing P-dependent term of 2. iter
                do l=1,nl                         ! AOs of shell jsh
                   m = m + 1
-                  stmp(m,i)= Hdiag(m) * sdum(m,i) * psh(jsh,k) * f1
+                  stmp(m,i)= Hdiag(m) * sdum(m,i) * f1
                enddo
             enddo
          enddo
@@ -612,10 +628,10 @@ subroutine calcpauli12(iter,n,nao,at,psh,S,Hdiag,Hmat)
             do jsh=1,bas_nsh(atk)          
                l =bas_lsh(jsh,atk)
                nl=llao2(l)
-               f1=shell_resp(jsh,atk,1)/dble(nl) ! shell wise scaling
+               f1=psh(jsh,k) * shell_resp(jsh,atk,1)/dble(nl) ! shell wise scaling
                do l=1,nl                  
                   m = m + 1
-                  stmp(m,i)= Hdiag(m) * sdum(m,i) * psh(jsh,k) * f1
+                  stmp(m,i)= Hdiag(m) * sdum(m,i) * f1
                enddo
             enddo
          enddo

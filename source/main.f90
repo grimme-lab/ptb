@@ -259,8 +259,10 @@ program gTB
             
       call setavcn   ! av. el. CNs with erfs=-2.0
 
+      increase_eps_weight = .false.
       idum=0
       do i=1,n
+         if (metal(at(i)).ne.0) increase_eps_weight = .true.  ! increase orbital energy weight in fit
          if (tmwr.and.shell_xi(1,at(i)).ge.0d0) then
              write(*,*) i,at(i)
              stop 'element parameter missing'

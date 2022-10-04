@@ -502,7 +502,7 @@ subroutine dipint(nat,nao,at,xyz,rab,norm,pnt,d)
             jatyp=at(jat)
             rab2=rab(abcnt)**2               
 !c          ints < 1.d-9 for RAB > 40 Bohr            
-            if(rab2.gt.400) cycle
+            if(rab2.gt.900) cycle
             do ish=1,bas_nsh(iatyp)
                ishtyp=bas_lsh(ish,iatyp)
                icao=caoshell(ish,iat)
@@ -611,7 +611,7 @@ subroutine secint(nat,nao,at,xyz,rab,norm,pnt,d)
             jatyp=at(jat)
             rab2=rab(abcnt)**2               
 !c          ints < 1.d-9 for RAB > 40 Bohr            
-            if(rab2.gt.400) cycle
+            if(rab2.gt.900) cycle
             do ish=1,bas_nsh(iatyp)
                ishtyp=bas_lsh(ish,iatyp)
                icao=caoshell(ish,iat)
@@ -685,15 +685,15 @@ end
 ! first and second moment, full
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-subroutine dqint(nat,nao,at,xyz,rab,norm,pnt,d)
+subroutine dqint(nat,nao,at,xyz,rab,norm,pnt)
       use bascom
+      use aescom, only: pint
       implicit none          
       integer, intent(in)  :: nao,nat,at(nat)
       real*8, intent(in)   :: xyz(3,nat)
       real*8, intent(in)   :: rab(nat*(nat+1)/2)
       real*8, intent(in)   :: norm(nao)
       real*8, intent(in)   :: pnt(3) ! reference point
-      real*8, intent(out)  :: d(9,nao*(nao+1)/2)
 
       real*8 ss3(6,6,9)
       real*8 tmp1,tmp2,tmp3,tmp4,intcut,s00,apb
@@ -707,9 +707,10 @@ subroutine dqint(nat,nao,at,xyz,rab,norm,pnt,d)
       data llao2/1,3,5,7 /
       data itt  /0,1,4,10/
 
-      intcut=15. 
+      intcut=20. 
       
-      d =0.0d0
+      pint=0.0d0
+
       do iat=1,nat
          ra(1:3)=xyz(1:3,iat)
          iatyp=at(iat)
@@ -768,7 +769,7 @@ subroutine dqint(nat,nao,at,xyz,rab,norm,pnt,d)
                      do jj=1,llao2(jshtyp)
                         jao=jj+aoshell(jsh,jat)
                         ij = lin(jao,iao)
-                        d(1:9,ij)=ss3(jj,ii,1:9)
+                        pint(1:9,ij)=ss3(jj,ii,1:9)
                      enddo
                   enddo
                enddo!jsh
@@ -781,9 +782,7 @@ subroutine dqint(nat,nao,at,xyz,rab,norm,pnt,d)
          do j=1,i
             ij = ij + 1
             tmp1=norm(i)*norm(j)
-            do k=1,9
-               d(k,ij)=d(k,ij)*tmp1
-            enddo
+            pint(1:9,ij)=pint(1:9,ij)*tmp1
          enddo
       enddo
 

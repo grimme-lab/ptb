@@ -175,7 +175,7 @@ cccccccccccccccccccccccccccccccccccccccccccccc
          do j=1,i-1
          l = l + 1
          xsum=0.0
-         if(rab(l).lt.20.0)then
+         if(rab(l).lt.50.0)then
             do k=aose(1,i),aose(2,i)     ! AOs on atom i
                do m=aose(1,j),aose(2,j)  ! AOs on atom j
                   xsum=xsum+Ptmp(k,m)*Ptmp(m,k)
