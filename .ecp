@@ -1,5 +1,6 @@
 # Q=3., MEFIT, WB, Ref 17.
 # b ecp-2-mwb
+# CAUTION - CHANGED BY MM on Jun 1 2022
 *
 5
 ncore = 2 lmax = 3
@@ -8,7 +9,9 @@ f
 s-f
 23.99296000 2  4.50610000
 p-f
--1.76672400 2  5.22950000
+-1.30000000 2  5.60000000
+d-f
+-0.00300000 2  0.08000000
 *
 # Q=4., MEFIT, WB, Ref 17.
 # c ecp-2-mwb
