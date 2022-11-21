@@ -23,7 +23,7 @@ program gTB
       real(wp),allocatable :: grad(:,:),grad_ref(:,:),dum(:,:)
       real*4  ,allocatable :: ML1(:,:),ML2(:,:)
 
-      integer, allocatable :: at(:)
+      integer, allocatable :: at(:),mapping(:)
       integer ,allocatable ::molvec(:)
       integer ,allocatable :: dgen(:)
       integer ,allocatable :: ict(:,:)
@@ -36,6 +36,7 @@ program gTB
       integer ia,ib,ish,jsh,ksh,ata,atb,ati
       integer ii,jj,ij,ll,ngrad
       integer ntrans
+      integer myunit
       integer molcount,idum(100),tenmap(6)
       integer i,j,k,l,m,ns,nf,nn,lin,llao(4)
       data llao/1,3,5,7 /
@@ -57,7 +58,7 @@ program gTB
       character*2 asym
       character*80 str(10)
       character*80 atmp,arg1,fname,pname,bname
-      logical ex,fail,wrapo,test,test2,tmwr,dgrad,raman,ok_ekin,energ
+      logical ex,fail,wrapo,test,test2,tmwr,dgrad,raman_fit,ok_ekin,energ,raman
       logical stda,acn,rdref,nogtb,ok,rpbe,fitshellq,ldum,lgrad
       logical calc_ptb_grad,d4only
       integer TID, OMP_GET_NUM_THREADS, OMP_GET_THREAD_NUM, nproc
@@ -69,6 +70,7 @@ program gTB
       test    =.false.
       tmwr    =.false.
       dgrad   =.false.
+      raman_fit   =.false.
       raman   =.false.
       energ   =.false.
       stda    =.false.
@@ -138,6 +140,7 @@ program gTB
       if(index(arg1,'-tmwr')   .ne.0)tmwr=.true.  ! TM write      
       if(index(arg1,'-test').ne.0) test =.true.   ! more data output
       if(index(arg1,'-nogtb').ne.0) nogtb =.true. ! 
+      if(index(arg1,'-raman').ne.0) raman =.true. ! 
       if(index(arg1,'-d4only').ne.0) d4only =.true. ! 
 !     if(index(arg1,'-fitshellq').ne.0) then
 !             fitshellq =.true.                   ! output file for test   
@@ -382,7 +385,7 @@ include 'dipgrad.f90'
 ! RAMAN
          inquire(file='polgrad',exist=ex)
          if(ex)then
-         raman=.true.
+         raman_fit=.true.
 include 'polgrad.f90'
          call calcrab(n,at,xyz,rab)
          S = tmpmat
@@ -390,12 +393,61 @@ include 'polgrad.f90'
          endif
       endif
 
+      if (raman) then
+         allocate(mapping(6))
+         mapping(1)=1
+         mapping(2)=3
+         mapping(3)=6
+         mapping(4)=2
+         mapping(5)=4
+         mapping(6)=5
+         write(*,'(/,a)') "--- dALPHA/dR ---"
+         x=0.005_wp
+         call modbas(n,at,4) 
+         do i=1,n
+            do j=1,3
+               xyz(j,i)=xyz(j,i)+x    
+               call calcrab(n,at,xyz,rab)
+               call sint(n,ndim,at,xyz,rab,S,xnorm)       ! exact S
+               call dipint(n,ndim,at,xyz,rab,xnorm,pnt,D3)! dipole integrals
+               call pgtb(.false.,-2,n,ndim,nel,nopen,ihomo,at,chrg,xyz,z,rab,pnt,xnorm,S,D3,&
+        &               efield,ML1,ML2,psh,q,P,F,eps,wbo,dip,alpr)
+               write(*,*) alpr
+               xyz(j,i)=xyz(j,i)-2_wp*x
+               call calcrab(n,at,xyz,rab)
+               call sint(n,ndim,at,xyz,rab,S,xnorm)       ! exact S
+               call dipint(n,ndim,at,xyz,rab,xnorm,pnt,D3)! dipole integrals
+               call pgtb(.false.,-2,n,ndim,nel,nopen,ihomo,at,chrg,xyz,z,rab,pnt,xnorm,S,D3,&
+        &               efield,ML1,ML2,psh,q,P,F,eps,wbo,dip,alpl)
+               write(*,*) alpl
+               fdgrad(j,i,1:6)=(alpr(1:6)-alpl(1:6))/(2_wp*x)
+               xyz(j,i)=xyz(j,i)+x   
+            enddo
+            write(*,'(a,i0)') "Calculated dalpha/dr for atom ", i
+         enddo
+         call calcrab(n,at,xyz,rab)
+         S = tmpmat
+         efield = 0
+         open(newunit=myunit, file="polgrad.PTB", status='REPLACE',form='FORMATTED',action='WRITE')
+            write(myunit,*) "$polgrad from PTB"
+            do j=1,6
+                do i=1,n
+                    write(myunit,*) fdgrad(1:3,i,mapping(j))
+                enddo
+            enddo
+         close(myunit)
+         write(*,'(a,/)') "written dalpha/dr in TM format to 'polgrad.PTB'"
+         deallocate(mapping)
+     endif
+
+
 ! SINGLE POINT PTB
       if(ldum) then ! run it in normal case or in energy mode if dump does not exist
        if(prop.gt.0) call dipint(n,ndim,at,xyz,rab,xnorm,pnt,D3)! dipole integrals 
        call pgtb(.true.,prop,n,ndim,nel,nopen,ihomo,at,chrg,xyz,z,rab,pnt,xnorm,S,D3,&
      &          efield,ML1,ML2,psh,q,P,F,eps,wbo,dip,alp) 
-       call system('mv ptb_dump ptb_dump_0')
+       inquire(file='ptb_dump',exist=ex)
+       if (ex) call system('mv ptb_dump ptb_dump_0')  ! REQUIREMENT FOR THIS COPY PROCESS WAS NOT CLEAR
       endif
 
 ! fit case
@@ -589,7 +641,7 @@ include 'testout.f90'
          enddo
       enddo
 ! alpha grad
-      if(raman)then
+      if(raman_fit)then
       f2=0.02       ! 0.02
       do m=1,6
       do i=1,n
