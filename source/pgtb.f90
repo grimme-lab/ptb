@@ -231,6 +231,9 @@ subroutine pgtb(pr,prop,n,ndim,nel,nopen,homo,at,chrg,xyz,z,rab, &
       call wr_tm_mos(ndim,n,nel,at,nopen,ndim,eps,U)                              ! write for TM all mos (incl. virts!)
 !     call fock2(n,ndim,at,xyz,z,rab,cns,S,SS,Vecp,Hdiag,scfpar,S1,S2,psh,pa,P,H) ! in the "third" SCF step using second F(P2)
 !     call fmotrafo(ndim,homo,H,U)                                                ! detemine Fia max 
+      open(unit=11,file='ptb_dump_0',form='unformatted')                          ! for the PTB-RPBE fit, write charges for D4
+      write(11) pa 
+      close(11)
    endif
 
 ! just with field
@@ -384,15 +387,14 @@ subroutine twoscf(pr,prop,n,ndim,nel,nopen,homo,at,xyz,z,rab,cn,S,SS,Vecp,Hdiag,
    real(wp) :: r,tmp,pol,hi,hj,hij,xk,t8,t9,qa,qb,keav,eh1,tmp2
    real(wp) :: xiter(2),yiter(2),ziter(2),ssh,gap1,gap2
    real(wp) :: t0,t1,w0,w1
-   real(wp) :: gq(n), xab(n*(n+1)/2), scal(10,nsh)
    real(wp), allocatable :: SSS(:)
    real(wp), allocatable :: vs(:),vd(:,:),vq(:,:)
+   real(wp), allocatable :: gq(:),xab(:),scal(:,:)
 
 !  special overlap matrix for XC term
    call modbas(n,at,2) 
-   allocate(SSS(ndim*(ndim+1)/2))
+   allocate(SSS(ndim*(ndim+1)/2),gq(n),xab(n*(n+1)/2),scal(10,nsh))
    call sint(n,ndim,at,xyz,rab,SSS,eps) 
-
 
    ziter(1)=scfpar(4)
    ziter(2)=1_wp
