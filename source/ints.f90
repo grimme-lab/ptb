@@ -37,7 +37,7 @@ subroutine sint(nat,nao,at,xyz,rab,s,norm)
             jatyp=at(jat)
             rab2=rab(abcnt)**2               
 !c          ints < 1.d-9 for RAB > 40 Bohr            
-            if(rab2.gt.1600) cycle
+            if(rab2.gt.900) cycle
             do ish=1,bas_nsh(iatyp)
                ishtyp=bas_lsh(ish,iatyp)
                icao=caoshell(ish,iat)

@@ -47,7 +47,7 @@ program modpar
       real*8   shell_resp(10,86,2)
 
       io=6
-      n = 44            
+      n = 86            
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! read parameter file
@@ -58,7 +58,6 @@ program modpar
       fock_lev2=0
       expscal  =0
       shell_resp=0
-      expscal(4,1:10,1:86)=1.0d0  ! back to standard exp
 
       open(unit=1,file='~/.atompara')
       read(1,*) glob_par (1:10)
@@ -80,6 +79,7 @@ program modpar
          read(1,*) shell_cnf4(1:10,j)    ! 121-130  "
          read(1,*) shell_resp(1:10,j,1)  ! 121-130  "
          read(1,*) shell_resp(1:10,j,2)  ! 121-130  "
+         write(*,*) 'read',j
       enddo
       close(1)
 
@@ -105,16 +105,15 @@ program modpar
 !        shell_cnf4(7:8,i)=0
 !     enddo
       do i=1,86
-         tmp=shell_xi(10,i)
-         shell_xi(10,i)=shell_xi(9,i)
-         shell_xi(9,i)=tmp
+         expscal(1,8,i) = shell_cnf4(3,i)
       enddo
 
       open(unit=io,file='~/atompara')
       write(io,111) glob_par (1:10)
       write(io,111) glob_par(11:20)
       do j=1,86
-         if(fock_par(1,j).lt.1d-6) cycle
+!        if(abs(fock_par(1,j)).lt.1d-8) cycle
+         write(*,*) 'write',j
          write(io,*  ) j
          write(io,111) fock_par  (1:10,j)    ! 1-10   fock
          write(io,111) fock_lev  (1:10,j)    ! 11-20  fock

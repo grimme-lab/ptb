@@ -59,7 +59,7 @@
          g(3,1)= (er-el)/(2d0*step)
          g(3,2)=-(er-el)/(2d0*step)
       else
-         call getsymmetry2(.true.,n,at,xyz,0.0001d0,ntrans,ict,trans) 
+         call getsymmetry2(.true.,n,at,xyz,0.01d0,ntrans,ict,trans) 
          if(ntrans.gt.1) then ! symmetric
             dgen = 0
             do i=1,n
@@ -130,7 +130,8 @@
       subroutine runenergy
 
 !     call system('egtb')
-      call system('rm -rf ptb_dump gradient; ptb coord -energy > tmp')
+      call system(
+     .'rm -rf ptb_dump gradient; ptb coord -energy -clean > tmp')
 
       end
 

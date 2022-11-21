@@ -37,7 +37,7 @@ subroutine rdtm(n,ndim,homo,at,S,focc,ekin,etot,dip,alp,rdref)
    rdref = .false.
 
    inquire(file='energy', exist=ex)
-   if(.not.ex) return
+   if(ex) then  
    open(unit=10,file='energy')
 10 read(10,'(a)',end=20) atmp
    call readl(atmp,xx,nn)
@@ -45,6 +45,7 @@ subroutine rdtm(n,ndim,homo,at,S,focc,ekin,etot,dip,alp,rdref)
    goto 10
 20 continue
    close (10) 
+   endif
 
    inquire(file='control', exist=ex)
    if(.not.ex) return

@@ -29,6 +29,7 @@ subroutine pgtb(pr,prop,n,ndim,nel,nopen,homo,at,chrg,xyz,z,rab, &
    use iso_fortran_env, only : wp => real64
    use parcom
    use bascom
+   use cbascom, only: cnsao
    use com
    use aescom
    use mocom ! fit only
@@ -79,6 +80,7 @@ subroutine pgtb(pr,prop,n,ndim,nel,nopen,homo,at,chrg,xyz,z,rab, &
    real(wp),allocatable :: Htmp(:)              ! modified H                    
    real(wp),allocatable :: P1  (:)              ! perturbed P     
    real(wp),allocatable :: U(:,:)               ! MOs             
+   real(wp),allocatable :: Scv(:,:)             ! core-val overlap
    real(wp)             :: alpha(3,3)         
    real(wp)             :: dip1(3),dip2(3)
 
@@ -184,7 +186,8 @@ subroutine pgtb(pr,prop,n,ndim,nel,nopen,homo,at,chrg,xyz,z,rab, &
 
 !  simple ECP
    if(pr)write(*,*) 'computing Vecp ...'
-   call calcvecp (n,ndim,at,xyz,rab,norm,Vecp)
+   allocate(Scv(cnsao,ndim))
+   call calcvecp (n,ndim,at,xyz,rab,norm,Scv,Vecp)
 
 !! ------------------------------------------------------------------------
 !  set up the H matrix twice
@@ -242,6 +245,7 @@ subroutine pgtb(pr,prop,n,ndim,nel,nopen,homo,at,chrg,xyz,z,rab, &
 
 ! WBO
   if(prop.ge.0) call wiberg(n,ndim,at,rab,P,S,wbo)
+! call prmat(6,wbo,n,n,'WBO')
 
 ! dump for energy calc
   if(prop.eq.0) then
@@ -265,13 +269,14 @@ subroutine pgtb(pr,prop,n,ndim,nel,nopen,homo,at,chrg,xyz,z,rab, &
       write(11) dipm 
       write(11) qp   
       write(11) eps  
+      write(11) Scv  
       write(11) norm 
       if(nopen.ne.0) then
          call spinden(n,ndim,nel,nopen,homo,eT,S,eps,U,scal)
          write(11) scal ! scal just dummy
       endif
       close(11)
-      deallocate(qm,dipm,qp)
+      deallocate(qm,dipm,qp,Scv)
   endif
 
 ! dipole moment 

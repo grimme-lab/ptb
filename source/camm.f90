@@ -14,6 +14,7 @@
 !------------------------------------------------------------------------------------------------------
 
       subroutine aniso_es(nat,at,rab,xyz,e)
+      use iso_fortran_env, only : wp => real64
       use com
       use parcom
       use aescom, only: qm,dipm,qp
@@ -29,14 +30,40 @@
       real*8 gab3(nat*(nat+1)/2),gab5(nat*(nat+1)/2)
       integer i,j,k,l,m,ki,kj,kl,lin
 
+   real(wp),parameter :: rcov_mod(118) = 1.889725949_wp * [ & 
+   & 0.17_wp,0.46_wp, & ! H changed
+   & 1.20_wp,0.94_wp,0.77_wp,0.85_wp,0.68_wp,0.62_wp,0.56_wp,0.50_wp, & ! Li-Ne CNOF hand adjusted
+   & 1.40_wp,1.25_wp,1.13_wp,1.14_wp,1.08_wp,1.25_wp,0.80_wp,0.96_wp, & ! Na-Ar, Si-Cl changed
+   & 1.76_wp,1.54_wp, & ! K,Ca
+   &                 1.33_wp,1.22_wp,1.21_wp,1.10_wp,1.07_wp, & ! Sc-
+   &                 1.04_wp,1.00_wp,0.99_wp,1.01_wp,1.09_wp, & ! -Zn
+   &                 1.12_wp,1.09_wp,1.15_wp,1.10_wp,1.14_wp,1.17_wp, & ! Ga-Kr
+   & 1.89_wp,1.67_wp, & ! Rb,Sr
+   &                 1.47_wp,1.39_wp,1.32_wp,1.24_wp,1.15_wp, & ! Y-
+   &                 1.13_wp,1.13_wp,1.08_wp,1.15_wp,1.23_wp, & ! -Cd
+   &                 1.28_wp,1.26_wp,1.26_wp,1.23_wp,1.32_wp,1.31_wp, & ! In-Xe
+   & 2.09_wp,1.76_wp, & ! Cs,Ba
+   &         1.62_wp,1.47_wp,1.58_wp,1.57_wp,1.56_wp,1.55_wp,1.51_wp, & ! La-Eu
+   &         1.52_wp,1.51_wp,1.50_wp,1.49_wp,1.49_wp,1.48_wp,1.53_wp, & ! Gd-Yb
+   &                 1.46_wp,1.37_wp,1.31_wp,1.23_wp,1.18_wp, & ! Lu-
+   &                 1.16_wp,1.11_wp,1.12_wp,1.13_wp,1.32_wp, & ! -Hg
+   &                 1.30_wp,1.30_wp,1.36_wp,1.31_wp,1.38_wp,1.42_wp, & ! Tl-Rn
+   & 2.01_wp,1.81_wp, & ! Fr,Ra
+   &         1.67_wp,1.58_wp,1.52_wp,1.53_wp,1.54_wp,1.55_wp,1.49_wp, & ! Ac-Am
+   &         1.49_wp,1.51_wp,1.51_wp,1.48_wp,1.50_wp,1.56_wp,1.58_wp, & ! Cm-No
+   &                 1.45_wp,1.41_wp,1.34_wp,1.29_wp,1.27_wp, & ! Lr-
+   &                 1.21_wp,1.16_wp,1.15_wp,1.09_wp,1.22_wp, & ! -Cn
+   &                 1.36_wp,1.43_wp,1.46_wp,1.58_wp,1.48_wp,1.57_wp ] ! Nh-Og
+
       k=0
       do i=1, nat
          do j=1,i-1
             k = k + 1
             r3= rab(k)**3
             r5= r3*rab(k)*rab(k)
-            r0= ener_par5(8,at(i)) + ener_par5(8,at(j))
-            damp= 1d0 - 0.5d0*(erf(-2d0*(rab(k)-r0)/r0)+1d0)  
+!           xk= (ener_par5(8,at(i)) + ener_par5(8,at(j)))*0.5d0 ! small effect so take more or less standard radii
+            r0=2.6d0*(rcov_mod(at(i))+rcov_mod(at(j)))          ! GLOB_PAR
+            damp= 1d0 - 0.5d0*(erf(-1.5d0*(rab(k)-r0)/r0)+1d0)  ! GLOB_PAR
             gab3(k) = damp/r3
             gab5(k) = damp/r5
          enddo
@@ -53,7 +80,7 @@
          qp1(1:6)=qp(1:6,i)   
          do j=1,i-1      
             kj=lin(j,i)
-            qs2=1.d0 !                ! charge scaling
+            qs2=1d0 !                ! charge scaling
             rij(1:3)=xyz(1:3,j)-rr(1:3)
             r2=rab(kj)            
             ed=0.0d0
@@ -209,6 +236,7 @@ end subroutine camm
 !------------------------------------------------------------------------------------------------------
 ! add multipole ES potential to Fock matrix H
 ! data as energy routine
+! NOT USED
 !------------------------------------------------------------------------------------------------------
 
 

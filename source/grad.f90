@@ -15,22 +15,38 @@
       enddo
       close(21)
 
+      ngrad = 0
+
       step=0.020_wp
       grad = 0
       if(n.eq.2.and.abs(xyz(1,1)).lt.1d-6.and.abs(xyz(2,1)).lt.1d-6.and.abs(xyz(1,2)).lt.1d-6.and.abs(xyz(2,2)).lt.1d-6)then
          xyz(3,1)=xyz(3,1)+step
 !---------------------------    right step
+         ngrad = ngrad + 1
          call calcrab(n,at,xyz,rab)
-         call sint(n,ndim,at,xyz,rab,S,xnorm)       ! exact S
-         call pgtb(.false.,0,n,ndim,nel,nopen,ihomo,at,chrg,xyz,z,rab,pnt,xnorm,S,D3,efield,ML1,ML2,psh,q,P,F,eps,wbo,dipr,alp)
-         call ptb_energy(.false.,n,ndim,nopen,at,z,xyz,rab,q,psh,wbo,S,P,eref,er)
+         if (calc_ptb_grad) then
+          call sint(n,ndim,at,xyz,rab,S,xnorm)       ! exact S
+          call pgtb(.false.,0,n,ndim,nel,nopen,ihomo,at,chrg,xyz,z,rab,pnt,xnorm,S,D3,efield,ML1,ML2,psh,q,P,F,eps,wbo,dipr,alp)
+          write(atmp,'(''mv ptb_dump ptb_dump_'',i0)') ngrad
+          call system(atmp)
+         endif
+         write(atmp,'(''cp ptb_dump_'',i0,'' ptb_dump'')') ngrad
+         call system(atmp)
+         call ptb_energy(.false.,n,ndim,nopen,at,z,xyz,rab,q,psh,wbo,P,eref,er)
 !---------------------------      
          xyz(3,1)=xyz(3,1)-step*2d0
 !---------------------------    left one
+         ngrad = ngrad + 1
          call calcrab(n,at,xyz,rab)
-         call sint(n,ndim,at,xyz,rab,S,xnorm)       ! exact S
-         call pgtb(.false.,0,n,ndim,nel,nopen,ihomo,at,chrg,xyz,z,rab,pnt,xnorm,S,D3,efield,ML1,ML2,psh,q,P,F,eps,wbo,dipr,alp)
-         call ptb_energy(.false.,n,ndim,nopen,at,z,xyz,rab,q,psh,wbo,S,P,eref,el)
+         if (calc_ptb_grad) then
+          call sint(n,ndim,at,xyz,rab,S,xnorm)       ! exact S
+          call pgtb(.false.,0,n,ndim,nel,nopen,ihomo,at,chrg,xyz,z,rab,pnt,xnorm,S,D3,efield,ML1,ML2,psh,q,P,F,eps,wbo,dipr,alp)
+          write(atmp,'(''mv ptb_dump ptb_dump_'',i0)') ngrad
+          call system(atmp)
+         endif
+         write(atmp,'(''cp ptb_dump_'',i0,'' ptb_dump'')') ngrad
+         call system(atmp)
+         call ptb_energy(.false.,n,ndim,nopen,at,z,xyz,rab,q,psh,wbo,P,eref,el)
 !---------------------------    back
          xyz(3,1)=xyz(3,1)+step
          grad(3,1)= (er-el)/(2d0*step)
@@ -55,16 +71,30 @@
                if(ntrans.gt.1) write(*,*) 'atom ',i,' dir',j,' degen. by symmetry ',dgen(i)
                xyz(j,i)=xyz(j,i)+step
 !---------------------------    right step
+         ngrad = ngrad + 1
          call calcrab(n,at,xyz,rab)
-         call sint(n,ndim,at,xyz,rab,S,xnorm)       ! exact S
-         call pgtb(.false.,0,n,ndim,nel,nopen,ihomo,at,chrg,xyz,z,rab,pnt,xnorm,S,D3,efield,ML1,ML2,psh,q,P,F,eps,wbo,dipr,alp)
-         call ptb_energy(.false.,n,ndim,nopen,at,z,xyz,rab,q,psh,wbo,S,P,eref,er)
+         if (calc_ptb_grad) then
+          call sint(n,ndim,at,xyz,rab,S,xnorm)       ! exact S
+          call pgtb(.false.,0,n,ndim,nel,nopen,ihomo,at,chrg,xyz,z,rab,pnt,xnorm,S,D3,efield,ML1,ML2,psh,q,P,F,eps,wbo,dipr,alp)
+          write(atmp,'(''mv ptb_dump ptb_dump_'',i0)') ngrad
+          call system(atmp)
+         endif
+         write(atmp,'(''cp ptb_dump_'',i0,'' ptb_dump'')') ngrad
+         call system(atmp)
+         call ptb_energy(.false.,n,ndim,nopen,at,z,xyz,rab,q,psh,wbo,P,eref,er)
                xyz(j,i)=xyz(j,i)-step*2d0
 !---------------------------    left one
+         ngrad = ngrad + 1
          call calcrab(n,at,xyz,rab)
-         call sint(n,ndim,at,xyz,rab,S,xnorm)       ! exact S
-         call pgtb(.false.,0,n,ndim,nel,nopen,ihomo,at,chrg,xyz,z,rab,pnt,xnorm,S,D3,efield,ML1,ML2,psh,q,P,F,eps,wbo,dipr,alp)
-         call ptb_energy(.false.,n,ndim,nopen,at,z,xyz,rab,q,psh,wbo,S,P,eref,el)
+         if (calc_ptb_grad) then
+          call sint(n,ndim,at,xyz,rab,S,xnorm)       ! exact S
+          call pgtb(.false.,0,n,ndim,nel,nopen,ihomo,at,chrg,xyz,z,rab,pnt,xnorm,S,D3,efield,ML1,ML2,psh,q,P,F,eps,wbo,dipr,alp)
+          write(atmp,'(''mv ptb_dump ptb_dump_'',i0)') ngrad
+          call system(atmp)
+         endif
+         write(atmp,'(''cp ptb_dump_'',i0,'' ptb_dump'')') ngrad
+         call system(atmp)
+         call ptb_energy(.false.,n,ndim,nopen,at,z,xyz,rab,q,psh,wbo,P,eref,el)
 !---------------------------    back
                xyz(j,i)=xyz(j,i)+step
                grad(j,i)= (er-el)/(2d0*step)

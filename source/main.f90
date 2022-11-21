@@ -34,7 +34,7 @@ program gTB
       integer na,nb,nel,ihomo
       integer prop
       integer ia,ib,ish,jsh,ksh,ata,atb,ati
-      integer ii,jj,ij,ll
+      integer ii,jj,ij,ll,ngrad
       integer ntrans
       integer molcount,idum(100),tenmap(6)
       integer i,j,k,l,m,ns,nf,nn,lin,llao(4)
@@ -59,6 +59,7 @@ program gTB
       character*80 atmp,arg1,fname,pname,bname
       logical ex,fail,wrapo,test,test2,tmwr,dgrad,raman,ok_ekin,energ
       logical stda,acn,rdref,nogtb,ok,rpbe,fitshellq,ldum,lgrad
+      logical calc_ptb_grad,d4only
       integer TID, OMP_GET_NUM_THREADS, OMP_GET_THREAD_NUM, nproc
 
       call timing(t00,w00)           
@@ -75,6 +76,8 @@ program gTB
       nogtb   =.false.
       rpbe    =.false.
       lgrad   =.false.
+      d4only  =.false.
+      calc_ptb_grad = .false.
       eref    = 0
       ekinref = 0
       prop = 1
@@ -122,6 +125,7 @@ program gTB
       call getarg(1,fname)
       do i=2,8
       call getarg(i,arg1)
+      if(index(arg1,'-clean' ).ne.0)calc_ptb_grad=.true.  ! 
       if(index(arg1,'-avcn' ) .ne.0)  acn=.true.  ! 
       if(index(arg1,'-apo' )  .ne.0)wrapo=.true.  ! just printout shell pop for coding
       if(index(arg1,'-polar') .ne.0)prop =2       ! polar      
@@ -134,6 +138,7 @@ program gTB
       if(index(arg1,'-tmwr')   .ne.0)tmwr=.true.  ! TM write      
       if(index(arg1,'-test').ne.0) test =.true.   ! more data output
       if(index(arg1,'-nogtb').ne.0) nogtb =.true. ! 
+      if(index(arg1,'-d4only').ne.0) d4only =.true. ! 
 !     if(index(arg1,'-fitshellq').ne.0) then
 !             fitshellq =.true.                   ! output file for test   
 !             nogtb =.true. 
@@ -235,6 +240,7 @@ program gTB
      &         dipgrad(3,3*n),dipgrad_ref(3,3*n),ict(n,120),dgen(n), &
      &         fdgrad(3,3*n,9),fdgrad_ref(3,3*n,9),molvec(n))
 
+
 ! read coordinates
       call rd(.true.,fname,n,xyz,at)
       call calcrab(n,at,xyz,rab)
@@ -272,6 +278,21 @@ program gTB
       enddo
       nel=int(sum(z))-int(chrg)
 
+!     for PTB-RPBE D4 only (fit)
+      inquire(file='ptb_dump_0',exist=ex)
+      if(ex.and.d4only) then
+      open(unit=11,file='ptb_dump_0',form='unformatted')
+      read(11) q
+      close(11)
+      qd4 = z - q  ! q from pop                s8          s9          a1          a2       beta_1/2 (orig 3.0,2.0)
+      call dftd4_dispersion(at,xyz,qd4,1.0d0,glob_par(2),glob_par(1),glob_par(3),glob_par(4),glob_par(5),glob_par(6),edisp)
+      write(*,'('' D4 dispersion energy      :'',f14.6)') edisp
+      open(unit=124,file='.EDISP')
+      write(124,'(F16.8)') edisp
+      close(124)
+      goto 9999
+      endif
+
       ndim=0
       call rdbas(bname)                      ! file: ~/.basis_vDZP
       write(*,*) 'basis read done.'
@@ -306,8 +327,12 @@ program gTB
       write(*,*) 'nopen  ',nopen
       
 ! exact S
-      call sint (n,ndim,at,xyz,rab,S,xnorm)
-      tmpmat = S
+      inquire(file='ptb_dump',exist=ex)
+      ldum = ( .not. energ ) .or. (energ .and. (.not.ex) )      ! run it in normal case or in energy mode if dump does not exist
+      if(ldum) then
+       call sint (n,ndim,at,xyz,rab,S,xnorm)
+       tmpmat = S
+      endif
                                           call timing(t1,w1)           
                                           call prtime(6,t1-t00,w1-w00,'startup and initial S')
 
@@ -342,6 +367,7 @@ program gTB
 include 'grad.f90'
          call calcrab(n,at,xyz,rab)
          S = tmpmat
+         if (.not.energ) ldum=.true.
          endif
       endif
 ! DIPGRAD
@@ -365,12 +391,11 @@ include 'polgrad.f90'
       endif
 
 ! SINGLE POINT PTB
-      inquire(file='ptb_dump',exist=ex)
-      ldum = ( .not. energ ) .or. (energ .and. (.not.ex) )      ! run it in normal case or in energy mode if dump does not exist
-      if(ldum) then
+      if(ldum) then ! run it in normal case or in energy mode if dump does not exist
        if(prop.gt.0) call dipint(n,ndim,at,xyz,rab,xnorm,pnt,D3)! dipole integrals 
        call pgtb(.true.,prop,n,ndim,nel,nopen,ihomo,at,chrg,xyz,z,rab,pnt,xnorm,S,D3,&
      &          efield,ML1,ML2,psh,q,P,F,eps,wbo,dip,alp) 
+       call system('mv ptb_dump ptb_dump_0')
       endif
 
 ! fit case
@@ -381,7 +406,9 @@ include 'polgrad.f90'
 
 ! ENERGY ONLY 
       if(energ) then
-         call ptb_energy(.true.,n,ndim,nopen,at,z,xyz,rab,q,psh,wbo,S,P,eref,etot)
+         goto 9999   ! temporary exit for PTB-RPBE testing (ptb_energy does not work for whole PSE)
+         call system('cp ptb_dump_0 ptb_dump')
+         call ptb_energy(.true.,n,ndim,nopen,at,z,xyz,rab,q,psh,wbo,P,eref,etot)
          open(unit=12,file='.data')  
 !        write(12,*) eref/float(n),etot/float(n)
          write(12,*) eref*10d0,etot*10d0
@@ -405,7 +432,7 @@ include 'polgrad.f90'
 ! for RPBE-PTB
       if(prop.gt.0) then
       qd4 = z - q  ! q from pop                s8          s9          a1          a2       beta_1/2 (orig 3.0,2.0)
-      call dftd4_dispersion(at,xyz,qd4,1.0d0,glob_par(2),glob_par(1),glob_par(3),glob_par(4),2.0d0,3.3d0,edisp)
+      call dftd4_dispersion(at,xyz,qd4,1.0d0,glob_par(2),glob_par(1),glob_par(3),glob_par(4),glob_par(5),glob_par(6),edisp)
       write(*,'('' D4 dispersion energy      :'',f14.6)') edisp
       open(unit=124,file='.EDISP')
       write(124,'(F16.8)') edisp
@@ -455,6 +482,7 @@ include 'polgrad.f90'
       if(rdref)then
       call mlpop2(n, ndim, Pref, ML1, ML2, q_ref, psh_ref)
       call wiberg(n, ndim, at, rab, Pref, S, wbo_ref)
+!     call prmat(6,wbo_ref,n,n,'WBO DFT')
       write(*,'(/,''     ------ reference data ------'')')
       write(*,'(''  # element  Z   pop.                shell populations'')')
       if(nogtb) open(unit=133,file='nogtb.out')

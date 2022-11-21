@@ -3,7 +3,7 @@
 ! simple ECP 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-subroutine calcvecp(n,nao,at,xyz,rab,norm,v)
+subroutine calcvecp(n,nao,at,xyz,rab,norm,Scv,v)
       use cbascom
       use  bascom
       use  parcom
@@ -13,18 +13,19 @@ subroutine calcvecp(n,nao,at,xyz,rab,norm,v)
       real*8,  intent(in)   :: xyz(3,n)
       real*8,  intent(in)   :: rab(n*(n+1)/2) 
       real*8,  intent(in)   :: norm(nao)    
+      real*8,  intent(inout):: Scv(cnsao,nao)      
       real*8,  intent(out)  :: v(nao*(nao+1)/2)    
 
       integer i,j,k,l,m,nl,nn,atn,jsh,llao2(0:3),ia,ib
       data llao2/1,3,5,7 /
       real*8 vecp, ddot
-      real*8,allocatable :: Scv(:,:), stmp(:,:), xtmp(:,:)
+      real*8,allocatable :: stmp(:,:), xtmp(:,:)
 
       v = 0 
 
       if(cnsao.eq.0) return
 
-      allocate(Scv(cnsao,nao),stmp(cnsao,nao),xtmp(nao,nao))
+      allocate(stmp(cnsao,nao),xtmp(nao,nao))
 
       call csint(n,nao,at,xyz,rab,norm,Scv) ! core val overlap ints
 
@@ -94,7 +95,7 @@ subroutine csint(nat,nao,at,xyz,rab,norm,s)
             jatyp=at(jat)
             rab2=rab(abcnt)**2               
 !c          ints < 1.d-9 for RAB > 40 Bohr            
-            if(rab2.gt.1600) cycle
+            if(rab2.gt.400) cycle
             do ish=1,bas_nsh(iatyp)              !val
                ishtyp=bas_lsh(ish,iatyp)
                icao=caoshell(ish,iat)
