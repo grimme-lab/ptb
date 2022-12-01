@@ -1,4 +1,3 @@
-
 subroutine ncoord_erf(nat,at,rab,kn,cn)
    use iso_fortran_env, only : wp => real64
    use com, only : rcov
