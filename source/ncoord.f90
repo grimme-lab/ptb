@@ -1,4 +1,3 @@
-
 subroutine ncoord_erf(nat,at,rab,kn,cn)
    use iso_fortran_env, only : wp => real64
    use com, only : rcov
@@ -13,7 +12,7 @@ subroutine ncoord_erf(nat,at,rab,kn,cn)
    real(wp),intent(out) :: cn(nat)
 
    integer  :: i, j, k
-   real(wp) :: r, rcovij, tmp, arg
+   real(wp) :: rcovij, tmp, arg
 
    cn  = 0._wp
 
