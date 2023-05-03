@@ -1,94 +1,94 @@
-program gTB    
-   
-      use bascom   ! AO basis 
-      use cbascom  ! core AO basis
-      use parcom   ! TB method parameters
-      use com      ! general stuff         
-      use mocom    ! ref MOs for fit and momatch value
-      use dftd4     
+program gTB
+
+   use bascom   ! AO basis
+   use cbascom  ! core AO basis
+   use parcom   ! TB method parameters
+   use com      ! general stuff
+   use mocom    ! ref MOs for fit and momatch value
+   use dftd4
    use json_output, only: write_json
 
-      use iso_fortran_env, only : wp => real64
-      implicit none
+   use iso_fortran_env, only : wp => real64
+   implicit none
 
-      real(wp),allocatable :: xyz(:,:),rab(:),z(:), wbo(:,:), cn(:)
-      real(wp),allocatable :: psh(:,:),q(:), psh_ref(:,:), q_ref(:), wbo_ref(:,:), qd4(:)
-      real(wp),allocatable :: S(:),T(:),P(:),tmpmat(:),F(:),D3(:,:)
-      real(wp),allocatable :: eps(:),focc(:),xnorm(:)
-      real(wp),allocatable :: fragchrg_ref(:),fragchrg(:)
-      real(wp),allocatable :: dipgrad(:,:),dipgrad_ref(:,:)
-      real(wp),allocatable :: fdgrad(:,:,:),fdgrad_ref(:,:,:)
-      real(wp),allocatable :: grad(:,:),grad_ref(:,:),dum(:,:)
-      real*4  ,allocatable :: ML1(:,:),ML2(:,:)
+   real(wp),allocatable :: xyz(:,:),rab(:),z(:), wbo(:,:), cn(:)
+   real(wp),allocatable :: psh(:,:),q(:), psh_ref(:,:), q_ref(:), wbo_ref(:,:), qd4(:)
+   real(wp),allocatable :: S(:),T(:),P(:),tmpmat(:),F(:),D3(:,:)
+   real(wp),allocatable :: eps(:),focc(:),xnorm(:)
+   real(wp),allocatable :: fragchrg_ref(:),fragchrg(:)
+   real(wp),allocatable :: dipgrad(:,:),dipgrad_ref(:,:)
+   real(wp),allocatable :: fdgrad(:,:,:),fdgrad_ref(:,:,:)
+   real(wp),allocatable :: grad(:,:),grad_ref(:,:),dum(:,:)
+   real*4  ,allocatable :: ML1(:,:),ML2(:,:)
 
-      integer, allocatable :: at(:),mapping(:)
-      integer ,allocatable ::molvec(:)
-      integer ,allocatable :: dgen(:)
-      integer ,allocatable :: ict(:,:)
+   integer, allocatable :: at(:),mapping(:)
+   integer ,allocatable ::molvec(:)
+   integer ,allocatable :: dgen(:)
+   integer ,allocatable :: ict(:,:)
 
-      integer n
-      integer ndim
-      integer nopen
-      integer na,nb,nel,ihomo
-      integer prop
-      integer ia,ib,ish,jsh,ksh,ata,atb,ati
-      integer ii,jj,ij,ll,ngrad
-      integer ntrans
-      integer myunit
-      integer molcount,idum(100),tenmap(6)
-      integer i,j,k,l,m,ns,nf,nn,lin,llao(4)
-      data llao/1,3,5,7 /
-      real(wp) chrg ! could be fractional for model systems
+   integer n
+   integer ndim
+   integer nopen
+   integer na,nb,nel,ihomo
+   integer prop
+   integer ia,ib,ish,jsh,ksh,ata,atb,ati
+   integer ii,jj,ij,ll,ngrad
+   integer ntrans
+   integer myunit
+   integer molcount,idum(100),tenmap(6)
+   integer i,j,k,l,m,ns,nf,nn,lin,llao(4)
+   data llao/1,3,5,7 /
+   real(wp) chrg ! could be fractional for model systems
 
-      real(wp) t0,t1,w0,w1,t00,w00,ddot
-      real(wp) etot,eref,enuc,ekinref,ekin,eve,everef,egtb
-      real(wp) norm,ff,f2,f1,x,y,qi,ge,r,etew,edisp,step
-      real(wp) dcal,dref,deeq,dang
-      real(wp) a1,a2,s8
-      real(wp) erfs,er,el
-      real(wp) pnt(3),dip(3),dip_ref(3),dipr(3),dipl(3)
-      real(wp) scndmom(3),scndmom_ref(3)
-      real(wp) alp(6),alp_ref(6),alpr(6),alpl(6)
-      real(wp) efield(3),eftmp(3,6),beta(6,3)
-      real(wp) floats(10),edum(86)
-      real(wp) trans(9,120)
-      real(wp),parameter :: zero = 0_wp
-      character*2 asym
-      character*80 str(10)
-      character*80 atmp,arg1,fname,pname,bname
-      logical ex,fail,wrapo,test,test2,tmwr,dgrad,raman_fit,ok_ekin,energ,raman
-      logical stda,acn,rdref,nogtb,ok,rpbe,fitshellq,ldum,lgrad
-      logical calc_ptb_grad,d4only
-      integer TID, OMP_GET_NUM_THREADS, OMP_GET_THREAD_NUM, nproc
+   real(wp) t0,t1,w0,w1,t00,w00,ddot
+   real(wp) etot,eref,enuc,ekinref,ekin,eve,everef,egtb
+   real(wp) norm,ff,f2,f1,x,y,qi,ge,r,etew,edisp,step
+   real(wp) dcal,dref,deeq,dang
+   real(wp) a1,a2,s8
+   real(wp) erfs,er,el
+   real(wp) pnt(3),dip(3),dip_ref(3),dipr(3),dipl(3)
+   real(wp) scndmom(3),scndmom_ref(3)
+   real(wp) alp(6),alp_ref(6),alpr(6),alpl(6)
+   real(wp) efield(3),eftmp(3,6),beta(6,3)
+   real(wp) floats(10),edum(86)
+   real(wp) trans(9,120)
+   real(wp),parameter :: zero = 0_wp
+   character*2 asym
+   character*80 str(10)
+   character*80 atmp,arg1,fname,pname,bname
+   logical ex,fail,wrapo,test,test2,tmwr,dgrad,raman_fit,ok_ekin,energ,raman
+   logical stda,acn,rdref,nogtb,ok,rpbe,fitshellq,ldum,lgrad
+   logical calc_ptb_grad,d4only
+   integer TID, OMP_GET_NUM_THREADS, OMP_GET_THREAD_NUM, nproc
 
    logical         :: json = .false.
 
-      call timing(t00,w00)           
+   call timing(t00,w00)
 
-      rdref   =.false.
-      wrapo   =.false.
-      test    =.false.
-      tmwr    =.false.
-      dgrad   =.false.
-      raman_fit   =.false.
-      raman   =.false.
-      energ   =.false.
-      stda    =.false.
-      acn     =.false.
-      nogtb   =.false.
-      rpbe    =.false.
-      lgrad   =.false.
-      d4only  =.false.
-      calc_ptb_grad = .false.
-      eref    = 0
-      ekinref = 0
-      prop = 1
-      pnt  = 0
-      chrg = 0
-      nopen= 0
-      alp_ref(1)=-99
-      pname='~/.atompara'
-      bname="~/.basis_vDZP"
+   rdref   =.false.
+   wrapo   =.false.
+   test    =.false.
+   tmwr    =.false.
+   dgrad   =.false.
+   raman_fit   =.false.
+   raman   =.false.
+   energ   =.false.
+   stda    =.false.
+   acn     =.false.
+   nogtb   =.false.
+   rpbe    =.false.
+   lgrad   =.false.
+   d4only  =.false.
+   calc_ptb_grad = .false.
+   eref    = 0
+   ekinref = 0
+   prop = 1
+   pnt  = 0
+   chrg = 0
+   nopen= 0
+   alp_ref(1)=-99
+   pname='~/.atompara'
+   bname="~/.basis_vDZP"
 
 !!$OMP PARALLEL PRIVATE(TID)
 !      TID = OMP_GET_THREAD_NUM()
@@ -139,9 +139,9 @@ program gTB
       if(index(arg1,'-stda')   .ne.0)stda=.true.  ! stda write
       if(index(arg1,'-tmwr')   .ne.0)tmwr=.true.  ! TM write
       if(index(arg1,'-test').ne.0) test =.true.   ! more data output
-      if(index(arg1,'-nogtb').ne.0) nogtb =.true. ! 
-      if(index(arg1,'-raman').ne.0) raman =.true. ! 
-      if(index(arg1,'-d4only').ne.0) d4only =.true. ! 
+      if(index(arg1,'-nogtb').ne.0) nogtb =.true. !
+      if(index(arg1,'-raman').ne.0) raman =.true. !
+      if(index(arg1,'-d4only').ne.0) d4only =.true. !
       if(index(arg1,'-json').ne.0) json =.true. !
 !     if(index(arg1,'-fitshellq').ne.0) then
 !             fitshellq =.true.                   ! output file for test
@@ -384,70 +384,70 @@ program gTB
          S = tmpmat
       endif
 ! RAMAN
-         inquire(file='polgrad',exist=ex)
-         if(ex)then
+      inquire(file='polgrad',exist=ex)
+      if(ex)then
          raman_fit=.true.
-include 'polgrad.f90'
+         include 'polgrad.f90'
          call calcrab(n,at,xyz,rab)
          S = tmpmat
          efield = 0
       endif
    endif
 
-      if (raman) then
-         allocate(mapping(6))
-         mapping(1)=1
-         mapping(2)=3
-         mapping(3)=6
-         mapping(4)=2
-         mapping(5)=4
-         mapping(6)=5
-         write(*,'(/,a)') "--- dALPHA/dR ---"
-         x=0.005_wp
-         call modbas(n,at,4) 
-         do i=1,n
-            do j=1,3
-               xyz(j,i)=xyz(j,i)+x    
-               call calcrab(n,at,xyz,rab)
-               call sint(n,ndim,at,xyz,rab,S,xnorm)       ! exact S
-               call dipint(n,ndim,at,xyz,rab,xnorm,pnt,D3)! dipole integrals
-               call pgtb(.false.,-2,n,ndim,nel,nopen,ihomo,at,chrg,xyz,z,rab,pnt,xnorm,S,D3,&
-        &               efield,ML1,ML2,psh,q,P,F,eps,wbo,dip,alpr)
-               xyz(j,i)=xyz(j,i)-2_wp*x
-               call calcrab(n,at,xyz,rab)
-               call sint(n,ndim,at,xyz,rab,S,xnorm)       ! exact S
-               call dipint(n,ndim,at,xyz,rab,xnorm,pnt,D3)! dipole integrals
-               call pgtb(.false.,-2,n,ndim,nel,nopen,ihomo,at,chrg,xyz,z,rab,pnt,xnorm,S,D3,&
-        &               efield,ML1,ML2,psh,q,P,F,eps,wbo,dip,alpl)
-               fdgrad(j,i,1:6)=(alpr(1:6)-alpl(1:6))/(2_wp*x)
-               xyz(j,i)=xyz(j,i)+x   
-            enddo
-            write(*,'(a,i0)') "Calculated dalpha/dr for atom ", i
+   if (raman) then
+      allocate(mapping(6))
+      mapping(1)=1
+      mapping(2)=3
+      mapping(3)=6
+      mapping(4)=2
+      mapping(5)=4
+      mapping(6)=5
+      write(*,'(/,a)') "--- dALPHA/dR ---"
+      x=0.005_wp
+      call modbas(n,at,4)
+      do i=1,n
+         do j=1,3
+            xyz(j,i)=xyz(j,i)+x
+            call calcrab(n,at,xyz,rab)
+            call sint(n,ndim,at,xyz,rab,S,xnorm)       ! exact S
+            call dipint(n,ndim,at,xyz,rab,xnorm,pnt,D3)! dipole integrals
+            call pgtb(.false.,-2,n,ndim,nel,nopen,ihomo,at,chrg,xyz,z,rab,pnt,xnorm,S,D3,&
+            &               efield,ML1,ML2,psh,q,P,F,eps,wbo,dip,alpr)
+            xyz(j,i)=xyz(j,i)-2_wp*x
+            call calcrab(n,at,xyz,rab)
+            call sint(n,ndim,at,xyz,rab,S,xnorm)       ! exact S
+            call dipint(n,ndim,at,xyz,rab,xnorm,pnt,D3)! dipole integrals
+            call pgtb(.false.,-2,n,ndim,nel,nopen,ihomo,at,chrg,xyz,z,rab,pnt,xnorm,S,D3,&
+            &               efield,ML1,ML2,psh,q,P,F,eps,wbo,dip,alpl)
+            fdgrad(j,i,1:6)=(alpr(1:6)-alpl(1:6))/(2_wp*x)
+            xyz(j,i)=xyz(j,i)+x
          enddo
-         call calcrab(n,at,xyz,rab)
-         S = tmpmat
-         efield = 0
-         open(newunit=myunit, file="polgrad.PTB", status='REPLACE',form='FORMATTED',action='WRITE')
-            write(myunit,*) "$polgrad from PTB"
-            do j=1,6
-                do i=1,n
-                    write(myunit,*) fdgrad(1:3,i,mapping(j))
-                enddo
-            enddo
-         close(myunit)
-         write(*,'(a,/)') "written dalpha/dr in TM format to 'polgrad.PTB'"
-         deallocate(mapping)
-     endif
+         write(*,'(a,i0)') "Calculated dalpha/dr for atom ", i
+      enddo
+      call calcrab(n,at,xyz,rab)
+      S = tmpmat
+      efield = 0
+      open(newunit=myunit, file="polgrad.PTB", status='REPLACE',form='FORMATTED',action='WRITE')
+      write(myunit,*) "$polgrad from PTB"
+      do j=1,6
+         do i=1,n
+            write(myunit,*) fdgrad(1:3,i,mapping(j))
+         enddo
+      enddo
+      close(myunit)
+      write(*,'(a,/)') "written dalpha/dr in TM format to 'polgrad.PTB'"
+      deallocate(mapping)
+   endif
 
 
 ! SINGLE POINT PTB
-      if(ldum) then ! run it in normal case or in energy mode if dump does not exist
-       if(prop.gt.0) call dipint(n,ndim,at,xyz,rab,xnorm,pnt,D3)! dipole integrals 
-       call pgtb(.true.,prop,n,ndim,nel,nopen,ihomo,at,chrg,xyz,z,rab,pnt,xnorm,S,D3,&
-     &          efield,ML1,ML2,psh,q,P,F,eps,wbo,dip,alp) 
-       inquire(file='ptb_dump',exist=ex)
-       if (ex) call system('mv ptb_dump ptb_dump_0')  ! REQUIREMENT FOR THIS COPY PROCESS WAS NOT CLEAR
-      endif
+   if(ldum) then ! run it in normal case or in energy mode if dump does not exist
+      if(prop.gt.0) call dipint(n,ndim,at,xyz,rab,xnorm,pnt,D3)! dipole integrals
+      call pgtb(.true.,prop,n,ndim,nel,nopen,ihomo,at,chrg,xyz,z,rab,pnt,xnorm,S,D3,&
+      &          efield,ML1,ML2,psh,q,P,F,eps,wbo,dip,alp)
+      inquire(file='ptb_dump',exist=ex)
+      if (ex) call system('mv ptb_dump ptb_dump_0')  ! REQUIREMENT FOR THIS COPY PROCESS WAS NOT CLEAR
+   endif
 
 ! fit case
    if(rpbe)then
@@ -645,16 +645,16 @@ include 'polgrad.f90'
             enddo
          enddo
 ! alpha grad
-      if(raman_fit)then
-      f2=0.02       ! 0.02
-      do m=1,6
-      do i=1,n
-         do j=1,3
-            if(abs(fdgrad_ref(j,i,m)).gt.1d-3) write(12,'(2F28.14,1x,a)') fdgrad_ref(j,i,m)*f2, fdgrad(j,i,m)*f2 !,trim(atmp)
-         enddo
-      enddo
-      enddo
-      endif
+         if(raman_fit)then
+            f2=0.02       ! 0.02
+            do m=1,6
+               do i=1,n
+                  do j=1,3
+                     if(abs(fdgrad_ref(j,i,m)).gt.1d-3) write(12,'(2F28.14,1x,a)') fdgrad_ref(j,i,m)*f2, fdgrad(j,i,m)*f2 !,trim(atmp)
+                  enddo
+               enddo
+            enddo
+         endif
 ! dipole grad
          if(dgrad)then
             k=0
