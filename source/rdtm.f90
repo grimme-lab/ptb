@@ -229,6 +229,13 @@ subroutine wr_tm_mos(nao,nat,nel,at,nopen,homo,e,C)
       enddo
       close(22)
 
+    !  do i=1,nao
+    !     write(*,*) "MO coefficients of MO", i, "BEFORE reordering"
+    !     write(*,*) C(1:nao,i)
+    !  enddo
+
+
+! #### POSSIBLY OUTDATED ####
 ! permutation array 
 ! order in TM (define, infsao option):
 ! 1 -4 d0  = (-xx-yy+2zz)/sqrt(12) 
@@ -236,6 +243,7 @@ subroutine wr_tm_mos(nao,nat,nel,at,nopen,homo,e,C)
 ! 3 -2 d1b = yz    
 ! 4 -1 d2a = xy    
 ! 5    d2b = (xx-yy)/2  
+! ##########################
       isao=0
       do iat=1,nat
          do ish=1,bas_nsh(at(iat))
@@ -244,20 +252,26 @@ subroutine wr_tm_mos(nao,nat,nel,at,nopen,homo,e,C)
                isao=isao+1
                iperm(isao)=isao
             enddo
-            if(llao2(ishtyp).eq.5)then
-                  iperm(isao-3 )=isao-4 ! dz2   2
-                  iperm(isao-4) =isao   ! dx2y2 1
-                  iperm(isao-2) =isao-1 ! dxy   3
-                  iperm(isao-1) =isao-3 ! dxz   4
-                  iperm(isao  ) =isao-2 ! dyz   5
+            if(llao2(ishtyp).eq.5)then                                  ! these lines mean the following:
+                  iperm(isao-3 )=isao-4 ! dz2   2 #IGNORE PREV COMMENTS | at pos. isao-3 (OLD 2nd d func.): d2 -> d1
+                  iperm(isao-4) =isao   ! dx2y2 1 #IGNORE PREV COMMENTS | at pos. isao-4 (OLD 1st d func.): d1 -> d5
+                  iperm(isao-2) =isao-1 ! dxy   3 #IGNORE PREV COMMENTS | at pos. isao-2 (OLD 3rd d func.): d3 -> d4
+                  iperm(isao-1) =isao-3 ! dxz   4 #IGNORE PREV COMMENTS | at pos. isao-1 (OLD 4th d func.): d4 -> d2
+                  iperm(isao  ) =isao-2 ! dyz   5 #IGNORE PREV COMMENTS | at pos. isao-0 (OLD 5th d func.): d5 -> d3
             endif
          enddo
       enddo
 
+    ! write (*,*) "IPERM VECTOR:"
       do i=1,nao
          ii=iperm(i)
+    !    write(*,*) iperm(i)
          stmp(ii,1:nao)=C(i,1:nao)
       enddo
+    ! do i=1,nao
+    !    write(*,*) "MO coefficients of MO", i, "AFTER reordering"
+    !    write(*,*) stmp(1:nao,i)
+    ! enddo
 
       if(nopen.eq.0)then
       open(unit=68,file='mos.tmp')
