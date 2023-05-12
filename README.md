@@ -15,7 +15,7 @@ eventhough PTB is mainly developed for closed-shell systems.
 ## Building
 You can use a statically-linked release binary (recommended), but you can also build it with the source code.
 ```
-git clone 
+git clone https://github.com/grimme-lab/ptb.git
 cd source
 ```
 You can the build the project via `make`.
