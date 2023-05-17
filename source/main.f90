@@ -146,7 +146,7 @@ program gTB
       if(index(arg1,'-json').ne.0) then
          json =.true.
          call getarg(i+1,atmp)
-         if (index(atmp,'-').eq.0) jsonfile=trim(adjustl(atmp))
+         if (index(atmp,'-').eq.0 .and. len_trim(atmp) /= 0) jsonfile=trim(adjustl(atmp))
       endif
       if(index(arg1,'-par').ne.0)then
          call getarg(i+1,pname)
