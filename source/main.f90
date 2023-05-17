@@ -55,7 +55,7 @@ program gTB
    real(wp),parameter :: zero = 0_wp
    character*2 asym
    character*80 str(10)
-   character*80 atmp,arg1,fname,pname,bname
+   character*80 atmp,arg1,fname,pname,bname,jsonfile
    logical ex,fail,wrapo,test,test2,tmwr,dgrad,raman_fit,ok_ekin,energ,raman
    logical stda,acn,rdref,nogtb,ok,rpbe,fitshellq,ldum,lgrad
    logical calc_ptb_grad,d4only
@@ -89,6 +89,7 @@ program gTB
    alp_ref(1)=-99
    pname='~/.atompara'
    bname="~/.basis_vDZP"
+   jsonfile = "ptb.json"
 
 !!$OMP PARALLEL PRIVATE(TID)
 !      TID = OMP_GET_THREAD_NUM()
@@ -125,7 +126,7 @@ program gTB
 
    call head
    call getarg(1,fname)
-   do i=2,8
+   do i=2,command_argument_count()
       call getarg(i,arg1)
       if(index(arg1,'-clean' ).ne.0)calc_ptb_grad=.true.  !
       if(index(arg1,'-avcn' ) .ne.0)  acn=.true.  !
@@ -142,11 +143,11 @@ program gTB
       if(index(arg1,'-nogtb').ne.0) nogtb =.true. !
       if(index(arg1,'-raman').ne.0) raman =.true. !
       if(index(arg1,'-d4only').ne.0) d4only =.true. !
-      if(index(arg1,'-json').ne.0) json =.true. !
-!     if(index(arg1,'-fitshellq').ne.0) then
-!             fitshellq =.true.                   ! output file for test
-!             nogtb =.true.
-!     endif
+      if(index(arg1,'-json').ne.0) then
+         json =.true.
+         call getarg(i+1,atmp)
+         if (index(atmp,'-').eq.0) jsonfile=trim(adjustl(atmp))
+      endif
       if(index(arg1,'-par').ne.0)then
          call getarg(i+1,pname)
       endif
@@ -530,7 +531,8 @@ program gTB
 
    ! Write a .json file with the results, containing the same information as the .out file
    if (json) then
-      call write_json("ptb.json", n, at, z, q, wbo, dip)
+      call write_json(jsonfile, n, at, z, q, wbo, dip)
+      write(*,'(a,a,a)') "--- Property file in JSON format written to: ", trim(adjustl(jsonfile)), " ---"
    endif
 
 888 continue
