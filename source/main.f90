@@ -55,13 +55,13 @@ program gTB
    real(wp),parameter :: zero = 0_wp
    character*2 asym
    character*80 str(10)
-   character*80 atmp,arg1,fname,pname,bname,jsonfile
    logical ex,fail,wrapo,test,test2,tmwr,dgrad,raman_fit,ok_ekin,energ,raman
    logical stda,acn,rdref,nogtb,ok,rpbe,fitshellq,ldum,lgrad
    logical calc_ptb_grad,d4only
    integer TID, OMP_GET_NUM_THREADS, OMP_GET_THREAD_NUM, nproc
 
-   logical         :: json = .false.
+   logical                 :: json = .false.
+   character(len=256)      :: fname,pname,bname,jsonfile,atmp,arg1
 
    call timing(t00,w00)
 
