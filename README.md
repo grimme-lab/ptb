@@ -1,3 +1,7 @@
+> [!WARNING]  
+> PTB (for the publication, press [here](https://pubs.aip.org/aip/jcp/article/158/12/124111/2881578/A-non-self-consistent-tight-binding-electronic)) is now natively available in `xtb>=6.7.0` (see [here](https://github.com/grimme-lab/xtb/releases/tag/v6.7.0) for details).
+> This program is therefore considered obsolete and **_should not be used_** anymore for standard purposes.
+
 # PTB
 A density matrix (P) tight-binding (TB) method based on a polarized valence double-zeta basis set.
 It is available for all elements and structures until Z = 86.
