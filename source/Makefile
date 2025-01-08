@@ -80,10 +80,12 @@ ifeq ($(OSTYPE),SOMETHINGELSE)
 endif
 
 
-.PHONY: all
-.PHONY: clean
+.PHONY: all clean
 
-all: $(PROG)
+all: create_build_dir $(PROG)
+create_build_dir:
+	@mkdir -p ../build
+
 
 
 #--------------------------------------------------------------------------
@@ -127,8 +129,7 @@ $(la.f90): $(blas_level1.f90) $(blas_level2.f90) $(blas_level3.f90) $(lapack_eig
 
 #aufraeumen
 clean:
-	rm -f *.o $(PROG) 
-	rm -f *.mod $(PROG) 
-	rm -f $(patsubst %.F, %.f, $(wildcard *.F))
+	rm -f *.o *.mod $(PROG) 
+	rm -rf ../build
 
 
