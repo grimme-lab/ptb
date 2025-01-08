@@ -12,21 +12,16 @@ MODULES= bascom.o parcom.o com.o thresholds.o cbascom.o mocom.o dftd4.o aescom.o
 
 CFILES= symmetry_i.o
 
-OBJS1= 
-
-OBJS2= rdcoord.o readl.o asym.o elem.o readl2.o readline.o prmat.o timing.o echo.o solve.o rdstvint.o \
+OBJS1 = rdcoord.o readl.o asym.o elem.o readl2.o readline.o prmat.o timing.o echo.o solve.o rdstvint.o \
        ints.o intpack.o pop.o rdmat.o fermi.o reorder.o bas.o occ.o dtrf2.o lin.o energy.o mrec.o \
        cma.o dtrf3.o drsp.o mlpop.o calcrab.o pgtb.o eeq.o ncoord.o prdipole.o itabrow.o \
        sscal.o cbas.o gauss.o printmos.o qsort.o rdtm.o shellocc_ref.o wr_control_atoms.o \
        egtbcorr.o symmetry.o guess_qsh.o eptb.o symmetry2.o symtranslib.o spinden.o camm.o json_output.o
      
-OBJS3= 
-      
-OBJS4 = 
        
 MAINFILES= main.o 
 
-OBJS = $(MODULES) $(CFILES) $(OBJS1) $(OBJS2) $(OBJS3) $(OBJS4) $(MAINFILES)
+OBJS = $(MODULES) $(CFILES) $(OBJS1) $(MAINFILES)
 #--------------------------------------------------------------------------
 
 WITH_DFTD4=FALSE
@@ -34,17 +29,12 @@ WITH_DFTD4=FALSE
 ifeq ($(OSTYPE),LINUXI)
   PREOPTS =
   FC = ifort
-  #FC = gfortran
   CC  = gcc
   LINKER = $(FC) -g -O -static -fopenmp  -I$(MKLROOT)/include/intel64/lp64 -I$(MKLROOT)/include
   LIBS = $(MKLROOT)/lib/intel64/libmkl_blas95_lp64.a $(MKLROOT)/lib/intel64/libmkl_lapack95_lp64.a -Wl,--start-group $(MKLROOT)/lib/intel64/libmkl_intel_lp64.a $(MKLROOT)/lib/intel64/libmkl_core.a $(MKLROOT)/lib/intel64/libmkl_intel_thread.a -Wl,--end-group -lpthread -lm
   PREFLAG = -E -P
 
    FFLAGS = -O3 -align array64byte
-#  FFLAGS = -xHost -O3 -align array64byte
-#  FFLAGS = -check all -g -debug all -traceback -fpe0 -xHost
-#  FFLAGS = -O1 
-#  FFLAGS = -O -axAVX -qopenmp -align array64byte 
   CCFLAGS = -O -DLINUX
 endif
 
@@ -56,7 +46,6 @@ ifeq ($(OSTYPE),LINUXL)
   CCFLAGS = -O -DLINUX
   LIBS = /home/grimme/source/lapack-3.4.2/liblapack.a /home/grimme/source/lapack-3.4.2/librefblas.a
   FFLAGS = -O --ntrace --tpp --info --prefetch 2
-# FFLAGS = -O --trace --tpp --info --chk a,e,s,u --prefetch 2
 endif
 
 ifeq ($(WITH_DFTD4),TRUE)
