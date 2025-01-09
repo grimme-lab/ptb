@@ -23,13 +23,13 @@ OBJS1 = rdcoord.o readl.o asym.o elem.o readl2.o readline.o prmat.o timing.o ech
 MAINFILES= main.o 
 
 OBJS = $(MODULES) $(CFILES) $(OBJS1) $(MAINFILES)
-#--------------------------------------------------------------------------
 
+#--------------------------------------------------------------------------
 
 ifeq ($(OSTYPE),LINUXI)
   PREOPTS =
   FC = ifort
-  CC  = gcc
+  CC  = icc
   LINKER = $(FC) -g -O -static -qopenmp  -I$(MKLROOT)/include -qmkl-ilp64=parallel
   LIBS = -lpthread -lm -lstdc++ -qmkl-ilp64=parallel
   PREFLAG = -E -P
@@ -73,7 +73,6 @@ endif
 all: create_build_dir $(PROG)
 create_build_dir:
 	@mkdir -p ../build
-
 
 
 #--------------------------------------------------------------------------
