@@ -1,7 +1,8 @@
 PROG = ../build/ptb_dev
 
 #--------------------------------------------------------------------------
- OSTYPE=LINUXI
+OSTYPE=LINUXI
+WITH_DFTD4=FALSE
 #--------------------------------------------------------------------------
 
 SOURCES = accuracy.f90 la.f90 blas_level1.f90 blas_level2.f90 blas_level3.f90 lapack_eig.f90
@@ -24,17 +25,15 @@ MAINFILES= main.o
 OBJS = $(MODULES) $(CFILES) $(OBJS1) $(MAINFILES)
 #--------------------------------------------------------------------------
 
-WITH_DFTD4=FALSE
 
 ifeq ($(OSTYPE),LINUXI)
   PREOPTS =
   FC = ifort
   CC  = gcc
-  LINKER = $(FC) -g -O -static -fopenmp  -I$(MKLROOT)/include/intel64/lp64 -I$(MKLROOT)/include
-  LIBS = $(MKLROOT)/lib/intel64/libmkl_blas95_lp64.a $(MKLROOT)/lib/intel64/libmkl_lapack95_lp64.a -Wl,--start-group $(MKLROOT)/lib/intel64/libmkl_intel_lp64.a $(MKLROOT)/lib/intel64/libmkl_core.a $(MKLROOT)/lib/intel64/libmkl_intel_thread.a -Wl,--end-group -lpthread -lm
+  LINKER = $(FC) -g -O -static -qopenmp  -I$(MKLROOT)/include -qmkl-ilp64=parallel
+  LIBS = -lpthread -lm -lstdc++ -qmkl-ilp64=parallel
   PREFLAG = -E -P
-
-   FFLAGS = -O3 -align array64byte
+  FFLAGS = -O3 -align array64byte -i8 -march=core-avx2
   CCFLAGS = -O -DLINUX
 endif
 
@@ -120,5 +119,3 @@ $(la.f90): $(blas_level1.f90) $(blas_level2.f90) $(blas_level3.f90) $(lapack_eig
 clean:
 	rm -f *.o *.mod $(PROG) 
 	rm -rf ../build
-
-
