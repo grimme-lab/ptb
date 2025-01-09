@@ -1,10 +1,9 @@
+# --- Variables ---
 PROG = ../build/ptb_dev
+OSTYPE = LINUXI
+WITH_DFTD4 = FALSE
 
-#--------------------------------------------------------------------------
-OSTYPE=LINUXI
-WITH_DFTD4=FALSE
-#--------------------------------------------------------------------------
-
+# --- Code-specific variables ---
 SOURCES = accuracy.f90 la.f90 blas_level1.f90 blas_level2.f90 blas_level3.f90 lapack_eig.f90
 $(foreach src, $(SOURCES), $(eval $(src) := $(patsubst %.f90, %.o, $(src))))
 
@@ -24,27 +23,25 @@ MAINFILES= main.o
 
 OBJS = $(MODULES) $(CFILES) $(OBJS1) $(MAINFILES)
 
-#--------------------------------------------------------------------------
+# --- Compiler-specific  variables ---
+PREFLAG = -E -P
+CCFLAGS = -O -DLINUX
 
 ifeq ($(OSTYPE),LINUXI)
-  PREOPTS =
   FC = ifort
   CC  = icc
   LINKER = $(FC) -g -O -static -qopenmp  -I$(MKLROOT)/include -qmkl-ilp64=parallel
   LIBS = -lpthread -lm -lstdc++ -qmkl-ilp64=parallel
-  PREFLAG = -E -P
   FFLAGS = -O3 -align array64byte -i8 -march=core-avx2
   CCFLAGS = -O -DLINUX
-endif
-
-ifeq ($(OSTYPE),LINUXL)
+else ifeq ($(OSTYPE),LINUXL)
   FC = lfc 
   CC = icc 
   LINKER = lfc  
-  PREFLAG = -E -P
-  CCFLAGS = -O -DLINUX
   LIBS = /home/grimme/source/lapack-3.4.2/liblapack.a /home/grimme/source/lapack-3.4.2/librefblas.a
   FFLAGS = -O --ntrace --tpp --info --prefetch 2
+else
+  $(error Unsupported OSTYPE: $(OSTYPE))
 endif
 
 ifeq ($(WITH_DFTD4),TRUE)
@@ -55,22 +52,11 @@ ifeq ($(WITH_DFTD4),TRUE)
   PREFLAG += -DWITH_DFTD4
 endif
 
-
-ifeq ($(OSTYPE),SOMETHINGELSE)
-  PREOPTS =
-  FC = 
-  CC = 
-  LINKER = 
-  LIBS =
-  PREFLAG = 
-  FFLAGS = 
-  CCFLAGS = 
-endif
-
-
+# --- Default Target ---
 .PHONY: all clean
-
 all: create_build_dir $(PROG)
+
+
 create_build_dir:
 	@mkdir -p ../build
 
@@ -106,7 +92,6 @@ fortran.o : $(CUDA)/src/fortran.c
 $(PROG): $(OBJS) 
 	$(LINKER) $(OBJS) $(LIBS) -o $(PROG)
 
-
 # dependencies
 $(blas_level1.f90): $(accuracy.f90)
 $(blas_level2.f90): $(accuracy.f90)
@@ -116,5 +101,4 @@ $(la.f90): $(blas_level1.f90) $(blas_level2.f90) $(blas_level3.f90) $(lapack_eig
 
 #aufraeumen
 clean:
-	rm -f *.o *.mod $(PROG) 
-	rm -rf ../build
+	rm -rf *.o *.mod $(PROG) ../build
