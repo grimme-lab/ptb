@@ -12,7 +12,7 @@ MODULES= bascom.o parcom.o com.o thresholds.o cbascom.o mocom.o dftd4.o aescom.o
 
 CFILES= symmetry_i.o
 
-OBJS1 = rdcoord.o readl.o asym.o elem.o readl2.o readline.o prmat.o timing.o echo.o solve.o rdstvint.o \
+OBJS1 = timer.o rdcoord.o readl.o asym.o elem.o readl2.o readline.o prmat.o  timing.o echo.o solve.o rdstvint.o \
        ints.o intpack.o pop.o rdmat.o fermi.o reorder.o bas.o occ.o dtrf2.o lin.o energy.o mrec.o \
        cma.o dtrf3.o drsp.o mlpop.o calcrab.o pgtb.o eeq.o ncoord.o prdipole.o itabrow.o \
        sscal.o cbas.o gauss.o printmos.o qsort.o rdtm.o shellocc_ref.o wr_control_atoms.o \
@@ -30,7 +30,7 @@ CCFLAGS = -O -DLINUX
 ifeq ($(OSTYPE),LINUXI)
   FC = ifort
   CC  = icc
-  LINKER = $(FC) -g -O -static -qopenmp  -I$(MKLROOT)/include -qmkl-ilp64=parallel
+  LINKER = $(FC) -g -O -qopenmp  -I$(MKLROOT)/include -qmkl-ilp64=parallel
   LIBS = -lpthread -lm -lstdc++ -qmkl-ilp64=parallel
   FFLAGS = -O3 -align array64byte -i8 -march=core-avx2
   CCFLAGS = -O -DLINUX
