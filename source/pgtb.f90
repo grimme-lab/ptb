@@ -340,6 +340,8 @@ subroutine twoscf(pr,prop,n,ndim,nel,nopen,homo,at,xyz,z,rab,cn,S,SS,Vecp,Hdiag,
    use parcom
    use aescom
    use com
+
+   use timer, only: tTimer
    implicit none
 !! ------------------------------------------------------------------------
 !  Input
@@ -390,6 +392,7 @@ subroutine twoscf(pr,prop,n,ndim,nel,nopen,homo,at,xyz,z,rab,cn,S,SS,Vecp,Hdiag,
    real(wp), allocatable :: SSS(:)
    real(wp), allocatable :: vs(:),vd(:,:),vq(:,:)
    real(wp), allocatable :: gq(:),xab(:),scal(:,:)
+   type(tTimer) :: timer_scf, timer_purification
 
 !  special overlap matrix for XC term
    call modbas(n,at,2)
@@ -550,7 +553,12 @@ subroutine twoscf(pr,prop,n,ndim,nel,nopen,homo,at,xyz,z,rab,cn,S,SS,Vecp,Hdiag,
       if(iter.eq.2.and.prop.eq.4) mode = 3     ! stda write
       if(iter.eq.2.and.prop.eq.5) mode = 4     ! TM write
       if(              prop.lt.0) mode = -iter ! IR/Raman
+
+      ! timer for normal PTB diagonalization
+      call timer_scf%new(2)
       call solve2 (mode,ndim,nel,nopen,homo,eT,focc,Hmat,S,P,eps,U,fail)
+      call timer_scf%deallocate()
+      
       if(fail) stop 'diag error'
 
       if(iter.eq.1) gap1 = (eps(homo+1)-eps(homo))*au2ev
