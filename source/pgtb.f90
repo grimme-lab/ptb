@@ -1021,7 +1021,7 @@ subroutine solve2(mode,ndim,nel,nopen,homo,et,focc,H,S,P,e,U,fail)
    iu = ndim
    if(iu.eq.ndim) then
 ! full diag (faster if all eigenvalues are taken)
-      call timer_scf%click(1)
+      call timer_scf%click(1, 'sygvd solver')
       call blowsym(ndim,H,U)
       allocate (work(1),iwork(1))
       call la_sygvd(1,'V','U',ndim,U,ndim,sdum,ndim,e,work,-1,IWORK,LIWORK,INFO)
@@ -1085,7 +1085,8 @@ subroutine solve2(mode,ndim,nel,nopen,homo,et,focc,H,S,P,e,U,fail)
    call dmat(ndim,focc,U,sdum)
    call packsym(ndim,sdum,P)
 
-   call timer_scf%finalize()
+   call timer_scf%finalize('total solve2')
+
 end
 
 !! ------------------------------------------------------------------------

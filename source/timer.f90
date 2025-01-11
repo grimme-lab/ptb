@@ -6,6 +6,11 @@ module timer
    public :: tTimer
 
    intrinsic :: system_clock, cpu_time
+
+   real, parameter :: conv_SECONDS_PER_DAY = 86400._wp
+   real, parameter :: conv_SECONDS_PER_HOUR = 3600._wp
+   real, parameter :: conv_SECONDS_PER_MINUTE = 60._wp
+   
    !> timer class 
    type :: tTimer
       private
@@ -20,10 +25,10 @@ module timer
       real(wp), allocatable :: cpu_time(:)
 
       !> Distinguish running timers
-      logical, allocatable, public :: running(:)
+      logical, allocatable :: running(:)
       
       !> Timer Name
-      character(len=40), allocatable :: tag(:)
+      character(len=40), allocatable, public:: tag(:)
 
       !> Total elapsed wall-time
       real(wp) :: total_wall_time
@@ -77,7 +82,7 @@ contains
 
 
    !> Start/stop button for each individual timer member
-   subroutine timer_click(self, i)
+   subroutine timer_click(self, i, inmsg)
       
       implicit none
       
@@ -87,14 +92,29 @@ contains
       !> index
       integer,intent(in) :: i
       
+      !> optional message
+      character(len=*), optional, intent(in) :: inmsg
+
+      !> buffer chars
+      character(len=20) :: str_i
+
       ! check if appropriate index is given !
       if (i > self%n .or. i < 1) return
       
+
       ! switcher between start/stop status !
       if (self%running(i)) then
          call self%stop_timing(i)
       else
          call self%start_timing(i)
+
+         ! check for messages !
+         if (present(inmsg)) then
+            self%tag(i) = inmsg 
+         else
+            write(str_i, '(i0)') i
+            self%tag(i) = "Timer "//trim(adjustl(str_i))
+         endif
       endif
       
    end subroutine timer_click
@@ -142,14 +162,20 @@ contains
    end subroutine deallocate_timer
 
    !> Stop all the timers
-   subroutine write_results(self)
+   subroutine write_results(self, inmsg)
 
       intrinsic :: pack
       class(tTimer), intent(inout) :: self
 
+      character(len=*), intent(in), optional :: inmsg 
+
       ! Find the indices of the .false. elements
       integer, allocatable :: indices(:)
       integer :: i
+
+      integer(i8) :: days, hours, mins
+      real(wp) :: seconds
+
       ! Stop timers if they are still running
       if (any(self%running)) then
          indices = pack([(i, i=0, size(self%running)-1)], self%running)
@@ -158,6 +184,26 @@ contains
          call self%stop_timing(indices(i))
       enddo
 
+      if (present(inmsg)) then
+         self%tag(0) = inmsg
+      else
+         self%tag(0) = "total time"
+      endif
+
+      ! write time !
+      write(*,'(a)')
+      do i =0, self%n
+         call convert_time(self%wall_time(i), days, hours, mins, seconds)
+         if (i .eq. 0) then
+            write(*,'(a, 3x, i5," d, ",i2," h, ",i2," min, ",f12.9," sec")') &
+               & self%tag(i), days, hours, mins,seconds
+         else
+            write(*,'("* ", a, 1x, i5," d, ",i2," h, ",i2," min, ",f12.9," sec")') &
+               & self%tag(i), days, hours, mins,seconds
+         endif
+      enddo
+
+      write(*,'(a)')
    end subroutine write_results
 
    !> Start timer
@@ -221,6 +267,25 @@ contains
       self%wall_time(i) = self%wall_time(i) + time_wall
 
    end subroutine stop_timing
+
+   ! Convert seconds into days, hours, minutes, and seconds !
+   subroutine convert_time(total, days, hours, minutes, seconds)
+      
+      real(wp), intent(in) :: total   ! Total time in seconds
+      integer, intent(out) :: days, hours, minutes
+      real(wp), intent(out) :: seconds        ! Remaining seconds after conversion
+
+      real(wp) :: time_left
+
+      time_left = total
+      days = int(time_left / conv_SECONDS_PER_DAY)
+      time_left = time_left - days * conv_SECONDS_PER_DAY
+      hours = int(time_left / conv_SECONDS_PER_HOUR)
+      time_left = time_left - hours * conv_SECONDS_PER_HOUR
+      minutes = int(time_left / conv_SECONDS_PER_MINUTE)
+      seconds = time_left - minutes * conv_SECONDS_PER_MINUTE
+
+  end subroutine convert_time
 
 
 end module timer
