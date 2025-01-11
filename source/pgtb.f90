@@ -557,7 +557,7 @@ subroutine twoscf(pr,prop,n,ndim,nel,nopen,homo,at,xyz,z,rab,cn,S,SS,Vecp,Hdiag,
       ! timer for normal PTB diagonalization
       call timer_scf%new(2)
       call solve2 (mode,ndim,nel,nopen,homo,eT,focc,Hmat,S,P,eps,U,fail)
-      call timer_scf%deallocate()
+      call timer_scf%finalize()
       
       if(fail) stop 'diag error'
 
