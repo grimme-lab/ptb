@@ -20,20 +20,21 @@ module timer
       real(wp), allocatable :: cpu_time(:)
 
       !> Distinguish running timers
-      logical, allocatable, public:: running(:)
+      logical, allocatable, public :: running(:)
       
       !> Timer Name
       character(len=40), allocatable :: tag(:)
 
       !> Total elapsed wall-time
-      real(wp), public :: total_wall_time
+      real(wp) :: total_wall_time
 
       !> Total elapsed cpu time
-      real(wp), public :: total_cpu_time
+      real(wp) :: total_cpu_time
    contains
       procedure :: new => allocate_timer
       procedure :: deallocate => deallocate_timer
       procedure :: finalize => write_results
+      procedure :: click => timer_click
       
       procedure, private :: start_timing
       procedure, private :: stop_timing
@@ -73,6 +74,30 @@ contains
       call self%start_timing(0)
    
    end subroutine allocate_timer
+
+
+   !> Start/stop button for each individual timer member
+   subroutine timer_click(self, i)
+      
+      implicit none
+      
+      !> instance of timer
+      class(tTimer),intent(inout) :: self
+
+      !> index
+      integer,intent(in) :: i
+      
+      ! check if appropriate index is given !
+      if (i > self%n .or. i < 1) return
+      
+      ! switcher between start/stop status !
+      if (self%running(i)) then
+         call self%stop_timing(i)
+      else
+         call self%start_timing(i)
+      endif
+      
+   end subroutine timer_click
 
    !> To retrieve the current CPU and wall time
    subroutine timing(time_cpu,time_wall)
@@ -153,7 +178,7 @@ contains
       if (self%running(i))&
          & error stop 'timer already running, cannot start it twice'
 
-      if (i >= 0 .and. i < self%n) then 
+      if (i >= 0 .and. i <= self%n) then 
          self%running(i) = .true. 
       else
          error stop 'False timer index'
@@ -184,7 +209,7 @@ contains
       if (.not. self%running(i))&
          & error stop 'timer already running, cannot start it twice'
 
-      if (i >= 0 .and. i < self%n) then 
+      if (i >= 0 .and. i <= self%n) then 
          self%running(i) = .false. 
       else
          error stop 'False timer index'
