@@ -341,7 +341,7 @@ subroutine twoscf(pr,prop,n,ndim,nel,nopen,homo,at,xyz,z,rab,cn,S,SS,Vecp,Hdiag,
    use aescom
    use com
 
-   use timer, only: tTimer
+   use metrics, only: get_nel, thrs
    implicit none
 !! ------------------------------------------------------------------------
 !  Input
@@ -392,7 +392,6 @@ subroutine twoscf(pr,prop,n,ndim,nel,nopen,homo,at,xyz,z,rab,cn,S,SS,Vecp,Hdiag,
    real(wp), allocatable :: SSS(:)
    real(wp), allocatable :: vs(:),vd(:,:),vq(:,:)
    real(wp), allocatable :: gq(:),xab(:),scal(:,:)
-   type(tTimer) :: timer_purification
 
 !  special overlap matrix for XC term
    call modbas(n,at,2)
@@ -554,9 +553,12 @@ subroutine twoscf(pr,prop,n,ndim,nel,nopen,homo,at,xyz,z,rab,cn,S,SS,Vecp,Hdiag,
       if(iter.eq.2.and.prop.eq.5) mode = 4     ! TM write
       if(              prop.lt.0) mode = -iter ! IR/Raman
 
-      ! timer for normal PTB diagonalization
-      call solve2 (mode,ndim,nel,nopen,homo,eT,focc,Hmat,S,P,eps,U,fail)
+      ! timer for normal PTB diagonalization !
+      call solve2(mode,ndim,nel,nopen,homo,eT,focc,Hmat,S,P,eps,U,fail)   
 
+      ! check densiy matrix !
+      if (abs(get_nel(ndim,P,S)) - nel > thrs%general) &
+         error stop "wrong Nel, check P"
       
       if(fail) stop 'diag error'
 
@@ -1087,7 +1089,7 @@ subroutine solve2(mode,ndim,nel,nopen,homo,et,focc,H,S,P,e,U,fail)
 
    call timer_scf%finalize('total solve2')
 
-end
+end subroutine solve2
 
 !! ------------------------------------------------------------------------
 !  solve eigenvalue problem in case of polarizability calc
