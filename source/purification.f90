@@ -22,6 +22,7 @@ module purification_
       module procedure :: purification_search
    end interface purification
 
+
 contains
 
    subroutine purification_wrapper(pur, ndim, H, S, P)
