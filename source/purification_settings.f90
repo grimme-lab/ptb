@@ -26,6 +26,7 @@ module purification_settings
 
    contains
       procedure :: settings => initialize_purification
+      procedure :: print => print_settings
    end type tPurificationSet
 
 contains
@@ -100,4 +101,38 @@ contains
    
    end subroutine initialize_purification
 
+   subroutine print_settings(self, out)
+
+      !> Purification settings holder
+      class(tPurificationSet), intent(in) :: self
+
+      !> I/O unit
+      integer,  intent(in) :: out
+
+      ! HEADER !
+      write(out,'(/,a)') repeat('*',72)
+      write(out,'(a,1x,a,1x,a)') repeat('*',26), "PURIFICATION MODE", repeat('*',27)
+      write(out,'(a)') repeat('*',72)
+
+      write(out,'(2x,a)') "__SETTINGS__" 
+      write(out,'(2x,a,5x)',advance='no') "Purification type:            "
+      selectcase(self%type)
+      case(mcweeny)
+         write(out,'(a)') 'McWeeny Grand Canonical Purification'
+      endselect
+      
+      write(out,'(2x,a,5x)',advance='no') "S power:                      "
+      selectcase(self%metric)
+      case(inv)
+         write(out,'(a)') '-1'
+      case(sqrt_)
+         write(out,'(a)') '0.5'
+      case(inv_sqrt)
+         write(out,'(a)') '-0.5'
+      endselect
+      if (self%dev) &
+         write(out,'(2x,a,5x,L1)') "Development Mode:                ", self%dev
+      write(out,'()')
+
+   end subroutine print_settings
 end module purification_settings
