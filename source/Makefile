@@ -32,7 +32,7 @@ ifeq ($(OSTYPE),LINUXI)
   CC  = icc
   LINKER = $(FC) -g -O -qopenmp  -I$(MKLROOT)/include -qmkl-ilp64=parallel
   LIBS = -lpthread -lm -lstdc++ -qmkl-ilp64=parallel
-  FFLAGS = -O3 -align array64byte -i8 -march=core-avx2
+  FFLAGS = -O3 -align array64byte -i8 -march=core-avx2 -mcmodel=large -heap-arrays
   CCFLAGS = -O -DLINUX
 else ifeq ($(OSTYPE),LINUXL)
   FC = lfc 
