@@ -568,13 +568,13 @@ contains
 
          ! Purification !
          else
+            call pur%print(stdout)
             if (pur%dev) then ! perform diagonalization in development regime
                call solve2(mode,ndim,nel,nopen,homo,eT,focc,Hmat,S,P,eps,U,fail) 
                call check_density(ndim, P, S, nel) ! check if computed density matrix valid 
             endif
 
-            call pur%print(stdout)
-            call purification(ndim, Hmat, S, P2)
+            call purification(pur, ndim, Hmat, S, P2)
          endif
          
          if(fail) stop 'diag error'
@@ -1104,7 +1104,7 @@ contains
       call dmat(ndim,focc,U,sdum)
       call packsym(ndim,sdum,P)
 
-      call timer_scf%finalize('total solve2')
+      call timer_scf%finalize('Total solve2')
 
    end subroutine solve2
 
