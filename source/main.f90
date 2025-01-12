@@ -429,13 +429,13 @@ program gTB
             call sint(n,ndim,at,xyz,rab,S,xnorm)       ! exact S
             call dipint(n,ndim,at,xyz,rab,xnorm,pnt,D3)! dipole integrals
             call pgtb(.false.,-2,n,ndim,nel,nopen,ihomo,at,chrg,xyz,z,rab,pnt,xnorm,S,D3,&
-            &               efield,ML1,ML2,psh,q,P,F,eps,wbo,dip,alpr)
+            &               efield,ML1,ML2,psh,q,P,F,eps,wbo,dip,alpr, pur)
             xyz(j,i)=xyz(j,i)-2_wp*x
             call calcrab(n,at,xyz,rab)
             call sint(n,ndim,at,xyz,rab,S,xnorm)       ! exact S
             call dipint(n,ndim,at,xyz,rab,xnorm,pnt,D3)! dipole integrals
             call pgtb(.false.,-2,n,ndim,nel,nopen,ihomo,at,chrg,xyz,z,rab,pnt,xnorm,S,D3,&
-            &               efield,ML1,ML2,psh,q,P,F,eps,wbo,dip,alpl)
+            &               efield,ML1,ML2,psh,q,P,F,eps,wbo,dip,alpl, pur)
             fdgrad(j,i,1:6)=(alpr(1:6)-alpl(1:6))/(2_wp*x)
             xyz(j,i)=xyz(j,i)+x
          enddo
@@ -461,7 +461,7 @@ program gTB
    if(ldum) then ! run it in normal case or in energy mode if dump does not exist
       if(prop.gt.0) call dipint(n,ndim,at,xyz,rab,xnorm,pnt,D3)! dipole integrals
       call pgtb(.true.,prop,n,ndim,nel,nopen,ihomo,at,chrg,xyz,z,rab,pnt,xnorm,S,D3,&
-      &          efield,ML1,ML2,psh,q,P,F,eps,wbo,dip,alp)
+      &          efield,ML1,ML2,psh,q,P,F,eps,wbo,dip,alp, pur)
       inquire(file='ptb_dump',exist=ex)
       if (ex) call system('mv ptb_dump ptb_dump_0')  ! REQUIREMENT FOR THIS COPY PROCESS WAS NOT CLEAR
    endif

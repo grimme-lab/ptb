@@ -22,13 +22,14 @@
 !        read(1,*) shell_resp(1:10,j,1)  ! 131-140
 !        read(1,*) shell_resp(1:10,j,2)  ! 141-150
 module pgtb_
+   use purification_settings, only : tPurificationSet
    implicit none
 
 contains
 
    subroutine pgtb(pr,prop,n,ndim,nel,nopen,homo,at,chrg,xyz,z,rab, &
    &               pnt,norm,S,D,efield,S1,S2,psh,pa,&
-   &               P,H,eps,wbo,dip,alp)
+   &               P,H,eps,wbo,dip,alp, pur)
       use iso_fortran_env, only : wp => real64
       use parcom
       use bascom
@@ -60,6 +61,7 @@ contains
       real(wp),intent(in)    :: S(ndim*(ndim+1)/2) ! exact overlap maxtrix in SAO
       real(wp),intent(in)    :: D(ndim*(ndim+1)/2,3)!dipole integrals
       real(wp),intent(in)    :: efield(3)          ! electric field
+      type(tPurificationSet), allocatable, optional :: pur
    !! ------------------------------------------------------------------------
    !  Output
    !! ------------------------------------------------------------------------
@@ -208,7 +210,7 @@ contains
       scfpar(7) =  1.0d0 !glob_par(18)  ! gamscal in onescf
       scfpar(8) =  glob_par(12)  ! gpol in onescf
       call twoscf(pr,prop,n,ndim,nel,nopen,homo,at,xyz,z,rab,cns,S,SS,Vecp,Hdiag,focc,&
-         norm,pnt,eT,scfpar,S1,S2,psh,pa,P,H,ves0,gab,eps,U)
+         norm,pnt,eT,scfpar,S1,S2,psh,pa,P,H,ves0,gab,eps,U, pur)
 
    !! ------------------------------------------------------------------------
    !  done
@@ -338,7 +340,7 @@ contains
    !! ------------------------------------------------------------------------
 
    subroutine twoscf(pr,prop,n,ndim,nel,nopen,homo,at,xyz,z,rab,cn,S,SS,Vecp,Hdiag,focc,&
-      norm,pnt,eT,scfpar,S1,S2,psh,pa,P,Hmat,ves,gab,eps,U)
+      norm,pnt,eT,scfpar,S1,S2,psh,pa,P,Hmat,ves,gab,eps,U,pur)
       use iso_fortran_env, only : wp => real64
       use bascom
       use parcom
@@ -373,6 +375,7 @@ contains
       real(wp),intent(in)    :: scfpar(8)             ! parameters
       real*4  ,intent(in)    :: S1(ndim,ndim)         ! ML trafo
       real*4  ,intent(in)    :: S2(ndim,ndim)         ! "   "
+      type(tPurificationSet),allocatable, optional ::  pur
 
    !! ------------------------------------------------------------------------
    !  Output
@@ -557,8 +560,16 @@ contains
          if(iter.eq.2.and.prop.eq.5) mode = 4     ! TM write
          if(              prop.lt.0) mode = -iter ! IR/Raman
 
-         call solve2(mode,ndim,nel,nopen,homo,eT,focc,Hmat,S,P,eps,U,fail) 
-         call check_density(ndim, P, S, nel) ! check if computed density valid 
+         ! Normal diagonalization
+         if (.not. allocated(pur)) then
+            call solve2(mode,ndim,nel,nopen,homo,eT,focc,Hmat,S,P,eps,U,fail) 
+            call check_density(ndim, P, S, nel) ! check if computed density matrix valid 
+         else
+            if (pur%dev) then ! perform diagonalization in development regime
+               call solve2(mode,ndim,nel,nopen,homo,eT,focc,Hmat,S,P,eps,U,fail) 
+               call check_density(ndim, P, S, nel) ! check if computed density matrix valid 
+            endif
+         endif
          
          if(fail) stop 'diag error'
 
