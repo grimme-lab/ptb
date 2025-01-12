@@ -1,5 +1,6 @@
 Subroutine getsymmetry2(pr,n, iat, xyz, symthr, ntrans, ict, trans)
       Use iso_c_binding, Only: C_CHAR, C_NULL_CHAR
+      use symmetry_mod, only: get_schoenflies
       Implicit None
       Integer n, iat(n)
       real*8  xyz(3,n)

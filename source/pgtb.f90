@@ -33,6 +33,7 @@ subroutine pgtb(pr,prop,n,ndim,nel,nopen,homo,at,chrg,xyz,z,rab, &
    use com
    use aescom
    use mocom ! fit only
+   use symmetry_mod, only: getsymmetry
    implicit none
 
 !! ------------------------------------------------------------------------
@@ -359,7 +360,7 @@ subroutine twoscf(pr,prop,n,ndim,nel,nopen,homo,at,xyz,z,rab,cn,S,SS,Vecp,Hdiag,
    real(wp),intent(in)    :: rab(n*(n+1)/2)        ! distances
    real(wp),intent(in)    :: cn(n)                 ! CN
    real(wp),intent(in)    :: S(ndim*(ndim+1)/2)    ! exact overlap maxtrix in SAO
-   real(wp),intent(in)    :: SS(ndim*(ndim+1)/2)   ! scaled overlap maxtrix in SAO
+   real(wp),intent(inout)    :: SS(ndim*(ndim+1)/2)   ! scaled overlap maxtrix in SAO
    real(wp),intent(in)    :: Vecp(ndim*(ndim+1)/2) ! ECP ints
    real(wp),intent(in)    :: Hdiag(ndim)           ! diagonal of H0
    real(wp),intent(in)    :: focc (ndim)           ! fractional occ.
