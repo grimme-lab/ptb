@@ -341,12 +341,12 @@ contains
 
    subroutine twoscf(pr,prop,n,ndim,nel,nopen,homo,at,xyz,z,rab,cn,S,SS,Vecp,Hdiag,focc,&
       norm,pnt,eT,scfpar,S1,S2,psh,pa,P,Hmat,ves,gab,eps,U,pur)
-      use iso_fortran_env, only : wp => real64
+      use iso_fortran_env, only : wp => real64, stdout => output_unit
       use bascom
       use parcom
       use aescom
       use com
-
+      use purification_, only: purification
       use metrics, only: check_density
       implicit none
    !! ------------------------------------------------------------------------
@@ -399,6 +399,7 @@ contains
       real(wp), allocatable :: SSS(:)
       real(wp), allocatable :: vs(:),vd(:,:),vq(:,:)
       real(wp), allocatable :: gq(:),xab(:),scal(:,:)
+      real(wp), dimension(ndim*(ndim+1)/2) :: P2
 
    !  special overlap matrix for XC term
       call modbas(n,at,2)
@@ -560,15 +561,20 @@ contains
          if(iter.eq.2.and.prop.eq.5) mode = 4     ! TM write
          if(              prop.lt.0) mode = -iter ! IR/Raman
 
-         ! Normal diagonalization
+         ! Normal diagonalization !
          if (.not. allocated(pur)) then
             call solve2(mode,ndim,nel,nopen,homo,eT,focc,Hmat,S,P,eps,U,fail) 
             call check_density(ndim, P, S, nel) ! check if computed density matrix valid 
+
+         ! Purification !
          else
             if (pur%dev) then ! perform diagonalization in development regime
                call solve2(mode,ndim,nel,nopen,homo,eT,focc,Hmat,S,P,eps,U,fail) 
                call check_density(ndim, P, S, nel) ! check if computed density matrix valid 
             endif
+
+            call pur%print(stdout)
+            call purification(ndim, Hmat, S, P2)
          endif
          
          if(fail) stop 'diag error'
