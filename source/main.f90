@@ -9,6 +9,7 @@ program gTB
    use json_output, only: write_json
 
    use iso_fortran_env, only : wp => real64
+   use purification_settings, only: tPurificationSet
    implicit none
 
    real(wp),allocatable :: xyz(:,:),rab(:),z(:), wbo(:,:), cn(:)
@@ -26,7 +27,7 @@ program gTB
    integer ,allocatable :: dgen(:)
    integer ,allocatable :: ict(:,:)
 
-   integer n
+   integer :: n, iunit
    integer ndim
    integer nopen
    integer na,nb,nel,ihomo
@@ -55,13 +56,16 @@ program gTB
    real(wp),parameter :: zero = 0_wp
    character*2 asym
    character*80 str(10)
-   logical ex,fail,wrapo,test,test2,tmwr,dgrad,raman_fit,ok_ekin,energ,raman
-   logical stda,acn,rdref,nogtb,ok,rpbe,fitshellq,ldum,lgrad
-   logical calc_ptb_grad,d4only
+   logical :: ex,fail,wrapo,test,test2,tmwr,dgrad,raman_fit,ok_ekin,energ,raman
+   logical :: stda,acn,rdref,nogtb,ok,rpbe,fitshellq,ldum,lgrad
+   logical :: calc_ptb_grad,d4only
    integer TID, OMP_GET_NUM_THREADS, OMP_GET_THREAD_NUM, nproc
 
    logical                 :: json = .false.
    character(len=256)      :: fname,pname,bname,jsonfile,atmp,arg1
+
+   !> Handle purification
+   type(tPurificationSet), allocatable :: pur
 
    call timing(t00,w00)
 
@@ -143,6 +147,9 @@ program gTB
       if(index(arg1,'-nogtb').ne.0) nogtb =.true. !
       if(index(arg1,'-raman').ne.0) raman =.true. !
       if(index(arg1,'-d4only').ne.0) d4only =.true. !
+      if(index(arg1,'-purify').ne.0) then ! purification modus
+         allocate(pur)
+      endif
       if(index(arg1,'-json').ne.0) then
          json =.true.
          call getarg(i+1,atmp)
@@ -236,6 +243,16 @@ program gTB
       rpbe=.true.
    endif
 
+   iunit = 3
+   if (allocated(pur)) then
+      inquire(file='.PUR', exist=ex)
+      if (ex) then
+         open(unit=iunit, file='.PUR', status='OLD',action='READ')
+         call pur%settings(iunit)
+      endif
+   endif
+
+   stop 'yay'
 ! how many atoms?
    call rd0(fname,n)
 
