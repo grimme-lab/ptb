@@ -33,6 +33,7 @@ subroutine pgtb(pr,prop,n,ndim,nel,nopen,homo,at,chrg,xyz,z,rab, &
    use com
    use aescom
    use mocom ! fit only
+   use symmetry_mod, only: getsymmetry
    implicit none
 
 !! ------------------------------------------------------------------------
@@ -341,7 +342,7 @@ subroutine twoscf(pr,prop,n,ndim,nel,nopen,homo,at,xyz,z,rab,cn,S,SS,Vecp,Hdiag,
    use aescom
    use com
 
-   use timer, only: tTimer
+   use metrics, only: check_density
    implicit none
 !! ------------------------------------------------------------------------
 !  Input
@@ -359,7 +360,7 @@ subroutine twoscf(pr,prop,n,ndim,nel,nopen,homo,at,xyz,z,rab,cn,S,SS,Vecp,Hdiag,
    real(wp),intent(in)    :: rab(n*(n+1)/2)        ! distances
    real(wp),intent(in)    :: cn(n)                 ! CN
    real(wp),intent(in)    :: S(ndim*(ndim+1)/2)    ! exact overlap maxtrix in SAO
-   real(wp),intent(in)    :: SS(ndim*(ndim+1)/2)   ! scaled overlap maxtrix in SAO
+   real(wp),intent(inout)    :: SS(ndim*(ndim+1)/2)   ! scaled overlap maxtrix in SAO
    real(wp),intent(in)    :: Vecp(ndim*(ndim+1)/2) ! ECP ints
    real(wp),intent(in)    :: Hdiag(ndim)           ! diagonal of H0
    real(wp),intent(in)    :: focc (ndim)           ! fractional occ.
@@ -392,7 +393,6 @@ subroutine twoscf(pr,prop,n,ndim,nel,nopen,homo,at,xyz,z,rab,cn,S,SS,Vecp,Hdiag,
    real(wp), allocatable :: SSS(:)
    real(wp), allocatable :: vs(:),vd(:,:),vq(:,:)
    real(wp), allocatable :: gq(:),xab(:),scal(:,:)
-   type(tTimer) :: timer_purification
 
 !  special overlap matrix for XC term
    call modbas(n,at,2)
@@ -554,9 +554,8 @@ subroutine twoscf(pr,prop,n,ndim,nel,nopen,homo,at,xyz,z,rab,cn,S,SS,Vecp,Hdiag,
       if(iter.eq.2.and.prop.eq.5) mode = 4     ! TM write
       if(              prop.lt.0) mode = -iter ! IR/Raman
 
-      ! timer for normal PTB diagonalization
-      call solve2 (mode,ndim,nel,nopen,homo,eT,focc,Hmat,S,P,eps,U,fail)
-
+      call solve2(mode,ndim,nel,nopen,homo,eT,focc,Hmat,S,P,eps,U,fail) 
+      call check_density(ndim, P, S, nel) ! check if computed density valid 
       
       if(fail) stop 'diag error'
 
@@ -1087,7 +1086,7 @@ subroutine solve2(mode,ndim,nel,nopen,homo,et,focc,H,S,P,e,U,fail)
 
    call timer_scf%finalize('total solve2')
 
-end
+end subroutine solve2
 
 !! ------------------------------------------------------------------------
 !  solve eigenvalue problem in case of polarizability calc

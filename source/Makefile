@@ -12,11 +12,11 @@ MODULES= bascom.o parcom.o com.o thresholds.o cbascom.o mocom.o dftd4.o aescom.o
 
 CFILES= symmetry_i.o
 
-OBJS1 = timer.o rdcoord.o readl.o asym.o elem.o readl2.o readline.o prmat.o  timing.o echo.o solve.o rdstvint.o \
+OBJS1 = timer.o matrix_ops.o metrics.o rdcoord.o readl.o asym.o elem.o readl2.o readline.o prmat.o  timing.o echo.o solve.o rdstvint.o \
        ints.o intpack.o pop.o rdmat.o fermi.o reorder.o bas.o occ.o dtrf2.o lin.o energy.o mrec.o \
-       cma.o dtrf3.o drsp.o mlpop.o calcrab.o pgtb.o eeq.o ncoord.o prdipole.o itabrow.o \
+       cma.o dtrf3.o drsp.o mlpop.o calcrab.o symmetry.o pgtb.o eeq.o ncoord.o prdipole.o itabrow.o \
        sscal.o cbas.o gauss.o printmos.o qsort.o rdtm.o shellocc_ref.o wr_control_atoms.o \
-       egtbcorr.o symmetry.o guess_qsh.o eptb.o symmetry2.o symtranslib.o spinden.o camm.o json_output.o
+       egtbcorr.o  guess_qsh.o eptb.o symmetry2.o symtranslib.o spinden.o camm.o json_output.o
      
        
 MAINFILES= main.o 
@@ -28,11 +28,12 @@ PREFLAG = -E -P
 CCFLAGS = -O -DLINUX
 
 ifeq ($(OSTYPE),LINUXI)
-  FC = ifort
+  FC = ifx
   CC  = icc
   LINKER = $(FC) -g -O -qopenmp  -I$(MKLROOT)/include -qmkl-ilp64=parallel
   LIBS = -lpthread -lm -lstdc++ -qmkl-ilp64=parallel
-  FFLAGS = -O3 -align array64byte -i8 -march=core-avx2
+  FFLAGS = -O3 -align array64byte -i8 -march=core-avx2 -mcmodel=large \
+  				-heap-arrays -check bounds -warn interfaces
   CCFLAGS = -O -DLINUX
 else ifeq ($(OSTYPE),LINUXL)
   FC = lfc 
@@ -64,16 +65,6 @@ create_build_dir:
 #--------------------------------------------------------------------------
 # Setting the rules to make the object files:
 #--------------------------------------------------------------------------
-# implizite Regel zur Erzeugung von *.o aus *.F ausschalten
-%.o: %.F
-fortran.o : $(CUDA)/src/fortran.c
-	gcc $(CCFLAGS) -I$(CUDA)/src/ $(INC) -c  $(CUDA)/src/fortran.c
-
-# aus *.F mache ein *.f
-%.f: %.F
-	@echo "making $@ from $<"
-	$(CC) $(PREFLAG) $(PREOPTS) $< -o $@
-
 # aus *.f mache ein *.o
 %.o: %.f
 	@echo "making $@ from $<"
@@ -101,4 +92,4 @@ $(la.f90): $(blas_level1.f90) $(blas_level2.f90) $(blas_level3.f90) $(lapack_eig
 
 #aufraeumen
 clean:
-	rm -rf *.o *.mod $(PROG) ../build
+	rm -rf *.o *.mod *genmod* $(PROG) ../build
