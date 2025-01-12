@@ -7,7 +7,7 @@ program gTB
    use mocom    ! ref MOs for fit and momatch value
    use dftd4
    use json_output, only: write_json
-
+   use pgtb_
    use iso_fortran_env, only : wp => real64
    use purification_settings, only: tPurificationSet
    implicit none
@@ -37,7 +37,7 @@ program gTB
    integer ntrans
    integer myunit
    integer molcount,idum(100),tenmap(6)
-   integer i,j,k,l,m,ns,nf,nn,lin,llao(4)
+   integer i,j,k,l,m,ns,nf,nn,lin,llao(4), nl
    data llao/1,3,5,7 /
    real(wp) chrg ! could be fractional for model systems
 
@@ -58,7 +58,7 @@ program gTB
    character*80 str(10)
    logical :: ex,fail,wrapo,test,test2,tmwr,dgrad,raman_fit,ok_ekin,energ,raman
    logical :: stda,acn,rdref,nogtb,ok,rpbe,fitshellq,ldum,lgrad
-   logical :: calc_ptb_grad,d4only
+   logical :: calc_ptb_grad,d4only, logicals(10)
    integer TID, OMP_GET_NUM_THREADS, OMP_GET_THREAD_NUM, nproc
 
    logical                 :: json = .false.
@@ -163,12 +163,12 @@ program gTB
       endif
       if(index(arg1,'-chrg').ne.0)then
          call getarg(i+1,atmp)
-         call readline(atmp,floats,str,ns,nf)
+         call readline(atmp, floats, str, logicals, ns, nf, nl)
          chrg=floats(1)
       endif
       if(index(arg1,'-uhf').ne.0)then
          call getarg(i+1,atmp)
-         call readline(atmp,floats,str,ns,nf)
+         call readline(atmp, floats, str, logicals, ns, nf, nl)
          nopen=floats(1)
       endif
    enddo
@@ -214,7 +214,7 @@ program gTB
       open(unit=1,file='.CHRG')
       read(1,'(a)')atmp
       close(1)
-      call readline(atmp,floats,str,ns,nf)
+      call readline(atmp, floats, str, logicals, ns, nf, nl)
       chrg=floats(1)
    endif
 ! electric field
@@ -224,7 +224,7 @@ program gTB
       open(unit=1,file='.EFIELD')
       read(1,'(a)')atmp
       close(1)
-      call readline(atmp,floats,str,ns,nf)
+      call readline(atmp, floats, str, logicals, ns, nf, nl)
       if(nf.lt.3) stop '.EFIELD read error'
       efield(1:3)=floats(1:3)
       write(*,'(''.EFIELD :'',3f12.6)') efield
@@ -234,7 +234,7 @@ program gTB
       open(unit=1,file='.UHF')
       read(1,'(a)')atmp
       close(1)
-      call readline(atmp,floats,str,ns,nf)
+      call readline(atmp, floats, str, logicals, ns, nf, nl)
       nopen=int(floats(1))
    endif
    inquire(file='.RPBE',exist=ex)
@@ -252,7 +252,6 @@ program gTB
       endif
    endif
 
-   stop 'yay'
 ! how many atoms?
    call rd0(fname,n)
 
