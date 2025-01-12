@@ -9,9 +9,9 @@ CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
       character*80  s(10)
       character*3   a3   
       character*(*) fname
-      logical echo
+      logical echo, logicals(10)
       real*8 floats(10)
-      integer ns,nf
+      integer :: ns,nf,nl
 
       CHARACTER*2 el1(98),el2(98)
       DATA el1/'h ','he',
@@ -57,7 +57,7 @@ CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
       read(ich,'(a)')line
       do i=1,n
          read(ich,'(a)')line
-         call readline(line,floats,s,ns,nf)
+         call readline(line, floats, logicals, s, ns, nf, nl)
          if(nf.eq.3.and.ns.eq.1)then
             xyz(1:3,i)=floats(1:3)
             call elem(s(1),iat(i))

@@ -1,18 +1,20 @@
-subroutine readline(line,floats,strings,cs,cf)
+subroutine readline(line,floats,strings,logicals, cs,cf,cl)
    use iso_fortran_env, only: wp => real64,output_unit
    implicit none
    real(wp) :: floats(10)
    character(len=*),intent(in) :: line
    character(len=80)  :: strings(10)
+   logical, dimension(10) :: logicals
 
    real(wp) :: num
    character(len=80) :: stmp,str
    character(len=1)  :: digit
-   integer  :: i,ty,cs,cf
+   integer  :: i, ty, cs, cf, cl
 
    stmp=''
-   cs=1
-   cf=1
+   cl = 1
+   cs = 1
+   cf = 1
    strings(:)=''
    do i=1,len(trim(line))
       digit=line(i:i)
@@ -26,6 +28,9 @@ subroutine readline(line,floats,strings,cs,cf)
          elseif(ty.eq.1) then
             strings(cs)=str
             cs=cs+1
+         elseif(ty.eq.2) then
+            logicals(cl) = merge(.true., .false., int(num) .eq. 1) 
+            cl = cl + 1
          else
             write(output_unit, &
                & '(''readline: problem in checktype, must abort'')')
@@ -41,6 +46,9 @@ subroutine readline(line,floats,strings,cs,cf)
          elseif(ty.eq.1) then
             strings(cs)=str
             cs=cs+1
+         elseif(ty.eq.2) then
+            logicals(cl) = merge(.true., .false., int(num) .eq. 1) 
+            cl = cl + 1
          else
             write(output_unit, &
                & '(''readline: problem in checktype, must abort'')')
@@ -49,6 +57,8 @@ subroutine readline(line,floats,strings,cs,cf)
          stmp=''
       endif
    enddo
-   cs=cs-1
-   cf=cf-1
+   
+   cs = cs - 1
+   cf = cf - 1
+   cl = cl - 1
 end subroutine readline
