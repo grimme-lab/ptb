@@ -15,6 +15,9 @@ module gtb_accuracy
   !> Default integer accuracy
   integer, parameter :: ik = kind(1)
 
+  !> 4-byte Integer
+  integer, parameter :: i4 = selected_int_kind(9)
+
   !> Long length for integers
   integer, parameter :: i8 = selected_int_kind(18)
 

@@ -1004,6 +1004,7 @@ contains
       use parcom
       use bascom, only: nsh
       use gtb_la, only : la_sygvx, la_sygvd
+      use gtb_accuracy, only: ik
       use timer, only : tTimer
       implicit none
       integer mode,ndim,nel,nopen,homo
@@ -1016,7 +1017,8 @@ contains
       real*8 U(ndim,ndim)
       logical fail
 
-      integer i,j,info,lwork,liwork,ij,iu
+      integer(ik) :: info
+      integer i,j,lwork,liwork,ij,iu
       integer ihomoa,ihomob
       real*8 nfoda,nfodb,ga,gb,efa,efb,gap,w1,w0,t1,t0
       integer,allocatable ::iwork(:),ifail(:)
@@ -1042,13 +1044,8 @@ contains
    ! full diag (faster if all eigenvalues are taken)
          call timer_scf%click(1, 'sygvd solver')
          call blowsym(ndim,H,U)
-         allocate (work(1),iwork(1))
-         call la_sygvd(1,'V','U',ndim,U,ndim,sdum,ndim,e,work,-1,IWORK,LIWORK,INFO)
-         lwork=int(work(1))
-         liwork=iwork(1)
-         deallocate(work,iwork)
-         allocate (work(lwork),iwork(liwork))
-         call la_sygvd(1,'V','U',ndim,U,ndim,sdum,ndim,e,work,LWORK,IWORK,LIWORK,INFO)
+         call la_sygvd(U,sdum,e,INFO)
+   
          call timer_scf%click(1)
       
       else
