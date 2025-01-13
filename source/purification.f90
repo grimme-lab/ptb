@@ -1,9 +1,6 @@
 module purification_
-<<<<<<< HEAD
    use ieee_arithmetic, only: ieee_is_NaN
    use iso_fortran_env, only: stdout => output_unit
-=======
->>>>>>> 14d6b15 (purification_setup(feat): add iterative methods)
    use gtb_accuracy, only : wp, ik
    use gtb_lapack_eig, only : la_syevd
    use gtb_la, only : la_gemm
@@ -108,6 +105,8 @@ contains
       integer(ik) :: info ! execution status
       integer(ik) :: i
       real(wp), dimension(ndim) :: s_infinity, s_2 ! different norms
+      real(wp), dimension(ndim,ndim) :: XsX, check ! buffer for iterations
+
 
       real(wp), dimension(ndim,ndim) :: XsX, check ! buffer for iterations
       integer :: cycles, type, pr
