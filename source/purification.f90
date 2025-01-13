@@ -1,6 +1,9 @@
 module purification_
+<<<<<<< HEAD
    use ieee_arithmetic, only: ieee_is_NaN
    use iso_fortran_env, only: stdout => output_unit
+=======
+>>>>>>> 14d6b15 (purification_setup(feat): add iterative methods)
    use gtb_accuracy, only : wp, ik
    use gtb_lapack_eig, only : la_syevd
    use gtb_la, only : la_gemm
@@ -79,7 +82,6 @@ contains
 
 
    end subroutine purification_wrapper
-
 
    !> get different powers of S
    function get_transformation_matrix(pur, ndim, S) result(X)
