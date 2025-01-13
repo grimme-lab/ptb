@@ -24,6 +24,9 @@ module purification_settings
       !> Development mode (calculate solve2 as well and divergence between results)
       logical :: dev = .true.
 
+      !> Numerical calculation of the metric
+      logical :: metric_num = .false.
+
    contains
       procedure :: settings => initialize_purification
       procedure :: print => print_settings
@@ -94,6 +97,8 @@ contains
             select case(arg1)
             case('dev')
                self%dev = .true.
+            case('numerical')
+               self%metric_num = .true.
             endselect         
          
          endif
