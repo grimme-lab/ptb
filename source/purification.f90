@@ -5,7 +5,7 @@ module purification_
    use gtb_lapack_eig, only : la_syevd
    use gtb_la, only : la_gemm
    use matops, only : print_matrix
-   use metrics, only: thrs, check_density
+   use metrics, only: thrs, get_nel
    use norms
    use purification_settings
    use timer, only : tTimer
@@ -61,13 +61,13 @@ contains
       call timer_purification%click(1)
 
       ! purification !
-      call timer_purification%click(2, 'Purification procedure')
+      call timer_purification%click(2, 'Purification iterator')
       call purification(pur, ndim, Hmat, Smat, X, P)      
 
       call timer_purification%click(2)
 
-      deallocate(identity)
       call timer_purification%finalize('Total purification time')
+      deallocate(identity)
 
 
    end subroutine purification_wrapper
@@ -181,34 +181,71 @@ contains
 
       !> Locals
       real(wp) :: chempot ! chemical potential
+      real(wp) :: nel, nel_calc ! actual number of electrons
       integer :: i ! counters
       integer :: cycles
       type(tTimer) :: timer_chempot_iteration
       real(wp), dimension(ndim,ndim) :: guess, purified
       integer :: type
+      
+      real(wp) :: lower_bound, upper_bound, incr
+      logical :: is_lower_bound, is_upper_bound, bisection
 
       ! Intialization !
+      type = pur%type 
+      nel = pur%nel 
       chempot = pur%chempot%guess
       cycles = pur%chempot%cycles
-      type = pur%type 
+      incr = pur%chempot%increment 
+      bisection = .false.
+
       call timer_chempot_iteration%new(2)
 
       ! Chemical potential search iterations !
-      do i = 1, cycles
+      search: do i = 1, cycles
+
+         if (bisection) then
+            chempot = (lower_bound + upper_bound) / 2.0_wp
+            if (abs(upper_bound-lower_bound) < thrs%normal) exit
+         endif      
          
          ! Initial guess calculation !
          call timer_chempot_iteration%click(1, 'Inital guess')
          call build_guess(pur, ndim, Hmat, X, chempot, guess)
          call timer_chempot_iteration%click(1)
          
+         ! Run Purification !
          call timer_chempot_iteration%click(2, 'Purification routine')
          select case(type)
          case(mcweeny)
             call mcweeny_(pur, ndim, guess, Smat, purified)
          endselect
          call timer_chempot_iteration%click(2)
+         
+         nel_calc = get_nel(ndim, purified, Smat) 
+         
+         ! Exit condition: compare number of electrons !
+         if (abs(nel_calc) - nel < thrs%low4) then
+            write(stdout,'(a, 1x, i0, 1x, a)' ) 'Chemical potential found after:', i, 'cycles'
+            exit search
+         endif
+         
+         ! adjust search boundaries !
+         if (nel_calc < nel) then
+            is_lower_bound = .true.
+            lower_bound = chempot
+            chempot = chempot + incr
+         else                                 
+            is_upper_bound = .true.
+            upper_bound = chempot
+            chempot = chempot - incr
+         endif
 
-      enddo
+         bisection = is_lower_bound .and. is_upper_bound
+         incr = incr * 2.0_wp
+
+      enddo search
+      call blowsym(ndim, purified, P)
       call timer_chempot_iteration%finalize('Purification iterator')
 
    end subroutine purification_search

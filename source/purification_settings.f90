@@ -18,6 +18,9 @@ module purification_settings
       !> Chempot guess
       real(wp) :: guess = -1.5_wp
 
+      !> Increment for search
+      real(wp) :: increment = 0.1_wp
+
    end type
 
    type :: tMetricSet
@@ -122,6 +125,10 @@ contains
             case('chempot_cycles')
                if (nf > 0) &
                   self%chempot%cycles = int(floats(1))
+
+            case('chempot_increment')
+               if (nf > 0) &
+                  self%chempot%increment = int(floats(1))
 
             end select
          else
