@@ -572,7 +572,6 @@ contains
 
          ! Purification !
          else
-
             pur%nel = nel ! save number of electrons
             call pur%print(stdout)
             call purification(pur, ndim, Hmat, S, P2)

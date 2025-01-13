@@ -46,6 +46,9 @@ module purification_settings
       !> Purification cycles in itertive methods
       integer :: cycles = 40
       
+      !> Purification cycles in itertive methods
+      integer :: cycles = 40
+      
       !> Printout level during calculation (0 = less, 1 = normal, 2 = verbose)
       integer :: prlvl = 1
 
@@ -58,6 +61,8 @@ module purification_settings
       type(tMetricSet) :: metric
       type(tChempotSet) :: chempot
 
+      type(tMetricSet) :: metric
+      type(tChempotSet) :: chempot
    contains
       procedure :: settings => initialize_purification
       procedure :: print => print_settings
@@ -173,7 +178,6 @@ contains
       write(out,'(a)') repeat('*',72)
 
       write(out,'(2x,a)') "__SETTINGS__" 
-
       write(out,'(2x,a)') "__general__"
       write(out,'(2x,a,6x)',advance='no') "Purification type:            "
       selectcase(self%type)

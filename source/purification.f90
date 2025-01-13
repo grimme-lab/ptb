@@ -64,7 +64,6 @@ contains
          identity(i,i) = 1.0_wp
       enddo
 
-
       X = get_transformation_matrix(pur, ndim, Smat) ! different powers of S
       call timer_purification%click(1)
 
@@ -83,7 +82,6 @@ contains
    !> get different powers of S
    function get_transformation_matrix(pur, ndim, S) result(X)
 
-      use purification_settings
 
        !> Purification settings
       type(tPurificationSet) :: pur
@@ -106,6 +104,7 @@ contains
       integer(ik) :: i
       real(wp), dimension(ndim) :: s_infinity, s_2 ! different norms
       real(wp), dimension(ndim,ndim) :: XsX, check ! buffer for iterations
+      integer :: cycles, type
 
 
       real(wp), dimension(ndim,ndim) :: XsX, check ! buffer for iterations
