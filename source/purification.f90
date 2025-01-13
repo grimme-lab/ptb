@@ -1,9 +1,11 @@
 module purification_
+   use iso_fortran_env, stdout => output_unit
    use gtb_accuracy, only : wp, ik
    use gtb_lapack_eig, only : la_syevd
    use gtb_la, only : la_gemm
    use matops, only : print_matrix
    use metrics, only: thrs
+   use norms
    use purification_settings, only : tPurificationSet
    use timer, only : tTimer
    implicit none
@@ -37,7 +39,7 @@ contains
 
       ! start timer !
       call timer_purification%new(1)
-      call timer_purification%click(1, 'placeholder')
+      call timer_purification%click(1, 'transformation matrix')
 
       call blowsym(ndim, H, Hmat)  
       call blowsym(ndim, S, Smat)
@@ -81,6 +83,8 @@ contains
       integer(ik) :: info ! execution status
       integer(ik) :: i
       real(wp), dimension(ndim) :: s_infinity, s_2 ! different norms
+      real(wp), dimension(ndim,ndim) :: XsX, check ! buffer for iterations
+
 
       V = S ! duplicate S
       D = 0.0_wp
@@ -89,30 +93,30 @@ contains
       if (pur%metric_num) then
          selectcase(pur%metric)
          case(inv)
-            ! caculate scaling !
-            do i = 1, ndim
-               S_2(i) = sum(abs(S(:,i))) 
-               S_infinity(i) = sum(abs(S(i,:))) 
-            enddo
-            print*, s_2
-            print*, s_infinity
-            call print_matrix(ndim, s, 'S')
-            X= (1.0_wp / (maxval(s_2) * maxval(s_infinity))) * S
-            
-            ! Newton Schulz iterations !
-            do i = 1, 10
 
-               call la_gemm(X, X, atmp)
-               call la_gemm(atmp, S, atmp)
+            ! Initial guess !
+            X = S/((infinity(S))**2)
+            if (debug) &
+               & call print_matrix(ndim, X, 'Initial guess for itertive method')
 
-               X = 2.0_wp * X - atmp
-               if (norm2(identity - matmul(X,s)) < thrs%general) exit
+            ! Newton Schulz iterations,  !
+            do i = 1, 50
+               call la_gemm(S, X, atmp)
+               call la_gemm(X, atmp, XsX)
+
+               X = 2.0_wp * X - XsX
+               call la_gemm(X, S, check)
+               if (norm2(identity - check) < thrs%low) then
+                  write(stdout,'(1x, a, 1x, I0)') 'Itertive inversion (s^-1) converged in:', i
+                  exit
+               endif
             enddo
 
          end select
 
       ! Lapack diagonalization !
       else
+
          call la_syevd(V, w, info)
          
          ! Construct X !
@@ -136,8 +140,6 @@ contains
             call print_matrix(ndim, atmp, 'identity')
          endselect
       endif
-      stop 'inverse'
-
 
    end function get_transformation_matrix
 

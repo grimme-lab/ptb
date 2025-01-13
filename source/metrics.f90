@@ -8,11 +8,12 @@ module metrics
 
    !> Type for storing all thresholds
    type :: tThreshold
-      real(wp) :: general
+      real(wp) :: normal
+      real(wp) :: low
    endtype tThreshold
 
    type(tThreshold), parameter :: thrs = &
-      & tThreshold(general = 1.0e-8_wp)
+      & tThreshold(normal = 1.0e-7_wp, low = 1.0e-6_wp)
 
    interface check_density
       module procedure :: check_density_full
@@ -47,7 +48,7 @@ contains
       integer, intent(in) :: nel
 
       ! Nel check !
-      if (abs(get_nel(ndim,P,S)) - nel > thrs%general) &
+      if (abs(get_nel(ndim,P,S)) - nel > thrs%normal) &
          error stop "wrong Nel, check P"
       
       ! Idempotency check! 
@@ -73,7 +74,7 @@ contains
       integer, intent(in) :: nel
 
       ! Nel check !
-      if (abs(get_nel(ndim,P,S)) - nel > thrs%general) &
+      if (abs(get_nel(ndim,P,S)) - nel > thrs%normal) &
          error stop "wrong Nel, check P"
       
       ! Idempotency check! 
@@ -164,7 +165,7 @@ contains
 
       ! check the divergence !
       frob_diff = sqrt(sum(mm2-mat)**2)
-      idempot = merge(.true., .false., frob_diff < thrs%general)
+      idempot = merge(.true., .false., frob_diff < thrs%normal)
       
    end function idempotent_full
 
@@ -203,7 +204,6 @@ contains
       if (present(S)) then
          call la_symm(matblowed, Sdum, matmat)
          call la_gemm(matmat, matblowed, mm2, alpha=0.5_wp)
-         
        ! P*P !
       else
          call la_symm(matblowed, matblowed, mm2)
@@ -211,7 +211,7 @@ contains
       
       ! check the divergence !
       frob_diff = sqrt(sum(mm2-matblowed)**2)
-      idempot = merge(.true., .false., frob_diff < thrs%general)
+      idempot = merge(.true., .false., frob_diff < thrs%normal)
          
    end function idempotent_packed
 
