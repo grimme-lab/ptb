@@ -348,6 +348,7 @@ contains
       use com
       use purification_, only: purification
       use metrics, only: check_density
+      use matops, only: print_matrix
       implicit none
    !! ------------------------------------------------------------------------
    !  Input
@@ -568,10 +569,12 @@ contains
 
          ! Purification !
          else
+            pur%nel = nel ! save number of electrons
             call pur%print(stdout)
             if (pur%dev) then ! perform diagonalization in development regime
                call solve2(mode,ndim,nel,nopen,homo,eT,focc,Hmat,S,P,eps,U,fail) 
                call check_density(ndim, P, S, nel) ! check if computed density matrix valid 
+               call print_matrix(ndim, P, 'PTB density matrix:')
             endif
 
             call purification(pur, ndim, Hmat, S, P2)

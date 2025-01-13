@@ -10,23 +10,48 @@ module purification_settings
    integer, parameter :: inv_sqrt = 2 
    integer, parameter :: sqrt_ = 3
 
-   type :: tPurificationSet
-   
+   type :: tChempotSet
+
+      !> Number of cycles during the chemical potetial search
+      integer :: cycles = 40
+
+      !> Chempot guess
+      real(wp) :: guess = -1.5_wp
+
+   end type
+
+   type :: tMetricSet
+ 
       !> S metric
-      integer :: metric = inv_sqrt
+      integer :: type = inv_sqrt
+
+      !> Number of cycles during iterative calculation of X
+      integer :: cycles = 50
+
+      !> Numerical calculation of the metric
+      logical :: iterative = .false.
+
+   end type
+
+   type :: tPurificationSet
 
       !> Purification type
       integer :: type = mcweeny
       
+      !> Purification cycles in itertive methods
+      integer :: cycles = 40
+      
       !> Printout level during calculation (0 = less, 1 = normal, 2 = verbose)
-      integer :: plvl = 1
+      integer :: prlvl = 2
 
       !> Development mode (calculate solve2 as well and divergence between results)
       logical :: dev = .true.
 
-      !> Numerical calculation of the metric
-      logical :: metric_num = .false.
+      !> (internal) Number of electrons
+      integer :: nel
 
+      type(tMetricSet) :: metric
+      type(tChempotSet) :: chempot
    contains
       procedure :: settings => initialize_purification
       procedure :: print => print_settings
@@ -81,14 +106,22 @@ contains
             case('metric')
                select case(arg3)
                case('inverse')
-                  self%metric = inv
+                  self%metric%type = inv
                case('inverse_sqrt')
-                  self%metric = inv_sqrt
+                  self%metric%type = inv_sqrt
                case('sqrt')
-                  self%metric = sqrt_
+                  self%metric%type = sqrt_
                case default
                   error stop 'Error: .PUR contains invalid metric definition.'
                end select
+            
+            case('cycles')
+               if (nf > 0) &
+                  self%cycles = int(floats(1))
+
+            case('chempot_cycles')
+               if (nf > 0) &
+                  self%chempot%cycles = int(floats(1))
 
             end select
          else
@@ -97,8 +130,8 @@ contains
             select case(arg1)
             case('dev')
                self%dev = .true.
-            case('numerical')
-               self%metric_num = .true.
+            case('iterative')
+               self%metric%iterative= .true.
             endselect         
          
          endif
@@ -120,23 +153,43 @@ contains
       write(out,'(a)') repeat('*',72)
 
       write(out,'(2x,a)') "__SETTINGS__" 
-      write(out,'(2x,a,5x)',advance='no') "Purification type:            "
+      write(out,'(2x,a)') "__general__"
+      write(out,'(2x,a,6x)',advance='no') "Purification type:            "
       selectcase(self%type)
       case(mcweeny)
          write(out,'(a)') 'McWeeny Grand Canonical Purification'
+         if (self%prlvl > 0) &
+         write(out,'(2x,a, 8x, i0)') 'Iteration Cycles:           ', self%cycles
       endselect
       
-      write(out,'(2x,a,5x)',advance='no') "S power:                      "
-      selectcase(self%metric)
-      case(inv)
-         write(out,'(a)') '-1'
-      case(sqrt_)
-         write(out,'(a)') '0.5'
-      case(inv_sqrt)
-         write(out,'(a)') '-0.5'
-      endselect
-      if (self%dev) &
-         write(out,'(2x,a,5x,L1)') "Development Mode:                ", self%dev
+      if (self%prlvl > 0) then
+         write(out,'(/,2x,a)') "__metric__"
+         write(out,'(2x,a,5x)',advance='no') "S power:                      "
+         selectcase(self%metric%type)
+         case(inv)
+            write(out,'(a)') '-1'
+         case(sqrt_)
+            write(out,'(a)') '0.5'
+         case(inv_sqrt)
+            write(out,'(a)') '-0.5'
+         endselect
+         write(out,'(2x,a,6x,L1)')           "Iterative metric evaluation:  ", self%metric%iterative
+         if (self%metric%iterative .and. self%prlvl > 1) &
+         write(out,'(2x,a,5x,i0)')           "Number of cycles:             ", self%metric%cycles
+      
+         write(out,'(/,2x,a)') "__chempot__"
+         write(out,'(2x,a,3x,f13.8)')        "Initial Chemical Potential:   ", self%chempot%guess
+         if (self%prlvl > 1) &
+         write(out,'(2x,a,5x,i0)')           "Number of cycles:             ", self%chempot%cycles
+
+      endif
+         
+
+      if(self%prlvl > 1) then
+         write(out,'(/,2x,a)') "__chempot__"
+         write(out,'(2x,a,5x,L1)') "Development Mode:              ", self%dev
+      endif
+      write(out,'(a)') repeat('*',72)
       write(out,'()')
 
    end subroutine print_settings

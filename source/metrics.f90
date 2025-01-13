@@ -10,10 +10,12 @@ module metrics
    type :: tThreshold
       real(wp) :: normal
       real(wp) :: low
+      real(wp) :: low4
+      real(wp) :: low1
    endtype tThreshold
 
    type(tThreshold), parameter :: thrs = &
-      & tThreshold(normal = 1.0e-7_wp, low = 1.0e-6_wp)
+      & tThreshold(normal = 1.0e-7_wp, low = 1.0e-6_wp, low4 = 1.0e-4_wp, low1=0.1 )
 
    interface check_density
       module procedure :: check_density_full
