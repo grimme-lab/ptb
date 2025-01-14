@@ -105,7 +105,7 @@ contains
       real(wp),allocatable :: ves0(:), ves1(:), gab(:,:)
       real(wp),allocatable :: patmp(:), pshtmp(:,:)
       real(wp),parameter   :: au2ev = 27.2113957_wp
-      logical fail, highsym
+      logical fail, highsym, debug
 
    !! ------------------------------------------------------------------------
    !  initizialization
@@ -347,7 +347,7 @@ contains
       use aescom
       use com
       use purification_, only: purification
-      use metrics, only: check_density
+      use metrics, only: check_density, analyze_results
       use matops, only: print_matrix
       implicit none
    !! ------------------------------------------------------------------------
@@ -391,7 +391,7 @@ contains
       real(wp),intent(out)     :: U(ndim,ndim)          ! orbitals
 
    !  local
-      logical  :: fail
+      logical  :: fail, debug
       integer  :: i,j,k,l,ish,ati,atj,ia,ib,jsh,ii,jj,lin,ij,li,lj,iter,iish,jjsh,mode
       real(wp),parameter :: au2ev = 27.2113957_wp
       real(wp) :: r,tmp,pol,hi,hj,hij,xk,t8,t9,qa,qb,keav,eh1,tmp2
@@ -562,6 +562,7 @@ contains
          if(iter.eq.2.and.prop.eq.5) mode = 4     ! TM write
          if(              prop.lt.0) mode = -iter ! IR/Raman
 
+         debug = .false. 
          ! Normal diagonalization !
          if (.not. allocated(pur)) then
             call solve2(mode,ndim,nel,nopen,homo,eT,focc,Hmat,S,P,eps,U,fail) 
@@ -571,15 +572,27 @@ contains
          else
             pur%nel = nel ! save number of electrons
             call pur%print(stdout)
+            call purification(pur, ndim, Hmat, S, P2)
+            if (debug) &
+               call print_matrix(ndim, P2, 'Purified density matrix') 
+            call check_density(ndim, P2, S, nel) ! check if computed density matrix valid 
+            
             if (pur%dev) then ! perform diagonalization in development regime
+
+               write(stdout, '(a,1x,a,1x,a)') repeat('*', 40),'Solve',repeat('*',40)
                call solve2(mode,ndim,nel,nopen,homo,eT,focc,Hmat,S,P,eps,U,fail) 
-               call check_density(ndim, P, S, nel) ! check if computed density matrix valid 
-               call print_matrix(ndim, P, 'PTB density matrix:')
+               call check_density(ndim, P, S, nel) ! check if computed density matrix valid
+               if (debug) &
+                  call print_matrix(ndim, P, 'PTB density matrix') 
+               write(stdout, '(a)') repeat('*', 87)
+               call analyze_results(ndim, P, P2, S, Hmat, n)
             endif
 
-            call purification(pur, ndim, Hmat, S, P2)
+
+            
          endif
          
+         stop
          if(fail) stop 'diag error'
 
          if(iter.eq.1) gap1 = (eps(homo+1)-eps(homo))*au2ev

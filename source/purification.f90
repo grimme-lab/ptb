@@ -39,7 +39,7 @@ contains
 
       !> Local variables
       type(tTimer) :: timer_purification
-      real(wp), dimension(ndim, ndim) :: Hmat, Smat, X
+      real(wp), dimension(ndim, ndim) :: Hmat, Smat, X, purified
       integer :: i, j
 
       ! start timer !
@@ -62,8 +62,8 @@ contains
 
       ! purification !
       call timer_purification%click(2, 'Purification iterator')
-      call purification(pur, ndim, Hmat, Smat, X, P)      
-
+      call purification(pur, ndim, Hmat, Smat, X, purified)    
+      call packsym(ndim, purified, P)
       call timer_purification%click(2)
 
       call timer_purification%finalize('Total purification time')
@@ -159,7 +159,7 @@ contains
    end function get_transformation_matrix
 
 
-   subroutine purification_search(pur, ndim, Hmat, Smat, X, P)
+   subroutine purification_search(pur, ndim, Hmat, Smat, X, purified)
  
       !> Purification settings
       type(tPurificationSet) :: pur
@@ -177,7 +177,7 @@ contains
       real(wp), intent(in) :: X(ndim,ndim)
 
       !> Density matrix
-      real(wp), intent(out) :: P(ndim*(ndim+1)/2)
+      real(wp), intent(out) :: purified(ndim,ndim)
 
       !> Locals
       real(wp) :: chempot ! chemical potential
@@ -185,8 +185,9 @@ contains
       integer :: i ! counters
       integer :: cycles
       type(tTimer) :: timer_chempot_iteration
-      real(wp), dimension(ndim,ndim) :: guess, purified
-      integer :: type
+      real(wp), dimension(ndim,ndim) :: guess
+      integer :: type, pr
+      logical :: debug
       
       real(wp) :: lower_bound, upper_bound, incr
       logical :: is_lower_bound, is_upper_bound, bisection
@@ -194,19 +195,34 @@ contains
       ! Intialization !
       type = pur%type 
       nel = pur%nel 
+      pr = pur%prlvl
       chempot = pur%chempot%guess
       cycles = pur%chempot%cycles
       incr = pur%chempot%increment 
+      nel_calc = 0.0_wp
+
+      debug = .false.
       bisection = .false.
+      is_lower_bound = .false.
+      is_upper_bound = .false.
 
       call timer_chempot_iteration%new(2)
 
       ! Chemical potential search iterations !
       search: do i = 1, cycles
 
+
          if (bisection) then
+            if (debug) &
+               write(stdout,'(a, 1x, f18.8, 1x, a, 1x, f18.8)' ) &
+                  'Lower bound:', lower_bound, '| Upper bound:', upper_bound
+
             chempot = (lower_bound + upper_bound) / 2.0_wp
-            if (abs(upper_bound-lower_bound) < thrs%normal) exit
+            if (abs(upper_bound-lower_bound) < thrs%high8) then
+               write(stdout,'(a, 1x, i0, 1x, a)' ) &
+                  'Chemical potential search. Too short/big interval to bisect.', i, 'cycles'
+               exit
+            endif
          endif      
          
          ! Initial guess calculation !
@@ -223,9 +239,14 @@ contains
          call timer_chempot_iteration%click(2)
          
          nel_calc = get_nel(ndim, purified, Smat) 
+         ! Printout !
+         if (debug) then
+            write(stdout,'(a, 1x, f18.8, a, f18.8)' ) &
+               'Current chemical potential:', chempot, ', number of electrons:', nel_calc
+         endif
          
          ! Exit condition: compare number of electrons !
-         if (abs(nel_calc) - nel < thrs%low4) then
+         if (abs(nel_calc - real(nel)) < thrs%low4) then
             write(stdout,'(a, 1x, i0, 1x, a)' ) 'Chemical potential found after:', i, 'cycles'
             exit search
          endif
@@ -245,7 +266,6 @@ contains
          incr = incr * 2.0_wp
 
       enddo search
-      call blowsym(ndim, purified, P)
       call timer_chempot_iteration%finalize('Purification iterator')
 
    end subroutine purification_search
@@ -330,7 +350,7 @@ contains
          write(stdout, '(a)') repeat(':',87)
       endif
 
-      do i = 1, 60
+      do i = 1, cycles
 
          call la_gemm(Smat, guess2, term1) ! S*P
          call la_gemm(guess2, term1, term2) ! P*S*P

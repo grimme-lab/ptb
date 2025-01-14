@@ -13,7 +13,7 @@ module purification_settings
    type :: tChempotSet
 
       !> Number of cycles during the chemical potetial search
-      integer :: cycles = 40
+      integer :: cycles = 60
 
       !> Chempot guess
       real(wp) :: guess = -1.5_wp
