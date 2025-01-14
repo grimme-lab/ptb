@@ -8,12 +8,15 @@ module purification_
    use metrics, only: thrs, get_nel
    use norms
    use purification_settings
+   use metrics, only: thrs
+   use purification_settings, only : tPurificationSet
    use timer, only : tTimer
    implicit none
 
    public :: purification
    private
    real(wp), allocatable :: identity(:,:)
+
    interface purification
       module procedure :: purification_wrapper
       module procedure :: purification_search
@@ -39,6 +42,7 @@ contains
 
       !> Local variables
       type(tTimer) :: timer_purification
+
       real(wp), dimension(ndim, ndim) :: Hmat, Smat, X, purified
       integer :: i, j
 
@@ -48,6 +52,7 @@ contains
       ! Transformation matrix calculation !
       call timer_purification%click(1, 'transformation matrix')
 
+
       call blowsym(ndim, H, Hmat)  
       call blowsym(ndim, S, Smat)
 
@@ -56,6 +61,7 @@ contains
       do i=1,ndim
          identity(i,i) = 1.0_wp
       enddo
+
 
       X = get_transformation_matrix(pur, ndim, Smat) ! different powers of S
       call timer_purification%click(1)
@@ -72,9 +78,11 @@ contains
 
    end subroutine purification_wrapper
 
+
    !> get different powers of S
    function get_transformation_matrix(pur, ndim, S) result(X)
 
+      use purification_settings
 
        !> Purification settings
       type(tPurificationSet) :: pur
@@ -89,12 +97,14 @@ contains
       real(wp) :: X(ndim,ndim)
 
       !> Local variables
+
       logical :: debug  ! debugging mode
       real(wp), dimension(ndim, ndim) :: V, atmp, D ! buffer matrix
       real(wp) :: w(ndim) ! eigenvalues
       integer(ik) :: info ! execution status
       integer(ik) :: i
       real(wp), dimension(ndim) :: s_infinity, s_2 ! different norms
+
       real(wp), dimension(ndim,ndim) :: XsX, check ! buffer for iterations
       integer :: cycles, type
 
@@ -149,6 +159,7 @@ contains
 
       ! if debug, check inversion !
       if (debug) then
+
          selectcase(type)
          case(inv)
             call la_gemm(X, S, atmp)
@@ -376,4 +387,5 @@ contains
       P = P * 2
 
    end subroutine mcweeny_
+
 end module purification_

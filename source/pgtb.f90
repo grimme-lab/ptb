@@ -562,7 +562,9 @@ contains
          if(iter.eq.2.and.prop.eq.5) mode = 4     ! TM write
          if(              prop.lt.0) mode = -iter ! IR/Raman
 
+
          debug = .false. 
+
          ! Normal diagonalization !
          if (.not. allocated(pur)) then
             call solve2(mode,ndim,nel,nopen,homo,eT,focc,Hmat,S,P,eps,U,fail) 
@@ -570,13 +572,15 @@ contains
 
          ! Purification !
          else
+
             pur%nel = nel ! save number of electrons
             call pur%print(stdout)
             call purification(pur, ndim, Hmat, S, P2)
             if (debug) &
                call print_matrix(ndim, P2, 'Purified density matrix') 
             call check_density(ndim, P2, S, nel) ! check if computed density matrix valid 
-            
+           
+
             if (pur%dev) then ! perform diagonalization in development regime
 
                write(stdout, '(a,1x,a,1x,a)') repeat('*', 40),'Solve',repeat('*',40)
@@ -588,8 +592,6 @@ contains
                call analyze_results(ndim, P, P2, S, Hmat, n)
             endif
 
-
-            
          endif
          
          stop

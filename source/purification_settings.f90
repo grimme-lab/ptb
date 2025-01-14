@@ -55,6 +55,7 @@ module purification_settings
 
       type(tMetricSet) :: metric
       type(tChempotSet) :: chempot
+
    contains
       procedure :: settings => initialize_purification
       procedure :: print => print_settings
@@ -137,8 +138,10 @@ contains
             select case(arg1)
             case('dev')
                self%dev = .true.
+
             case('iterative')
                self%metric%iterative= .true.
+
             endselect         
          
          endif
@@ -160,6 +163,7 @@ contains
       write(out,'(a)') repeat('*',72)
 
       write(out,'(2x,a)') "__SETTINGS__" 
+
       write(out,'(2x,a)') "__general__"
       write(out,'(2x,a,6x)',advance='no') "Purification type:            "
       selectcase(self%type)
@@ -197,6 +201,7 @@ contains
          write(out,'(2x,a,5x,L1)') "Development Mode:              ", self%dev
       endif
       write(out,'(a)') repeat('*',72)
+
       write(out,'()')
 
    end subroutine print_settings
