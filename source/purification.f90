@@ -64,6 +64,7 @@ contains
 
       X = get_transformation_matrix(pur, ndim, Smat) ! different powers of S
       call timer_purification%click(1)
+      stop
 
       ! purification !
       call timer_purification%click(2, 'Purification iterator')
@@ -98,21 +99,32 @@ contains
       !> Local variables
 
       logical :: debug  ! debugging mode
-      real(wp), dimension(ndim, ndim) :: V, atmp, D ! buffer matrix
+      real(wp), dimension(ndim, ndim) :: V, atmp, D, atmp2 ! buffer matrix
       real(wp) :: w(ndim) ! eigenvalues
       integer(ik) :: info ! execution status
       integer(ik) :: i
       real(wp), dimension(ndim) :: s_infinity, s_2 ! different norms
 
       real(wp), dimension(ndim,ndim) :: XsX, check ! buffer for iterations
-      integer :: cycles, type
+      integer :: cycles, type, pr
 
-      debug = .false.
+      debug = .true.
       V = S ! duplicate S
       D = 0.0_wp
       type = pur%metric%type
       cycles = pur%metric%cycles
+      pr = pur%prlvl
       
+      ! print section header !
+      if (pr > 0) then
+         select case(type)
+         case(inv)
+            write(stdout, '(11x, a, /)') 'S^-1 Construction'
+         case(inv_sqrt)
+            write(stdout, '(11x, a, /)') 'S^-0.5 Construction'
+         endselect
+      endif
+
       ! iterative solution !
       if (pur%metric%iterative) then
          selectcase(type)
@@ -136,6 +148,33 @@ contains
                endif
             enddo
 
+         case(inv_sqrt)
+
+            ! Guess !
+            X = S/((frobenius(S))**2)
+            if (debug) &
+               & call print_matrix(ndim, X, 'Iterative guess: ')
+            
+            do i = 1, cycles
+               call la_gemm(X, X, atmp) ! X^2
+               call la_gemm(atmp, S, XsX) ! X^2*S
+               call la_gemm(X, XsX, atmp2) ! X*X^2*S
+
+               X = 0.5_wp * (3 * X - atmp2) 
+               if (debug) then
+                  call print_matrix(ndim,  XsX, 'Check:')
+                  print *, frobenius(identity - XsX)
+               endif
+               if (frobenius(identity - XsX) < thrs%low) then
+                  write(stdout,'(1x, a, 1x, I0)') 'Itertive inversion (s^0.5) converged in:', i
+                  exit
+               elseif (any(ieee_is_NaN(XsX))) then
+                  error stop 'Error, NaN encountered'
+               endif
+
+            enddo
+
+
          end select
 
       ! Lapack diagonalization !
@@ -149,6 +188,10 @@ contains
             do i = 1, ndim
                D(i,i) = 1.0_wp/w(i)
             enddo
+         case(inv_sqrt)
+            do i = 1, ndim
+               D(i,i) = 1.0_wp/sqrt(w(i))
+            enddo 
          end select
 
          call la_gemm(V, D, atmp)
@@ -158,13 +201,23 @@ contains
 
       ! if debug, check inversion !
       if (debug) then
-
+         write(stdout, '(a,1x,a,1x,a)') repeat(':', 20),'DEBUG',repeat(':',20)
          selectcase(type)
          case(inv)
             call la_gemm(X, S, atmp)
             call print_matrix(ndim, atmp, 'identity')
+         case(inv_sqrt)
+            call la_gemm(X, X, atmp)
+            call la_gemm(S, atmp, atmp2)
+            call print_matrix(ndim, atmp2, 'identity')
          endselect
+         write(stdout, '(a)') repeat(':', 47)
       endif
+      
+      ! print trailer !
+      write(stdout, '(11x, a)') 'Done'
+      stop
+
 
    end function get_transformation_matrix
 
