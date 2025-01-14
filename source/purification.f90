@@ -9,7 +9,6 @@ module purification_
    use norms
    use purification_settings
    use metrics, only: thrs
-   use purification_settings, only : tPurificationSet
    use timer, only : tTimer
    implicit none
 

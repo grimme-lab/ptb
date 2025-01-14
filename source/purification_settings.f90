@@ -3,7 +3,8 @@ module purification_settings
    implicit none
 
    !> Different calculation types
-   integer, parameter :: mcweeny = 1 ! CLassical McWeeny purification
+   integer, parameter :: mcweeny = 1 ! Classical McWeeny purification
+   integer, parameter :: sign_iter = 2 ! Iterative sign purification
 
    !> S metric for purification
    integer, parameter :: inv = 1
@@ -39,7 +40,7 @@ module purification_settings
    type :: tPurificationSet
 
       !> Purification type
-      integer :: type = mcweeny
+      integer :: type = sign_iter
       
       !> Purification cycles in itertive methods
       integer :: cycles = 40
@@ -103,6 +104,8 @@ contains
                select case(arg3)
                case('mcweeny')
                   self%type = mcweeny
+               case('sign_iteration')
+                  self%type = sign_iter
                case default
                   error stop 'Error: .PUR contains invalid type definition'
                end select
@@ -139,7 +142,7 @@ contains
             case('dev')
                self%dev = .true.
 
-            case('iterative')
+            case('iterative_inversion')
                self%metric%iterative= .true.
 
             endselect         
@@ -170,6 +173,10 @@ contains
       case(mcweeny)
          write(out,'(a)') 'McWeeny Grand Canonical Purification'
          if (self%prlvl > 0) &
+         write(out,'(2x,a, 8x, i0)') 'Iteration Cycles:           ', self%cycles
+      case(sign_iter)
+         write(out,'(a)') 'Iterative Sign Approach'
+            if (self%prlvl > 0) &
          write(out,'(2x,a, 8x, i0)') 'Iteration Cycles:           ', self%cycles
       endselect
       

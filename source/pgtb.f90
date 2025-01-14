@@ -579,7 +579,6 @@ contains
             if (debug) &
                call print_matrix(ndim, P2, 'Purified density matrix') 
             call check_density(ndim, P2, S, nel) ! check if computed density matrix valid 
-           
 
             if (pur%dev) then ! perform diagonalization in development regime
 
