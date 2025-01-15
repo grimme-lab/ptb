@@ -344,13 +344,14 @@ contains
 
 
 
-   subroutine la_syevd_rsp(a, w, info, jobz, uplo)
+   subroutine la_syevd_rsp(a, w, info, jobz, uplo, pr)
       integer, parameter :: wp = sp
       real(wp), intent(inout) :: a(:,:)
       real(wp), intent(out) :: w(:)
       integer(ik), intent(out) :: info
       character(len=1), intent(in), optional :: jobz
       character(len=1), intent(in), optional :: uplo
+      integer(ik), intent(in), optional :: pr
 
       character(len=1) :: job, upl
       integer(ik) :: n, lwork, liwork
@@ -359,8 +360,11 @@ contains
       real(wp), allocatable :: work(:)
       integer(ik), allocatable :: iwork(:)
 
-      write(stdin, '(a)') 'Lapack: ssyevd'
-      
+      if (present(pr)) then 
+         if (pr > 1) &
+            write(stdin, '(3x, a)') 'Lapack: ssyevd'
+      endif
+
       ! if eigenvalues or eigenvalues + eigenvectors!
       job = 'V'
       if (present(jobz)) job = jobz
@@ -386,13 +390,14 @@ contains
       
    end subroutine la_syevd_rsp
 
-   subroutine la_syevd_rdp(a, w, info, jobz, uplo)
+   subroutine la_syevd_rdp(a, w, info, jobz, uplo, pr)
       integer, parameter :: wp = dp
       real(wp), intent(inout) :: a(:,:)
       real(wp), intent(out) :: w(:)
       integer(ik), intent(out) :: info
       character(len=1), intent(in), optional :: jobz
       character(len=1), intent(in), optional :: uplo
+      integer(ik), intent(in), optional :: pr
 
       character(len=1) :: job, upl
       integer :: n, lwork, liwork
@@ -401,7 +406,10 @@ contains
       real(wp), allocatable :: work(:)
       integer(ik), allocatable :: iwork(:)
 
-      write(stdin, '(a)') 'Lapack: dsyevd'
+      if (present(pr)) then 
+         if (pr > 1) &
+            write(stdin, '(3x, a)') 'Lapack: dsyevd'
+      endif
 
       ! if eigenvalues or eigenvalues + eigenvectors!
       job = 'V'

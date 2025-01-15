@@ -579,8 +579,6 @@ contains
             if (debug) &
                call print_matrix(ndim, P2, 'Purified density matrix') 
             call check_density(ndim, P2, S, nel) ! check if computed density matrix valid 
-           
-
             if (pur%dev) then ! perform diagonalization in development regime
 
                write(stdout, '(a,1x,a,1x,a)') repeat('*', 40),'Solve',repeat('*',40)
@@ -589,7 +587,7 @@ contains
                if (debug) &
                   call print_matrix(ndim, P, 'PTB density matrix') 
                write(stdout, '(a)') repeat('*', 87)
-               call analyze_results(ndim, P, P2, S, Hmat, n)
+               call analyze_results(ndim, P, P2, S, Hmat, n, pur%prlvl)
             endif
 
          endif
