@@ -591,7 +591,6 @@ contains
 
          endif
          
-         stop
          if(fail) stop 'diag error'
 
          if(iter.eq.1) gap1 = (eps(homo+1)-eps(homo))*au2ev
