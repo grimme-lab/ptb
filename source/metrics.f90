@@ -282,7 +282,7 @@ contains
          
    end function idempotent_packed
 
-   subroutine analyze_results(ndim, P, P2, S, H, n)
+   subroutine analyze_results(ndim, P, P2, S, H, n, pr)
 
        !> Number of BFs 
       integer, intent(in) :: ndim
@@ -299,15 +299,41 @@ contains
       !> Overlap matrix
       real(wp), intent(in) :: S(ndim*(ndim+1)/2)
 
+      !> printlevel
+      integer, intent(in) :: pr
+
       !> Number of atoms
       integer, intent(in) :: n
 
-      ! ΔN_el !
-      write(stdout,'(a,1x,f18.12)') &
-         'ΔNel =   ', abs(get_nel(ndim, P, S) - get_nel(ndim, P2, S))
+      !> Locals
+      real(wp) :: d_nel, d_band_str
+      logical :: debug
+
+      debug = .true.
+
+      if (pr > 1) &
+         write(stdout, '(/,a,/)') 'Enter: analyze_results' 
+
+      if (debug) then
+         call print_matrix(ndim, P, 'PTB Density matrix')
+         call print_matrix(ndim, P2, 'Purified Density matrix')
+      endif
+      d_nel =  abs(get_nel(ndim, P, S) - get_nel(ndim, P2, S))
+      d_band_str =(abs(band_structure(ndim, P, H) - band_structure(ndim, P2, H)))/real(N)
+
+      write(stdout,'(/)')
       
-      write(stdout,'(a,1x,f18.12)') &
-         'ΔE_band =', (abs(band_structure(ndim, P, H) - band_structure(ndim, P2, H)))/real(N)
+      ! ΔN_el !
+      write(stdout,*) &
+         'ΔNel =   ', d_nel
+      
+      write(stdout,*) &
+         'ΔE_band =', d_band_str 
+      
+      write(stdout,'(/)')
+
+      if (pr > 1) &
+         write(stdout, '(/, a, /)') 'Exit: analyze_results' 
 
    end subroutine analyze_results
 

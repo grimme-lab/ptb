@@ -588,12 +588,11 @@ contains
                if (debug) &
                   call print_matrix(ndim, P, 'PTB density matrix') 
                write(stdout, '(a)') repeat('*', 87)
-               call analyze_results(ndim, P, P2, S, Hmat, n)
+               call analyze_results(ndim, P, P2, S, Hmat, n, pur%prlvl)
             endif
 
          endif
          
-         stop
          if(fail) stop 'diag error'
 
          if(iter.eq.1) gap1 = (eps(homo+1)-eps(homo))*au2ev

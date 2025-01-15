@@ -46,7 +46,7 @@ module purification_settings
       integer :: cycles = 40
       
       !> Printout level during calculation (0 = less, 1 = normal, 2 = verbose)
-      integer :: prlvl = 2
+      integer :: prlvl = 1
 
       !> Development mode (calculate solve2 as well and divergence between results)
       logical :: dev = .true.
@@ -134,6 +134,10 @@ contains
                if (nf > 0) &
                   self%chempot%increment = int(floats(1))
 
+            case('pr')
+               if (nf > 0) &
+                  self%prlvl = int(floats(1))
+
             end select
          else
 
@@ -179,6 +183,10 @@ contains
             if (self%prlvl > 0) &
          write(out,'(2x,a, 8x, i0)') 'Iteration Cycles:           ', self%cycles
       endselect
+      if(self%prlvl > 1) then
+         write(out,'(2x,a,5x,L1)') "Development Mode:              ", self%dev
+      endif
+         write(out,'(2x,a,5x,i0)') "Print Level:                   ", self%prlvl
       
       if (self%prlvl > 0) then
          write(out,'(/,2x,a)') "__metric__"
@@ -201,15 +209,9 @@ contains
          write(out,'(2x,a,5x,i0)')           "Number of cycles:             ", self%chempot%cycles
 
       endif
-         
 
-      if(self%prlvl > 1) then
-         write(out,'(/,2x,a)') "__chempot__"
-         write(out,'(2x,a,5x,L1)') "Development Mode:              ", self%dev
-      endif
-      write(out,'(a)') repeat('*',72)
+      write(out,'(/, a, /)') repeat('*',72)
 
-      write(out,'()')
 
    end subroutine print_settings
 end module purification_settings
