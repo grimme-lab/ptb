@@ -45,6 +45,9 @@ module purification_settings
       !> Purification cycles in itertive methods
       integer :: cycles = 40
       
+      !> Purification cycles in itertive methods
+      integer :: cycles = 40
+      
       !> Printout level during calculation (0 = less, 1 = normal, 2 = verbose)
       integer :: prlvl = 1
 

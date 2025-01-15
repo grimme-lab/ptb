@@ -579,7 +579,6 @@ contains
             if (debug) &
                call print_matrix(ndim, P2, 'Purified density matrix') 
             call check_density(ndim, P2, S, nel) ! check if computed density matrix valid 
-
             if (pur%dev) then ! perform diagonalization in development regime
 
                write(stdout, '(a,1x,a,1x,a)') repeat('*', 40),'Solve',repeat('*',40)
@@ -593,6 +592,7 @@ contains
 
          endif
          
+         stop
          if(fail) stop 'diag error'
 
          if(iter.eq.1) gap1 = (eps(homo+1)-eps(homo))*au2ev
