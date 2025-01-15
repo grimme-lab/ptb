@@ -22,11 +22,6 @@ module purification_
       module procedure :: purification_search
    end interface purification
 
-   interface purification
-      module procedure :: purification_wrapper
-      module procedure :: purification_search
-   end interface purification
-
 contains
 
    subroutine purification_wrapper(pur, ndim, H, S, P)
@@ -278,7 +273,7 @@ contains
       incr = pur%chempot%increment 
       nel_calc = 0.0_wp
 
-      debug = .false.
+      debug = .true.
       bisection = .false.
       is_lower_bound = .false.
       is_upper_bound = .false.
@@ -314,7 +309,7 @@ contains
          select case(type)
          case(mcweeny)
             call mcweeny_(pur, ndim, guess, Smat, purified)
-         case(sign_iter)
+         case(sign_iter_pade, sign_iter_newton)
             call sign_iterative(pur, ndim, guess, X, purified)
          endselect
          call timer_chempot_iteration%click(2)
@@ -381,7 +376,7 @@ contains
       !> Locals
       integer :: type_, pr, metric
       real(wp), dimension(ndim,ndim) :: term1, term2, term3, term4, term5
-      logical :: debug = .false.
+      logical :: debug = .true.
 
       type_ = pur%type
       metric = pur%metric%type
@@ -395,6 +390,8 @@ contains
       ! McWeeny purification !
       case(mcweeny)
          
+         if (pr > 1) &
+            write(stdout, '(a)') 'Mcweeny prufication with S^1'
          term1 = chempot * X !  μ*s^-1
          call la_gemm(Hmat, X, term2, pr=pr) ! H*s^-1
          call la_gemm(X, term2, term3, pr=pr) ! S^-1*H*S^-1
@@ -403,20 +400,31 @@ contains
          guess = 0.5_wp * (term5 + X) 
       
       ! Sign Iteration !
-      case(sign_iter)
+      case(sign_iter_pade, sign_iter_newton)
 
          select case(metric)
          ! S^-0.5 !
          case(inv_sqrt)
 
+            if (pr > 1) &
+               write(stdout, '(a)') 'Sign iterative purification with S^0.5'
             term1 = chempot * identity ! μ*I
             call la_gemm(Hmat, X, term2, pr=pr) ! H*S^-0.5 
             call la_gemm(X, term2, term3, pr=pr) ! S^-0.5*H*S^-0.5 
             term4 = term3 - term1
             guess = (1.0_wp/(min(frobenius(term4), gershgorin(term4)))) * term4 ! α(S^-0.5*H*S^-0.5 - μI)
          
-         endselect
+         ! S^1 !
+         case(inv)
 
+            if (pr > 1) &
+               write(stdout, '(a)') 'Sign iterative purification with S^-1'
+            term1 = chempot * identity
+            call la_gemm(X, Hmat, term2, pr=pr)
+            term3 = term2 - term1
+            guess = (1.0_wp/(min(frobenius(term3), gershgorin(term3)))) * term3 ! α(S^-0.5*H*S^-0.5 - μI)
+
+         endselect
 
       endselect
 
@@ -425,7 +433,6 @@ contains
       
       if (pr > 1) &
          write(stdout, '(/, a, /)') '<-- build_guess'
-      
    end subroutine build_guess
 
    subroutine mcweeny_(pur, ndim, guess, Smat, P)
@@ -520,38 +527,68 @@ contains
       real(wp), intent(out) :: purified(ndim,ndim)
 
       !> Locals
-      integer :: i, cycles
+      integer :: i, cycles, iter_type
       real(wp), dimension(ndim,ndim) :: term1, term2, term3, term4, X
       real(wp) :: norm
+      logical :: debug = .true.
 
       cycles = pur%cycles
-      X = guess   
       pr = pur%prlvl
+      iter_type = pur%type
+      X = guess
 
       if (pr > 1) &
          write(stdout, '(a, /)') '--> sign_iterative'
 
-      ! pade iterations !
-      do i = 1, cycles
-         norm = norm2(X)         
+      selectcase(iter_type)
+      case(sign_iter_pade)
+         ! pade iterations !
+         do i = 1, cycles
+            norm = norm2(X)         
 
-         call la_gemm(X, X, term1, pr=pr) ! X^2
-         call la_gemm(term1, term1, term2, pr=pr) ! X^4
+            call la_gemm(X, X, term1, pr=pr) ! X^2
+            call la_gemm(term1, term1, term2, pr=pr) ! X^4
 
-         term3 = (15.0_wp * identity) - (10.0_wp * term1) + (3.0_wp * term2) ! 15 - 10*X^2 + 3*X^4 
-         call la_gemm(X, term3, term4, alpha=0.125_wp, pr=pr)
-         X = term4
+            term3 = (15.0_wp * identity) - (10.0_wp * term1) + (3.0_wp * term2) ! 15 - 10*X^2 + 3*X^4 
+            call la_gemm(X, term3, term4, alpha=0.125_wp, pr=pr)
+            X = term4
 
-         if (any(ieee_is_NaN(X))) &
-            error stop 'Error: NaN is encountered during purification'
+            if (debug) &
+               call print_matrix(ndim, X, 'X')
 
-         if (abs(norm2(X)-norm) < thrs%low4) then 
-            if (pr > 0) &
-               write(stdout,'(/, a, 1x, i0, 1x, a)' ) 'Sign iterative converged in:', i, 'cycles'
-            exit
-         endif
+            if (any(ieee_is_NaN(X))) &
+               error stop 'Error: NaN is encountered during purification'
 
-      enddo
+            if (abs(norm2(X)-norm) < thrs%low4) then 
+               if (pr > 0) &
+                  write(stdout,'(/, a, 1x, i0, 1x, a)' ) 'Pade sign iterative converged in:', i, 'cycles'
+               exit
+            endif
+
+         enddo
+      case(sign_iter_newton)
+         ! Newton Schulz iterations !
+         do i = 1, cycles
+            norm = norm2(X)         
+            call la_gemm(X, X, term1, pr=pr) ! X^2
+            call la_gemm(X, term1, term2, pr=pr) ! X^3
+            term3 = 0.5_wp * (3 * X - term2) ! 1/2 * ( 3*X - X^3)
+            X = term3
+            if (debug) &
+               call print_matrix(ndim, X, 'X')
+            
+            if (any(ieee_is_NaN(X))) &
+               error stop 'Error: NaN is encountered during purification'
+
+            if (abs(norm2(X)-norm) < thrs%low4) then 
+               if (pr > 0) &
+                  write(stdout,'(/, a, 1x, i0, 1x, a)' ) 'Newton-Schuz sign iterative converged in:', i, 'cycles'
+               exit
+            endif
+
+
+         enddo
+      endselect
 
       ! convert to P !
       call sign_to_density_matrix(pur, ndim, X, metric, purified)
@@ -585,13 +622,19 @@ contains
       integer :: metric_type, pr
       real(wp), dimension(ndim,ndim) :: tmp
 
-      debug = .false.
+      debug = .true.
       pr = pur%prlvl
       
       select case(pur%metric%type)
       case(inv_sqrt)
+         if (pr > 1) &
+            write(stdout, '(a)') 'Density matrix via S^-0.5'
          call la_gemm(identity-sign_, metric, tmp, pr=pr)
          call la_gemm(metric, tmp, P, alpha=0.5_wp, pr=pr)
+      case(inv)
+         if (pr > 1) &
+            write(stdout, '(a)') 'Density matrix via S^-1'
+         call la_gemm(identity-sign_, metric, P, alpha=0.5_wp, pr=pr)
       end select
 
       if (debug) then
