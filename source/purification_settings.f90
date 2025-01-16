@@ -5,7 +5,9 @@ module purification_settings
    !> Different calculation types
    integer, parameter :: mcweeny = 1 ! Classical McWeeny purification
    integer, parameter :: sign_iter_pade = 2 ! Iterative sign purification
-   integer, parameter :: sign_iter_newton =3
+   integer, parameter :: sign_iter_newton = 3
+   integer, parameter :: sign_diagonalization = 4  
+
 
    !> S metric for purification
    integer, parameter :: inv = 1
@@ -41,7 +43,8 @@ module purification_settings
    type :: tPurificationSet
 
       !> Purification type
-      integer :: type = sign_iter_pade
+      integer :: type = sign_diagonalization
+      
       
       !> Purification cycles in itertive methods
       integer :: cycles = 40
@@ -57,7 +60,6 @@ module purification_settings
 
       type(tMetricSet) :: metric
       type(tChempotSet) :: chempot
-
    contains
       procedure :: settings => initialize_purification
       procedure :: print => print_settings
@@ -109,6 +111,8 @@ contains
                   self%type = sign_iter_pade
                case('newton')
                   self%type = sign_iter_newton
+               case('diag')
+                  self%type = sign_diagonalization
                case default
                   error stop 'Error: .PUR contains invalid type definition'
                end select
@@ -173,7 +177,6 @@ contains
       write(out,'(a)') repeat('*',72)
 
       write(out,'(2x,a)') "__SETTINGS__" 
-
       write(out,'(2x,a)') "__general__"
       write(out,'(2x,a,6x)',advance='no') "Purification type:            "
       selectcase(self%type)
@@ -185,6 +188,8 @@ contains
          write(out,'(a)') 'Iterative Sign: Pade'
             if (self%prlvl > 0) &
          write(out,'(2x,a, 8x, i0)') 'Iteration Cycles:           ', self%cycles
+      case(sign_diagonalization)
+         write(out,'(a)') 'Sign Diagonalization'
       case(sign_iter_newton)
          write(out,'(a)') 'Iterative Sign: Newton-Schulz'
             if (self%prlvl > 0) &

@@ -572,7 +572,6 @@ contains
 
          ! Purification !
          else
-
             pur%nel = nel ! save number of electrons
             call pur%print(stdout)
             call purification(pur, ndim, Hmat, S, P2)
@@ -592,7 +591,6 @@ contains
 
          endif
          
-         stop
          if(fail) stop 'diag error'
 
          if(iter.eq.1) gap1 = (eps(homo+1)-eps(homo))*au2ev

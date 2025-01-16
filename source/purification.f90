@@ -22,6 +22,7 @@ module purification_
       module procedure :: purification_search
    end interface purification
 
+
 contains
 
    subroutine purification_wrapper(pur, ndim, H, S, P)
@@ -63,7 +64,6 @@ contains
          identity(i,i) = 1.0_wp
       enddo
 
-
       X = get_transformation_matrix(pur, ndim, Smat) ! different powers of S
       call timer_purification%click(1)
 
@@ -79,11 +79,9 @@ contains
 
    end subroutine purification_wrapper
 
-
    !> get different powers of S
    function get_transformation_matrix(pur, ndim, S) result(X)
 
-      use purification_settings
 
        !> Purification settings
       type(tPurificationSet) :: pur
@@ -303,7 +301,6 @@ contains
          call timer_chempot_iteration%click(1, 'Inital guess')
          call build_guess(pur, ndim, Hmat, X, chempot, guess)
          call timer_chempot_iteration%click(1)
-         
          ! Run Purification !
          call timer_chempot_iteration%click(2, 'Purification routine')
          select case(type)
@@ -311,23 +308,25 @@ contains
             call mcweeny_(pur, ndim, guess, Smat, purified)
          case(sign_iter_pade, sign_iter_newton)
             call sign_iterative(pur, ndim, guess, X, purified)
+         case(sign_diagonalization)
+            call sign_diagonalization_(pur, ndim, chempot, guess, X, purified)
          endselect
          call timer_chempot_iteration%click(2)
          
          nel_calc = get_nel(ndim, purified, Smat) 
 
          ! Printout !
-         if (pr > 0) then
+         if (pr > 0 .and. type .ne. sign_diagonalization ) then
             write(stdout,'(a, 9x, i0, /, a, 1x, f18.8, /, a, 1x, f18.8)' ) &
                'Search number:             ', i, &
                'Current chemical potential:', chempot, &
-               'Number of electrons:       ', nel_calc
+               'Number of electrons:       ', ne,
          endif
 
          
          ! Exit condition: compare number of electrons !
          if (abs(nel_calc - real(nel)) < thrs%low4) then
-            if (pr > 0) &
+            if (pr > 0 .and. type .ne. sign_diagonalization) &
                write(stdout,'(a, 1x, i0, 1x, a)' ) 'Chemical potential found after:', i, 'cycles'
             exit search
          endif
@@ -400,14 +399,14 @@ contains
          guess = 0.5_wp * (term5 + X) 
       
       ! Sign Iteration !
-      case(sign_iter_pade, sign_iter_newton)
+      case(sign_iter_pade, sign_iter_newton, sign_diagonalization)
 
          select case(metric)
          ! S^-0.5 !
          case(inv_sqrt)
 
             if (pr > 1) &
-               write(stdout, '(a)') 'Sign iterative purification with S^0.5'
+               write(stdout, '(a)') 'Sign purification with S^0.5'
             term1 = chempot * identity ! μ*I
             call la_gemm(Hmat, X, term2, pr=pr) ! H*S^-0.5 
             call la_gemm(X, term2, term3, pr=pr) ! S^-0.5*H*S^-0.5 
@@ -418,7 +417,7 @@ contains
          case(inv)
 
             if (pr > 1) &
-               write(stdout, '(a)') 'Sign iterative purification with S^-1'
+               write(stdout, '(a)') 'Sign purification with S^-1'
             term1 = chempot * identity
             call la_gemm(X, Hmat, term2, pr=pr)
             term3 = term2 - term1
@@ -628,12 +627,12 @@ contains
       select case(pur%metric%type)
       case(inv_sqrt)
          if (pr > 1) &
-            write(stdout, '(a)') 'Density matrix via S^-0.5'
+            write(stdout, '(/, a, /)') 'Density matrix via S^-0.5'
          call la_gemm(identity-sign_, metric, tmp, pr=pr)
          call la_gemm(metric, tmp, P, alpha=0.5_wp, pr=pr)
       case(inv)
          if (pr > 1) &
-            write(stdout, '(a)') 'Density matrix via S^-1'
+            write(stdout, '(/, a, /)') 'Density matrix via S^-1'
          call la_gemm(identity-sign_, metric, P, alpha=0.5_wp, pr=pr)
       end select
 
@@ -645,6 +644,141 @@ contains
          error stop 'Error: NaN is encountered during purification'
       
    end subroutine sign_to_density_matrix
+
+
+   subroutine sign_diagonalization_(pur, ndim, chempot, guess, metric, purified)
+
+      !> Purification settings
+      type(tPurificationSet), intent(in) :: pur
+
+      !> Number of BFs
+      integer, intent(in) :: ndim
+
+      !> Chemical potential
+      real(wp), intent(inout) :: chempot
+
+      !> Iteration matrix
+      real(wp), intent(in) :: guess(ndim,ndim)
+
+      !> Transformation matrix
+      real(wp), intent(in) :: metric(ndim,ndim)
+
+      !> Purified Density Matrix
+      real(wp), intent(out) :: purified(ndim,ndim)
+
+      !> Locals
+      logical, save :: first_time =.true.
+      real(wp), dimension(:, :), allocatable, save :: eigenvectors
+      real(wp), dimension(:), allocatable, save :: eigenvalues
+      integer(ik) :: pr, info, i, j, k, cycles
+      real(wp) :: nelcalc, sum_, lower_bound, upper_bound, incr, nel
+      real(wp), dimension(ndim) :: eigguess
+      real(wp), dimension(ndim, ndim) :: eigval, sign_, tmp
+      logical :: debug, is_lower_bound, is_upper_bound, bisection
+
+      pr = pur%prlvl
+      eigval = 0.0_wp
+      nel = real(pur%nel)
+      cycles = pur%chempot%cycles
+      incr = pur%chempot%increment
+      bisection = .false.; is_lower_bound = .false.; is_upper_bound = .false.
+      debug =.true.
+
+      if (pr > 1) &
+         write(stdout, '(a, /)') '--> sign_diagonalization'
+
+      ! diagonalize only once !
+      if (first_time) then
+         if (.not. allocated(eigenvalues)) allocate(eigenvectors(ndim,ndim), eigenvalues(ndim))
+         eigenvectors = guess
+         call la_syevd(eigenvectors, eigenvalues, info, pr=pr)
+      endif
+
+      
+      readjust_chempot: do k = 1, cycles
+         
+         nelcalc = 0.0_wp
+         eigguess = eigenvalues - chempot
+
+         ! signum () !
+         do i = 1, ndim
+
+            if (abs(eigguess(i)) < thrs%normal) then
+               eigval(i,i) = 0.0_wp
+            else 
+               eigval(i,i) = merge(1.0_wp, -1.0_wp, eigguess(i) > 0.0_wp)
+            endif
+            
+            sum_ = 0.0_wp
+            ! calculate number of electron !
+            do j = 1, ndim
+               sum_ = sum_ + eigenvectors(j,i) * eigenvectors(j,i)
+            enddo
+            nelcalc = nelcalc + (1.0_wp - (sum_ * eigval(i,i)))
+         enddo
+
+         ! Printout !
+         if (pr > 0) then
+            write(stdout,'(a, 9x, i0, /, a, 1x, f18.8, /, a, 1x, g0, /, a, 1x, g0)' ) &
+               'Search number:             ', k, &
+               'Current chemical potential:', chempot, &
+               'Current increment:         ', incr, &
+               'Number of electrons:       ', nelcalc
+         endif
+
+         
+         ! Exit condition: compare number of electrons !
+         if (abs(nelcalc - nel) < thrs%normal) then
+            if (pr > 0) &
+               write(stdout,'(a, 1x, i0, 1x, a)' ) 'Internal chemical potential found after:', k, 'cycles'
+            exit readjust_chempot
+         endif
+
+         ! readjust chempot internally: bisection !
+         if (nelcalc < nel) then
+            is_lower_bound = .true.
+            lower_bound = chempot
+            chempot = chempot + incr
+         else                                 
+            is_upper_bound = .true.
+            upper_bound = chempot
+            chempot = chempot - incr
+         endif
+
+         bisection = is_lower_bound .and. is_upper_bound
+         incr = incr * 2.0_wp
+
+         if (bisection) then
+            if (debug) &
+               write(stdout,'(a, 1x, f18.8, 1x, a, 1x, f18.8)' ) &
+                  'Lower bound:', lower_bound, '| Upper bound:', upper_bound
+
+            chempot = (lower_bound + upper_bound) / 2.0_wp
+            if (abs(upper_bound-lower_bound) < thrs%high8) then
+               write(stdout,'(a, 1x, i0, 1x, a)' ) &
+                  'Internal chemical potential search. Too short/big interval to bisect.', i, 'cycles'
+               exit readjust_chempot
+            endif
+         endif      
+ 
+      enddo readjust_chempot
+
+
+      call la_gemm(eigval, eigenvectors, tmp, transb='T', pr=pr) ! signum(Λ) * Q^T
+      call la_gemm(eigenvectors, tmp, sign_, pr=pr) ! !Q * signum(Λ) * Q^T
+
+      if (debug) &
+         call print_matrix(ndim, sign_, 'Sign')
+
+      call sign_to_density_matrix(pur, ndim, sign_, metric, purified)
+      
+      purified = purified * 2
+
+      if (pr > 1) &
+         write(stdout, '(a, /)') '<-- sign_diagonalization'
+
+
+   end subroutine sign_diagonalization_
 
 
 end module purification_
