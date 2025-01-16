@@ -577,7 +577,7 @@ contains
             call purification(pur, ndim, Hmat, S, P2)
             if (debug) &
                call print_matrix(ndim, P2, 'Purified density matrix') 
-            !call check_density(ndim, P2, S, nel) ! check if computed density matrix valid 
+            call check_density(ndim, P2, S, nel) ! check if computed density matrix valid 
             if (pur%dev) then ! perform diagonalization in development regime
 
                write(stdout, '(a,1x,a,1x,a)') repeat('*', 40),'Solve',repeat('*',40)
