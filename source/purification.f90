@@ -103,9 +103,6 @@ contains
       integer(ik) :: info ! execution status
       integer(ik) :: i
       real(wp), dimension(ndim) :: s_infinity, s_2 ! different norms
-      real(wp), dimension(ndim,ndim) :: XsX, check ! buffer for iterations
-      integer :: cycles, type
-
 
       real(wp), dimension(ndim,ndim) :: XsX, check ! buffer for iterations
       integer :: cycles, type, pr
@@ -304,7 +301,6 @@ contains
          call timer_chempot_iteration%click(1, 'Inital guess')
          call build_guess(pur, ndim, Hmat, X, chempot, guess)
          call timer_chempot_iteration%click(1)
-         
          ! Run Purification !
          call timer_chempot_iteration%click(2, 'Purification routine')
          select case(type)
@@ -312,6 +308,8 @@ contains
             call mcweeny_(pur, ndim, guess, Smat, purified)
          case(sign_iter_pade, sign_iter_newton)
             call sign_iterative(pur, ndim, guess, X, purified)
+         case(sign_diagonalization)
+            call sign_diagonalization_(pur, ndim, guess, X, purified)
          endselect
          call timer_chempot_iteration%click(2)
          
@@ -401,7 +399,7 @@ contains
          guess = 0.5_wp * (term5 + X) 
       
       ! Sign Iteration !
-      case(sign_iter_pade, sign_iter_newton)
+      case(sign_iter_pade, sign_iter_newton, sign_diagonalization)
 
          select case(metric)
          ! S^-0.5 !
@@ -629,12 +627,12 @@ contains
       select case(pur%metric%type)
       case(inv_sqrt)
          if (pr > 1) &
-            write(stdout, '(a)') 'Density matrix via S^-0.5'
+            write(stdout, '(/, a, /)') 'Density matrix via S^-0.5'
          call la_gemm(identity-sign_, metric, tmp, pr=pr)
          call la_gemm(metric, tmp, P, alpha=0.5_wp, pr=pr)
       case(inv)
          if (pr > 1) &
-            write(stdout, '(a)') 'Density matrix via S^-1'
+            write(stdout, '(/, a, /)') 'Density matrix via S^-1'
          call la_gemm(identity-sign_, metric, P, alpha=0.5_wp, pr=pr)
       end select
 
@@ -646,6 +644,73 @@ contains
          error stop 'Error: NaN is encountered during purification'
       
    end subroutine sign_to_density_matrix
+
+
+   subroutine sign_diagonalization_(pur, ndim, guess, metric, purified)
+
+      !> Purification settings
+      type(tPurificationSet), intent(in) :: pur
+
+      !> Number of BFs
+      integer, intent(in) :: ndim
+
+      !> Iteration matrix
+      real(wp), intent(in) :: guess(ndim,ndim)
+
+      !> Transformation matrix
+      real(wp), intent(in) :: metric(ndim,ndim)
+
+      !> Purified Density Matrix
+      real(wp), intent(out) :: purified(ndim,ndim)
+
+      !> Locals
+      logical, save :: first_time =.true.
+      real(wp), dimension(:, :), allocatable, save :: eigenvectors
+      real(wp), dimension(:), allocatable, save :: eigenvalues
+      integer(ik) :: pr, info, i
+      real(wp), dimension(ndim) :: eigguess
+      real(wp), dimension(ndim, ndim) :: eigval, sign_, tmp
+      logical :: debug
+
+      pr = pur%prlvl
+      eigval = 0.0_wp
+
+      if (pr > 1) &
+         write(stdout, '(a, /)') '--> sign_diagonalization'
+
+      ! diagonalize only once !
+      if (first_time) then
+         if (.not. allocated(eigenvalues)) allocate(eigenvectors(ndim,ndim), eigenvalues(ndim))
+         eigenvectors = guess
+         call la_syevd(eigenvectors, eigenvalues, info, pr=pr)
+      endif
+
+      eigguess = eigenvalues
+
+      ! signum () !
+      do i = 1, ndim
+         if (abs(eigguess(i)) < thrs%normal) then
+            eigval(i,i) = 0.0_wp
+         else
+            eigval(i,i) = merge(1.0_wp, -1.0_wp, eigguess(i) > 0.0_wp)
+         endif
+      enddo
+
+      call la_gemm(eigval, eigenvectors, tmp, transb='T', pr=pr) ! signum(Λ) * Q^T
+      call la_gemm(eigenvectors, tmp, sign_, pr=pr) ! !Q * signum(Λ) * Q^T
+
+      if (debug) &
+         call print_matrix(ndim, sign_, 'Sign')
+
+      call sign_to_density_matrix(pur, ndim, sign_, metric, purified)
+      
+      purified = purified * 2
+
+      if (pr > 1) &
+         write(stdout, '(a, /)') '<-- sign_diagonalization'
+
+
+   end subroutine sign_diagonalization_
 
 
 end module purification_
