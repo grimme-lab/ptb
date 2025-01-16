@@ -320,7 +320,7 @@ contains
             write(stdout,'(a, 9x, i0, /, a, 1x, f18.8, /, a, 1x, f18.8)' ) &
                'Search number:             ', i, &
                'Current chemical potential:', chempot, &
-               'Number of electrons:       ', ne,
+               'Number of electrons:       ', nel_calc
          endif
 
          
