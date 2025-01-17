@@ -1,6 +1,6 @@
 module cuda_
-   use gtb_accuracy, only: i4
    use accel_lib
+   use gtb_accuracy, only: i4
    implicit none
    public :: initialize_ctx, ctx
    private

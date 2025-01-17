@@ -55,9 +55,6 @@ module purification_settings
 
       !> Development mode (calculate solve2 as well and divergence between results)
       logical :: dev = .true.
-      
-      !> Cuda support
-      logical :: cuda = .false.
 
       !> (internal) Number of electrons
       integer :: nel
@@ -160,10 +157,6 @@ contains
             case('iterative_inversion')
                self%metric%iterative= .true.
 
-            case('cuda')
-               self%cuda = .true.
-               call initialize_ctx()
-
             endselect         
          
          endif
@@ -172,6 +165,8 @@ contains
    end subroutine initialize_purification
 
    subroutine print_settings(self, out)
+
+      use cuda_, only: ctx
 
       !> Purification settings holder
       class(tPurificationSet), intent(in) :: self
@@ -203,7 +198,7 @@ contains
             if (self%prlvl > 0) &
          write(out,'(2x,a, 8x, i0)') 'Iteration Cycles:           ', self%cycles
       endselect
-      write(out,'(2x,a,5x,L1)') "CUDA support:                  ", self%cuda
+      write(out,'(2x,a,5x,L1)') "CUDA support:                  ", allocated(ctx)
       if(self%prlvl > 1) then
          write(out,'(2x,a,5x,L1)') "Development Mode:              ", self%dev
       endif
