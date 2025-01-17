@@ -1,5 +1,6 @@
 module purification_settings
    use gtb_accuracy, only: wp
+   use cuda_, only: initialize_ctx
    implicit none
 
    !> Different calculation types
@@ -165,6 +166,8 @@ contains
 
    subroutine print_settings(self, out)
 
+      use cuda_, only: ctx
+
       !> Purification settings holder
       class(tPurificationSet), intent(in) :: self
 
@@ -195,6 +198,7 @@ contains
             if (self%prlvl > 0) &
          write(out,'(2x,a, 8x, i0)') 'Iteration Cycles:           ', self%cycles
       endselect
+      write(out,'(2x,a,5x,L1)') "CUDA support:                  ", allocated(ctx)
       if(self%prlvl > 1) then
          write(out,'(2x,a,5x,L1)') "Development Mode:              ", self%dev
       endif
@@ -223,7 +227,6 @@ contains
       endif
 
       write(out,'(/, a, /)') repeat('*',72)
-
 
    end subroutine print_settings
 end module purification_settings

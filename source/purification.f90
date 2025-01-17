@@ -320,7 +320,7 @@ contains
             write(stdout,'(a, 9x, i0, /, a, 1x, f18.8, /, a, 1x, f18.8)' ) &
                'Search number:             ', i, &
                'Current chemical potential:', chempot, &
-               'Number of electrons:       ', ne,
+               'Number of electrons:       ', nel_calc
          endif
 
          
@@ -389,8 +389,8 @@ contains
       ! McWeeny purification !
       case(mcweeny)
          
-         if (pr > 1) &
-            write(stdout, '(a)') 'Mcweeny prufication with S^1'
+         if (pr > 1 .or. debug) &
+            write(stdout, '(a, g0)') 'Mcweeny prufication with S^1 with chempot of ', chempot
          term1 = chempot * X !  μ*s^-1
          call la_gemm(Hmat, X, term2, pr=pr) ! H*s^-1
          call la_gemm(X, term2, term3, pr=pr) ! S^-1*H*S^-1
@@ -405,8 +405,8 @@ contains
          ! S^-0.5 !
          case(inv_sqrt)
 
-            if (pr > 1) &
-               write(stdout, '(a)') 'Sign purification with S^0.5'
+            if (pr > 1 .or. debug) &
+               write(stdout, '(a, g0)') 'Sign purification with S^0.5 with chempot of ', chempot
             term1 = chempot * identity ! μ*I
             call la_gemm(Hmat, X, term2, pr=pr) ! H*S^-0.5 
             call la_gemm(X, term2, term3, pr=pr) ! S^-0.5*H*S^-0.5 
@@ -416,8 +416,8 @@ contains
          ! S^1 !
          case(inv)
 
-            if (pr > 1) &
-               write(stdout, '(a)') 'Sign purification with S^-1'
+            if (pr > 1 .or. debug) &
+               write(stdout, '(a, g0)') 'Sign purification with S^-1 woth chempot of ', chempot
             term1 = chempot * identity
             call la_gemm(X, Hmat, term2, pr=pr)
             term3 = term2 - term1

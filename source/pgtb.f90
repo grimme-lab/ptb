@@ -563,7 +563,7 @@ contains
          if(              prop.lt.0) mode = -iter ! IR/Raman
 
 
-         debug = .false. 
+         debug = .true. 
 
          ! Normal diagonalization !
          if (.not. allocated(pur)) then
@@ -572,6 +572,11 @@ contains
 
          ! Purification !
          else
+               call solve2(mode,ndim,nel,nopen,homo,eT,focc,Hmat,S,P,eps,U,fail) 
+               call check_density(ndim, P, S, nel) ! check if computed density matrix valid
+               if (debug) &
+                  call print_matrix(ndim, P, 'Purified density matrix') 
+            
             pur%nel = nel ! save number of electrons
             call pur%print(stdout)
             call purification(pur, ndim, Hmat, S, P2)

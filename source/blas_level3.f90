@@ -1,12 +1,16 @@
 !> Interfaces to level 3 BLAS routines.
 module gtb_la_level3
    use iso_fortran_env, only: stdout => output_unit
-   use gtb_accuracy, only : ik, sp, dp
+   use gtb_accuracy, only : ik, sp, dp, i4
+   use timer, only: tTimer
+   use cuda_, only: ctx
+   use accel_lib
    implicit none
    private
 
    public :: la_gemm, la_hemm, la_her2k, la_herk, la_symm, la_syr2k, la_syrk, &
       & la_trsm, la_trmm
+
 
    !> Performs one of the matrix-matrix operations
    !>
@@ -620,12 +624,14 @@ module gtb_la_level3
       character :: tra, trb
       real(wp) :: a, b
       integer(ik) :: m, n, k, lda, ldb, ldc
+      integer(i4) :: err
+      logical :: show
 
       if (present(pr)) then
-         if (pr > 1) then
-            write(stdout, '(3x, a)') 'Lapack: sgemm'
-         endif
-      endif
+         show = (pr > 1)
+      else
+         show = .false.
+      end if
       
       a = 1.0_wp
       if (present(alpha)) a = alpha
@@ -645,7 +651,15 @@ module gtb_la_level3
       ldc = max(1, size(cmat, 1))
       m = size(cmat, 1)
       n = size(cmat, 2)
-      call la_gemm(tra, trb, m, n, k, a, amat, lda, bmat, ldb, b, cmat, ldc)
+      if (allocated(ctx)) then
+         if (show) & 
+            write(stdout, '(3x, a)') 'Lapack: cuda_dgemm'
+         call cuda_sgemm(ctx, tra, trb, m, n, k, a, amat, bmat,  b, cmat, err)
+      else
+         if (show) & 
+            write(stdout, '(3x, a)') 'Lapack: cuda_sgemm'
+         call la_gemm(tra, trb, m, n, k, a, amat, lda, bmat, ldb, b, cmat, ldc)
+      endif
    end subroutine la_gemm_rsp
 
    pure subroutine la_gemm_csp(amat, bmat, cmat, transa, transb, alpha, beta)
@@ -697,12 +711,14 @@ module gtb_la_level3
       character :: tra, trb
       real(wp) :: a, b
       integer(ik) :: m, n, k, lda, ldb, ldc
+      integer(i4) :: err
+      logical :: show
 
       if (present(pr)) then
-         if (pr > 1) then
-            write(stdout, '(3x, a)') 'Lapack: dgemm'
-         endif
-      endif
+         show = (pr > 1)
+     else
+         show = .false.
+     end if
       
       a = 1.0_wp
       if (present(alpha)) a = alpha
@@ -722,7 +738,17 @@ module gtb_la_level3
       ldc = max(1, size(cmat, 1))
       m = size(cmat, 1)
       n = size(cmat, 2)
-      call la_gemm(tra, trb, m, n, k, a, amat, lda, bmat, ldb, b, cmat, ldc)
+      if (allocated(ctx)) then
+         if (show) & 
+            write(stdout, '(3x, a)') 'Lapack: cuda_dgemm'
+         call cuda_dgemm(ctx, tra, trb, m, n, k, a, amat, bmat,  b, cmat, err)
+      else
+         if (show) & 
+            write(stdout, '(3x, a)') 'Lapack: dgemm'
+         call la_gemm(tra, trb, m, n, k, a, amat, lda, bmat, ldb, b, cmat, ldc)
+      endif
+   
+
    end subroutine la_gemm_rdp
 
    pure subroutine la_gemm_cdp(amat, bmat, cmat, transa, transb, alpha, beta)

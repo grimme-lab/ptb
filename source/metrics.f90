@@ -85,7 +85,7 @@ contains
       integer, intent(in) :: nel
 
       !> Locals
-      logical :: debug = .false.
+      logical :: debug = .true.
 
       if (debug) &
          write(stdout,'(a, 1x, i0, a, 1x, f18.8, 2x)') &
@@ -113,11 +113,10 @@ contains
       
       !> Overlap matrix
       real(wp), intent(in) :: S(ndim,ndim) 
-      
+
       !> Product of P*S
       real(wp) :: PS(ndim,ndim) 
       
-
       call la_gemm(P, S, PS) 
       nel = trace(PS)
 
@@ -254,7 +253,6 @@ contains
       real(wp), external :: dlange
       real(wp), allocatable :: work(:)
 
-
       allocate(work(ndim))
       
       if(present(S)) &
@@ -275,6 +273,7 @@ contains
       else
          call la_symm(matblowed, matblowed, mm2)
       endif
+
       
       ! check the divergence !
       frob_diff = sqrt(sum(mm2-matblowed)**2)
