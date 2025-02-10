@@ -1,25 +1,21 @@
 module metrics
    use iso_fortran_env, only: stdout => output_unit
-   use gtb_accuracy, only : wp
+   use gtb_accuracy, only : dp, sp,wp
    use gtb_la, only: la_gemm, la_symm
    use matops, only: trace, print_matrix
    implicit none
    private
    public :: get_nel, thrs, idempotent, check_density, analyze_results
+   public :: adjust_thresholds, band_structure, check_sparsity
 
    !> Type for storing all thresholds
    type :: tThreshold
-      real(wp) :: high8
+      real(wp) :: high
       real(wp) :: normal
       real(wp) :: low
-      real(wp) :: low4
-      real(wp) :: low2
-      real(wp) :: low1
    endtype tThreshold
 
-   type(tThreshold), parameter :: thrs = &
-      & tThreshold(high8=1.0e-8_wp, normal = 1.0e-7_wp, low = 1.0e-6_wp, low4 = 1.0e-4_wp, low1=0.1, &
-      & low2=1.0e-2_wp)
+   type(tThreshold), allocatable :: thrs
 
    interface band_structure
       module procedure :: get_band_structure_E_full
@@ -40,8 +36,81 @@ module metrics
       module procedure :: idempotent_full
       module procedure :: idempotent_packed
    end interface idempotent
+
+   interface adjust_thresholds
+      module procedure :: adjust_thresholds_sp
+      module procedure :: adjust_thresholds_dp
+   end interface adjust_thresholds
    
 contains
+   !> adjust thresholds dynamically
+   subroutine adjust_thresholds_sp(ndim, Hmat)
+
+
+      !> Calculation domain
+      integer, intent(in) :: ndim
+
+      !> mat
+      real(sp), intent(in) :: Hmat(ndim*(ndim+1)/2)
+
+      if (.not. allocated(thrs)) then
+         allocate(thrs)
+         if (ndim < 300) then
+            thrs%high = 1e-7
+            thrs%normal = 1e-6
+            thrs%low = 1e-5
+         elseif (ndim < 2000) then
+            thrs%high = 1e-5
+            thrs%normal = 1e-4
+            thrs%low = 1e-3
+         elseif (ndim < 15000) then
+            thrs%high = 1e-4
+            thrs%normal = 1e-3
+            thrs%low = 1e-2
+         else 
+            thrs%high = 1e-2
+            thrs%normal = 1e-1
+            thrs%low = 1e-0
+         endif
+         
+      endif
+
+
+   end subroutine adjust_thresholds_sp
+
+   !> adjust thresholds dynamically
+   subroutine adjust_thresholds_dp(ndim, Hmat)
+
+      !> Calculation domain
+      integer, intent(in) :: ndim
+
+      !> mat
+      real(dp), intent(in) :: Hmat(ndim*(ndim+1)/2)
+
+      if (.not. allocated(thrs)) then
+         allocate(thrs)
+         if (ndim < 300) then
+            thrs%high = 1e-10
+            thrs%normal = 1e-9
+            thrs%low = 1e-8
+         elseif (ndim < 2000) then
+            thrs%high = 1e-7
+            thrs%normal = 1e-6
+            thrs%low = 1e-5
+         elseif (ndim < 15000) then
+            thrs%high = 1e-5
+            thrs%normal = 1e-4
+            thrs%low = 1e-3
+         else 
+            thrs%high = 1e-3
+            thrs%normal = 1e-2
+            thrs%low = 1e-1
+         endif
+         
+      endif
+
+
+   end subroutine adjust_thresholds_dp
 
    !> Check if the density matrix is valid
    subroutine check_density_full(ndim, P, S, nel)
@@ -85,14 +154,14 @@ contains
       integer, intent(in) :: nel
 
       !> Locals
-      logical :: debug = .true.
+      logical :: debug = .false.
 
       if (debug) &
          write(stdout,'(a, 1x, i0, a, 1x, f18.8, 2x)') &
             'nel:', nel, ', nel_calc:', get_nel(ndim,P,S)
 
       ! Nel check !
-      if (abs(get_nel(ndim,P,S)) - nel > thrs%low2) then
+      if (abs(get_nel(ndim,P,S)) - nel > thrs%normal) then
          error stop "Error: density matrix gives wrong N_el."
       endif
       
@@ -277,7 +346,7 @@ contains
       
       ! check the divergence !
       frob_diff = sqrt(sum(mm2-matblowed)**2)
-      idempot = merge(.true., .false., frob_diff < thrs%low2)
+      idempot = merge(.true., .false., frob_diff < thrs%low)
          
    end function idempotent_packed
 
@@ -308,7 +377,7 @@ contains
       real(wp) :: d_nel, d_band_str
       logical :: debug
 
-      debug = .true.
+      debug = .false.
 
       if (pr > 1) &
          write(stdout, '(/,a,/)') 'Enter: analyze_results' 
@@ -335,5 +404,32 @@ contains
          write(stdout, '(/, a, /)') 'Exit: analyze_results' 
 
    end subroutine analyze_results
+
+
+   subroutine check_sparsity(pr, ndim, mat, sparse)
+      
+      !> special truncation parameter for sparsity
+      real(wp), parameter :: trunc = 1e-5_wp
+
+      integer, intent(in) :: pr
+      integer, intent(in) :: ndim
+      real(wp), intent(in) :: mat(ndim,ndim)
+      logical, intent(out), optional :: sparse
+
+      !> locals
+      integer :: nzeros
+      real(wp) :: ratio
+
+
+      ! check general sparsity !
+      nzeros = count(abs(mat) < trunc)
+      ratio = real(nzeros)/real(ndim*ndim)
+      if (pr > 0) &
+         write(stdout, '(a, 2x, f5.2, a)') 'Sparisty:',ratio * 100, '%'
+      
+      if (present(sparse)) &
+         sparse = ratio > 0.9_wp
+      
+   end subroutine check_sparsity
 
 end module metrics

@@ -23,6 +23,7 @@
 !        read(1,*) shell_resp(1:10,j,2)  ! 141-150
 module pgtb_
    use purification_settings, only : tPurificationSet
+   use metrics
    implicit none
 
 contains
@@ -347,7 +348,7 @@ contains
       use aescom
       use com
       use purification_, only: purification
-      use metrics, only: check_density, analyze_results
+      use metrics, only: check_density, analyze_results, adjust_thresholds, band_structure
       use matops, only: print_matrix
       implicit none
    !! ------------------------------------------------------------------------
@@ -572,25 +573,27 @@ contains
 
          ! Purification !
          else
+            call adjust_thresholds(ndim, P)
+            call check_sparsity(pur%prlvl,ndim, Hmat)
+            stop
+
+            if (pur%dev) then ! perform diagonalization in development regime
+               write(stdout, '(a,1x,a,1x,a)') repeat('*', 40),'Solve',repeat('*',40)
                call solve2(mode,ndim,nel,nopen,homo,eT,focc,Hmat,S,P,eps,U,fail) 
                call check_density(ndim, P, S, nel) ! check if computed density matrix valid
-               if (debug) &
-                  call print_matrix(ndim, P, 'Purified density matrix') 
+               if (debug .or.  pr > 0) &
+                  call print_matrix(ndim, P, 'PTB density matrix') 
+               write(stdout, '(a)') repeat('*', 87)
+            endif
+
             
             pur%nel = nel ! save number of electrons
             call pur%print(stdout)
             call purification(pur, ndim, Hmat, S, P2)
-            if (debug) &
+            if (debug .or.  pr > 0) &
                call print_matrix(ndim, P2, 'Purified density matrix') 
             call check_density(ndim, P2, S, nel) ! check if computed density matrix valid 
             if (pur%dev) then ! perform diagonalization in development regime
-
-               write(stdout, '(a,1x,a,1x,a)') repeat('*', 40),'Solve',repeat('*',40)
-               call solve2(mode,ndim,nel,nopen,homo,eT,focc,Hmat,S,P,eps,U,fail) 
-               call check_density(ndim, P, S, nel) ! check if computed density matrix valid
-               if (debug) &
-                  call print_matrix(ndim, P, 'PTB density matrix') 
-               write(stdout, '(a)') repeat('*', 87)
                call analyze_results(ndim, P, P2, S, Hmat, n, pur%prlvl)
             endif
 

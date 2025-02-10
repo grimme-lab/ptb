@@ -271,7 +271,7 @@ contains
       incr = pur%chempot%increment 
       nel_calc = 0.0_wp
 
-      debug = .true.
+      debug = .false.
       bisection = .false.
       is_lower_bound = .false.
       is_upper_bound = .false.
@@ -290,7 +290,7 @@ contains
                   'Lower bound:', lower_bound, '| Upper bound:', upper_bound
 
             chempot = (lower_bound + upper_bound) / 2.0_wp
-            if (abs(upper_bound-lower_bound) < thrs%high8) then
+            if (abs(upper_bound-lower_bound) < thrs%high) then
                write(stdout,'(a, 1x, i0, 1x, a)' ) &
                   'Chemical potential search. Too short/big interval to bisect.', i, 'cycles'
                exit
@@ -325,7 +325,7 @@ contains
 
          
          ! Exit condition: compare number of electrons !
-         if (abs(nel_calc - real(nel)) < thrs%low4) then
+         if (abs(nel_calc - real(nel)) < thrs%normal) then
             if (pr > 0 .and. type .ne. sign_diagonalization) &
                write(stdout,'(a, 1x, i0, 1x, a)' ) 'Chemical potential found after:', i, 'cycles'
             exit search
@@ -375,7 +375,7 @@ contains
       !> Locals
       integer :: type_, pr, metric
       real(wp), dimension(ndim,ndim) :: term1, term2, term3, term4, term5
-      logical :: debug = .true.
+      logical :: debug = .false.
 
       type_ = pur%type
       metric = pur%metric%type
@@ -391,6 +391,7 @@ contains
          
          if (pr > 1 .or. debug) &
             write(stdout, '(a, g0)') 'Mcweeny prufication with S^1 with chempot of ', chempot
+
          term1 = chempot * X !  μ*s^-1
          call la_gemm(Hmat, X, term2, pr=pr) ! H*s^-1
          call la_gemm(X, term2, term3, pr=pr) ! S^-1*H*S^-1
@@ -491,7 +492,7 @@ contains
             error stop 'Error: NaN is encountered during purification'
 
          ! convergence !
-         if (abs(norm2(P)-norm) < thrs%low4) then 
+         if (abs(norm2(P)-norm) < thrs%normal) then 
             if (pr > 0) &
                write(stdout,'(a, 1x, i0, 1x, a)' ) 'McWeeny converged in:', i, 'cycles'
             exit
@@ -529,7 +530,7 @@ contains
       integer :: i, cycles, iter_type
       real(wp), dimension(ndim,ndim) :: term1, term2, term3, term4, X
       real(wp) :: norm
-      logical :: debug = .true.
+      logical :: debug = .false.
 
       cycles = pur%cycles
       pr = pur%prlvl
@@ -558,7 +559,7 @@ contains
             if (any(ieee_is_NaN(X))) &
                error stop 'Error: NaN is encountered during purification'
 
-            if (abs(norm2(X)-norm) < thrs%low4) then 
+            if (abs(norm2(X)-norm) < thrs%normal) then 
                if (pr > 0) &
                   write(stdout,'(/, a, 1x, i0, 1x, a)' ) 'Pade sign iterative converged in:', i, 'cycles'
                exit
@@ -579,7 +580,7 @@ contains
             if (any(ieee_is_NaN(X))) &
                error stop 'Error: NaN is encountered during purification'
 
-            if (abs(norm2(X)-norm) < thrs%low4) then 
+            if (abs(norm2(X)-norm) < thrs%normal) then 
                if (pr > 0) &
                   write(stdout,'(/, a, 1x, i0, 1x, a)' ) 'Newton-Schuz sign iterative converged in:', i, 'cycles'
                exit
@@ -621,7 +622,7 @@ contains
       integer :: metric_type, pr
       real(wp), dimension(ndim,ndim) :: tmp
 
-      debug = .true.
+      debug = .false.
       pr = pur%prlvl
       
       select case(pur%metric%type)
@@ -682,7 +683,7 @@ contains
       cycles = pur%chempot%cycles
       incr = pur%chempot%increment
       bisection = .false.; is_lower_bound = .false.; is_upper_bound = .false.
-      debug =.true.
+      debug =.false.
 
       if (pr > 1) &
          write(stdout, '(a, /)') '--> sign_diagonalization'
@@ -718,7 +719,7 @@ contains
          enddo
 
          ! Printout !
-         if (pr > 0) then
+         if (pr > 1 .or. debug) then
             write(stdout,'(a, 9x, i0, /, a, 1x, f18.8, /, a, 1x, g0, /, a, 1x, g0)' ) &
                'Search number:             ', k, &
                'Current chemical potential:', chempot, &
@@ -754,7 +755,7 @@ contains
                   'Lower bound:', lower_bound, '| Upper bound:', upper_bound
 
             chempot = (lower_bound + upper_bound) / 2.0_wp
-            if (abs(upper_bound-lower_bound) < thrs%high8) then
+            if (abs(upper_bound-lower_bound) < thrs%high) then
                write(stdout,'(a, 1x, i0, 1x, a)' ) &
                   'Internal chemical potential search. Too short/big interval to bisect.', i, 'cycles'
                exit readjust_chempot

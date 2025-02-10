@@ -1,1 +1,5 @@
 /test
+/build
+*_genmod*
+*.o
+*.mod
