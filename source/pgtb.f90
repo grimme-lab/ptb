@@ -573,10 +573,10 @@ contains
 
          ! Purification !
          else
+
             call adjust_thresholds(ndim, P)
             call check_sparsity(pur%prlvl,ndim, Hmat)
             stop
-
             if (pur%dev) then ! perform diagonalization in development regime
                write(stdout, '(a,1x,a,1x,a)') repeat('*', 40),'Solve',repeat('*',40)
                call solve2(mode,ndim,nel,nopen,homo,eT,focc,Hmat,S,P,eps,U,fail) 

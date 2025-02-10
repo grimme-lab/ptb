@@ -154,7 +154,7 @@ contains
       integer, intent(in) :: nel
 
       !> Locals
-      logical :: debug = .false.
+      logical :: debug = .true.
 
       if (debug) &
          write(stdout,'(a, 1x, i0, a, 1x, f18.8, 2x)') &
