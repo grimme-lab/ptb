@@ -167,6 +167,7 @@ contains
    subroutine print_settings(self, out)
 
       use cuda_, only: ctx
+      use metrics, only: thrs
 
       !> Purification settings holder
       class(tPurificationSet), intent(in) :: self
@@ -224,6 +225,11 @@ contains
          if (self%prlvl > 1) &
          write(out,'(2x,a,5x,i0)')           "Number of cycles:             ", self%chempot%cycles
 
+      endif
+
+      if (self%prlvl > 0) then
+         write(out,'(/,2x,a)') "__thresholds_"
+         write(out,'(2x,a,3x,e13.6)')        "Threshold:                      ", thrs%normal
       endif
 
       write(out,'(/, a, /)') repeat('*',72)
