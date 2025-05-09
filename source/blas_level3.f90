@@ -3,8 +3,8 @@ module gtb_la_level3
    use iso_fortran_env, only: stdout => output_unit
    use gtb_accuracy, only : ik, sp, dp, i4
    use timer, only: tTimer
-   use cuda_, only: ctx
-   use accel_lib
+!   use cuda_, only: ctx
+!   use accel_lib
    implicit none
    private
 
@@ -651,15 +651,15 @@ module gtb_la_level3
       ldc = max(1, size(cmat, 1))
       m = size(cmat, 1)
       n = size(cmat, 2)
-      if (allocated(ctx)) then
-         if (show) & 
-            write(stdout, '(3x, a)') 'Lapack: cuda_dgemm'
-         call cuda_sgemm(ctx, tra, trb, m, n, k, a, amat, bmat,  b, cmat, err)
-      else
+!      if (allocated(ctx)) then
+!         if (show) & 
+!            write(stdout, '(3x, a)') 'Lapack: cuda_dgemm'
+!         call cuda_sgemm(ctx, tra, trb, m, n, k, a, amat, bmat,  b, cmat, err)
+!      else
          if (show) & 
             write(stdout, '(3x, a)') 'Lapack: cuda_sgemm'
          call la_gemm(tra, trb, m, n, k, a, amat, lda, bmat, ldb, b, cmat, ldc)
-      endif
+!      endif
    end subroutine la_gemm_rsp
 
    pure subroutine la_gemm_csp(amat, bmat, cmat, transa, transb, alpha, beta)
@@ -738,15 +738,15 @@ module gtb_la_level3
       ldc = max(1, size(cmat, 1))
       m = size(cmat, 1)
       n = size(cmat, 2)
-      if (allocated(ctx)) then
-         if (show) & 
-            write(stdout, '(3x, a)') 'Lapack: cuda_dgemm'
-         call cuda_dgemm(ctx, tra, trb, m, n, k, a, amat, bmat,  b, cmat, err)
-      else
+!      if (allocated(ctx)) then
+!         if (show) & 
+!            write(stdout, '(3x, a)') 'Lapack: cuda_dgemm'
+!         call cuda_dgemm(ctx, tra, trb, m, n, k, a, amat, bmat,  b, cmat, err)
+!      else
          if (show) & 
             write(stdout, '(3x, a)') 'Lapack: dgemm'
          call la_gemm(tra, trb, m, n, k, a, amat, lda, bmat, ldb, b, cmat, ldc)
-      endif
+!      endif
    
 
    end subroutine la_gemm_rdp

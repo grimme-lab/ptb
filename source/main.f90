@@ -10,7 +10,7 @@ program gTB
    use pgtb_
    use iso_fortran_env, only : wp => real64
    use purification_settings, only: tPurificationSet
-   use cuda_, only: initialize_ctx
+!   use cuda_, only: initialize_ctx
    implicit none
 
    real(wp),allocatable :: xyz(:,:),rab(:),z(:), wbo(:,:), cn(:)
@@ -148,7 +148,7 @@ program gTB
       if(index(arg1,'-nogtb').ne.0) nogtb =.true. !
       if(index(arg1,'-raman').ne.0) raman =.true. !
       if(index(arg1,'-d4only').ne.0) d4only =.true. !
-      if(index(arg1,'-cuda').ne.0) call initialize_ctx()
+!      if(index(arg1,'-cuda').ne.0) call initialize_ctx()
       if(index(arg1,'-purify').ne.0) then ! purification modus
          allocate(pur)
       endif
