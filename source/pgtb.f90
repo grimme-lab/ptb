@@ -633,7 +633,8 @@ contains
              etr=band_structure(ndim,P,Hmat)
              print*,"Tr(H Pref)=",etr_ref
              print*,"Tr(H P)=",etr
-             print*,"abs(Tr(H P)-Tr(H Pref))=",etr-etr_ref
+             print*,"energy deviation abs(Tr(H P)-Tr(H Pref))=",etr-etr_ref
+             print*,"energy deviation per atom abs(Tr(H P)-Tr(H Pref))/n=",(etr-etr_ref)/n
              deallocate(Pref)
 !             stop
            endif
