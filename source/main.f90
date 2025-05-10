@@ -8,7 +8,7 @@ program gTB
    use dftd4
    use json_output, only: write_json
    use pgtb_
-   use iso_fortran_env, only : wp => real64
+   ! use iso_fortran_env, only : wp => real64
    use purification_settings, only: tPurificationSet
 !   use cuda_, only: initialize_ctx
    implicit none
@@ -41,6 +41,7 @@ program gTB
    integer i,j,k,l,m,ns,nf,nn,lin,llao(4), nl
    data llao/1,3,5,7 /
    real(wp) chrg ! could be fractional for model systems
+   real(wp) filter
 
    real(wp) t0,t1,w0,w1,t00,w00,ddot
    real(wp) etot,eref,enuc,ekinref,ekin,eve,everef,egtb
@@ -90,6 +91,7 @@ program gTB
    prop = 1
    pnt  = 0
    chrg = 0
+   filter = 0.0D0
    nopen= 0
    alp_ref(1)=-99
    pname='~/.atompara'
@@ -152,6 +154,13 @@ program gTB
       if(index(arg1,'-purify').ne.0) then ! purification modus
          allocate(pur)
       endif
+      if(index(arg1,'-filter').ne.0) then ! filtering threshold for Hamiltonian and overlap matrix
+         call getarg(i+1,atmp)
+         call readline(atmp, floats, str, logicals, ns, nf, nl)
+         filter=floats(1)
+         print*,"filter",filter
+      endif
+
       if(index(arg1,'-json').ne.0) then
          json =.true.
          call getarg(i+1,atmp)
@@ -430,13 +439,13 @@ program gTB
             call calcrab(n,at,xyz,rab)
             call sint(n,ndim,at,xyz,rab,S,xnorm)       ! exact S
             call dipint(n,ndim,at,xyz,rab,xnorm,pnt,D3)! dipole integrals
-            call pgtb(.false.,-2,n,ndim,nel,nopen,ihomo,at,chrg,xyz,z,rab,pnt,xnorm,S,D3,&
+            call pgtb(.false.,-2,n,ndim,nel,nopen,ihomo,at,chrg,filter,xyz,z,rab,pnt,xnorm,S,D3,&
             &               efield,ML1,ML2,psh,q,P,F,eps,wbo,dip,alpr, pur)
             xyz(j,i)=xyz(j,i)-2_wp*x
             call calcrab(n,at,xyz,rab)
             call sint(n,ndim,at,xyz,rab,S,xnorm)       ! exact S
             call dipint(n,ndim,at,xyz,rab,xnorm,pnt,D3)! dipole integrals
-            call pgtb(.false.,-2,n,ndim,nel,nopen,ihomo,at,chrg,xyz,z,rab,pnt,xnorm,S,D3,&
+            call pgtb(.false.,-2,n,ndim,nel,nopen,ihomo,at,chrg,filter,xyz,z,rab,pnt,xnorm,S,D3,&
             &               efield,ML1,ML2,psh,q,P,F,eps,wbo,dip,alpl, pur)
             fdgrad(j,i,1:6)=(alpr(1:6)-alpl(1:6))/(2_wp*x)
             xyz(j,i)=xyz(j,i)+x
@@ -462,7 +471,7 @@ program gTB
 ! SINGLE POINT PTB
    if(ldum) then ! run it in normal case or in energy mode if dump does not exist
       if(prop.gt.0) call dipint(n,ndim,at,xyz,rab,xnorm,pnt,D3)! dipole integrals
-      call pgtb(.true.,prop,n,ndim,nel,nopen,ihomo,at,chrg,xyz,z,rab,pnt,xnorm,S,D3,&
+      call pgtb(.true.,prop,n,ndim,nel,nopen,ihomo,at,chrg,filter,xyz,z,rab,pnt,xnorm,S,D3,&
       &          efield,ML1,ML2,psh,q,P,F,eps,wbo,dip,alp, pur)
       inquire(file='ptb_dump',exist=ex)
       if (ex) call system('mv ptb_dump ptb_dump_0')  ! REQUIREMENT FOR THIS COPY PROCESS WAS NOT CLEAR
@@ -733,6 +742,7 @@ subroutine help
       "", &
       "-chrg <int>        specify systems total charge", &
       "-uhf <int>         specify systems #open shells", &
+      "-filter <float>    specify the filter threshold for Hamiltonian and overlap matrix", &
       "-avcn              just calculate coordination numbers", &
       "-apo               just printout shell pop for testing", &
       "-polar/-alpha      calculate polarizibility", &

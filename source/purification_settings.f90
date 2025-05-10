@@ -3,6 +3,9 @@ module purification_settings
 !   use cuda_, only: initialize_ctx
    implicit none
 
+   integer, parameter :: full = 0
+   integer, parameter :: submatrix = 1
+
    !> Different calculation types
    integer, parameter :: mcweeny = 1 ! Classical McWeeny purification
    integer, parameter :: sign_iter_pade = 2 ! Iterative sign purification
@@ -42,10 +45,11 @@ module purification_settings
    end type
 
    type :: tPurificationSet
+      !> calculation mode
+      integer :: mode = full
 
       !> Purification type
       integer :: type = sign_diagonalization
-      
       
       !> Purification cycles in itertive methods
       integer :: cycles = 40
@@ -55,6 +59,9 @@ module purification_settings
 
       !> Development mode (calculate solve2 as well and divergence between results)
       logical :: dev = .true.
+      
+      !> Check against numerical exact reference
+      logical :: check = .false.
 
       !> (internal) Number of electrons
       integer :: nel
@@ -104,6 +111,16 @@ contains
             select case(arg1)
    
             ! get purification type !
+            case('mode')
+               select case(arg3)
+               case('full')
+                  self%mode = full
+               case('submatrix')
+                  self%mode = submatrix
+               case default
+                  error stop 'Error: .PUR contains invalid type definition'
+               end select
+
             case('type')
                select case(arg3)
                case('mcweeny')
@@ -153,7 +170,8 @@ contains
             select case(arg1)
             case('dev')
                self%dev = .true.
-
+            case('check')
+               self%check=.true.
             case('iterative_inversion')
                self%metric%iterative= .true.
 
@@ -182,6 +200,14 @@ contains
 
       write(out,'(2x,a)') "__SETTINGS__" 
       write(out,'(2x,a)') "__general__"
+      write(out,'(2x,a,6x)',advance='no') "Calculation mode :            "
+      selectcase(self%type)
+      case(full)
+         write(out,'(a)') 'Full matrix'
+      case(submatrix)
+         write(out,'(a)') 'Submatrix method'
+      endselect
+
       write(out,'(2x,a,6x)',advance='no') "Purification type:            "
       selectcase(self%type)
       case(mcweeny)

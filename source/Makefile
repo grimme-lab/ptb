@@ -13,7 +13,7 @@ MODULES= bascom.o parcom.o com.o thresholds.o cbascom.o mocom.o dftd4.o aescom.o
 
 CFILES= symmetry_i.o
 
-OBJS1 = matrix_ops.o metrics.o purification_settings.o norms.o  purification.o \
+OBJS1 = matrix_ops.o kmpp.o sm.o metrics.o purification_settings.o norms.o  purification.o \
 		 rdcoord.o readl.o asym.o elem.o readl2.o readline.o prmat.o  timing.o echo.o solve.o rdstvint.o \
        ints.o intpack.o pop.o rdmat.o fermi.o reorder.o bas.o occ.o dtrf2.o lin.o energy.o mrec.o \
        cma.o dtrf3.o drsp.o mlpop.o calcrab.o symmetry.o pgtb.o eeq.o ncoord.o prdipole.o itabrow.o \
@@ -32,9 +32,9 @@ CCFLAGS = -O -DLINUX
 ifeq ($(OSTYPE),LINUXI)
   FC = ifx
   CC  = icx
-  LINKER = $(FC) -g -O -qopenmp  -I$(MKLROOT)/include -qmkl-ilp64=parallel 
+  LINKER = $(FC) -g -O -qopenmp  -I$(MKLROOT)/include -qmkl-ilp64=parallel -check bounds
   LIBS = -lpthread -lm -lstdc++ -qmkl-ilp64=parallel 
-  FFLAGS = -O3 -align array64byte -i8 -march=core-avx2 -mcmodel=large -heap-arrays -check bounds -warn interfaces 
+  FFLAGS = -O3 -align array64byte -i8 -march=core-avx2 -mcmodel=large -heap-arrays -warn interfaces -g  -traceback -check bounds  -no-wrap-margin
 
   CCFLAGS = -O -DLINUX
 else ifeq ($(OSTYPE),LINUXL)

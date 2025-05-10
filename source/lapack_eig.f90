@@ -310,6 +310,7 @@ contains
          allocate(work(lwork))
          allocate(iwork(liwork))
          call la_sygvd(ityp, job, upl, n, a, n, b, n, w, work, lwork, iwork, liwork, info)
+         deallocate(work, iwork)
 !      endif
    
    end subroutine la_sygvd_rsp
@@ -378,6 +379,7 @@ contains
          allocate(work(lwork))
          allocate(iwork(liwork))
          call la_sygvd(ityp, job, upl, n, a, n, b, n, w, work, lwork, iwork, liwork, info)
+         deallocate(work, iwork)
       
 !      endif
 
@@ -442,6 +444,7 @@ contains
          allocate(work(lwork))
          allocate(iwork(liwork))
          call la_syevd(job, upl, n, a, n, w, work, lwork, iwork, liwork, info)
+         deallocate(work, iwork)
          
 !      endif
 
@@ -500,12 +503,13 @@ contains
          call la_syevd(job, upl, n, a, n, w, work, lwork, iwork, liwork, info)
          
          lwork = idint(work(1))
+         !print*,"lwork",lwork
          liwork = iwork(1)
          deallocate(work, iwork)
          allocate(work(lwork))
          allocate(iwork(liwork))
          call la_syevd(job, upl, n, a, n, w, work, lwork, iwork, liwork, info)
-
+         deallocate(work, iwork)
 !      endif
 
    end subroutine la_syevd_rdp

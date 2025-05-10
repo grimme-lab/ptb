@@ -26,7 +26,7 @@
          call calcrab(n,at,xyz,rab)
          if (calc_ptb_grad) then
           call sint(n,ndim,at,xyz,rab,S,xnorm)       ! exact S
-          call pgtb(.false.,0,n,ndim,nel,nopen,ihomo,at,chrg,xyz,z,rab,pnt,xnorm,S,D3,efield,ML1,ML2,psh,q,P,F,eps,wbo,dipr,alp)
+          call pgtb(.false.,0,n,ndim,nel,nopen,ihomo,at,chrg,filter,xyz,z,rab,pnt,xnorm,S,D3,efield,ML1,ML2,psh,q,P,F,eps,wbo,dipr,alp)
           write(atmp,'(''mv ptb_dump ptb_dump_'',i0)') ngrad
           call system(atmp)
          endif
@@ -40,7 +40,7 @@
          call calcrab(n,at,xyz,rab)
          if (calc_ptb_grad) then
           call sint(n,ndim,at,xyz,rab,S,xnorm)       ! exact S
-          call pgtb(.false.,0,n,ndim,nel,nopen,ihomo,at,chrg,xyz,z,rab,pnt,xnorm,S,D3,efield,ML1,ML2,psh,q,P,F,eps,wbo,dipr,alp)
+          call pgtb(.false.,0,n,ndim,nel,nopen,ihomo,at,chrg,filter,xyz,z,rab,pnt,xnorm,S,D3,efield,ML1,ML2,psh,q,P,F,eps,wbo,dipr,alp)
           write(atmp,'(''mv ptb_dump ptb_dump_'',i0)') ngrad
           call system(atmp)
          endif
@@ -75,7 +75,7 @@
          call calcrab(n,at,xyz,rab)
          if (calc_ptb_grad) then
           call sint(n,ndim,at,xyz,rab,S,xnorm)       ! exact S
-          call pgtb(.false.,0,n,ndim,nel,nopen,ihomo,at,chrg,xyz,z,rab,pnt,xnorm,S,D3,efield,ML1,ML2,psh,q,P,F,eps,wbo,dipr,alp)
+          call pgtb(.false.,0,n,ndim,nel,nopen,ihomo,at,chrg,filter,xyz,z,rab,pnt,xnorm,S,D3,efield,ML1,ML2,psh,q,P,F,eps,wbo,dipr,alp)
           write(atmp,'(''mv ptb_dump ptb_dump_'',i0)') ngrad
           call system(atmp)
          endif
@@ -88,7 +88,7 @@
          call calcrab(n,at,xyz,rab)
          if (calc_ptb_grad) then
           call sint(n,ndim,at,xyz,rab,S,xnorm)       ! exact S
-          call pgtb(.false.,0,n,ndim,nel,nopen,ihomo,at,chrg,xyz,z,rab,pnt,xnorm,S,D3,efield,ML1,ML2,psh,q,P,F,eps,wbo,dipr,alp)
+          call pgtb(.false.,0,n,ndim,nel,nopen,ihomo,at,chrg,filter,xyz,z,rab,pnt,xnorm,S,D3,efield,ML1,ML2,psh,q,P,F,eps,wbo,dipr,alp)
           write(atmp,'(''mv ptb_dump ptb_dump_'',i0)') ngrad
           call system(atmp)
          endif
