@@ -1,0 +1,155 @@
+ 
+       ==============================================
+       |                 P T B                      |
+       |                S.Grimme                    |
+       |          Universitaet Bonn, MCTC           |
+       ==============================================
+       Version 3.7, Do 28. Apr 14:28:45 CEST 2022
+ 
+       Cite work conducted with this code as
+       S. Grimme, M. Mueller, A. Hansen, unpublished.
+ 
+ filter  1.000000000000000E-005
+ ../../../../.atompara                                                                                                                                                                                                                                           
+          =========================
+          reading ... ../../../../systems/chrysophanol.xyz
+          =========================
+ basis read done.
+ ncao                    316
+ nsao                    297
+ npr                     824
+ basis setup done. Ndim                   297
+ coreat                     19
+ cncao                      19
+ cnsao                      19
+ cnpr                      114
+ 
+ nalpha                     47
+ nbeta                      47
+ ntotal                     94
+ nopen                       0
+cpu  time for startup and initial S    0.06 s
+wall time for startup and initial S    0.00 s
+               -----------------------
+               |      PTB  model      |
+               | SG, MM, AH 2020-2022 |
+               -----------------------
+ prop :                     1
+ PA setup with Mull-Loew partitioning   0.333333 ...
+ done.
+EEQ done. sum q :   -0.000
+    atom   Zeff  qEEQ  mod   srCN   noHCN   CN(EEQ)
+    1    8  6.0    -0.008   2.042   0.217   1.992
+    2    8  6.0    -0.094   1.694   0.294   1.003
+    3    8  6.0    -0.089   1.417   0.293   1.003
+    4    8  6.0    -0.019   2.045   0.219   1.993
+    5    6  4.0    -0.009   3.926   0.296   3.029
+    6    6  4.0    -0.007   4.030   0.296   3.030
+    7    6  4.0    -0.010   4.047   0.296   3.030
+    8    6  4.0    -0.008   3.918   0.296   3.029
+    9    6  4.0     0.005   3.611   0.441   3.013
+   10    6  4.0     0.003   3.483   0.441   3.013
+   11    6  4.0    -0.058   3.617   0.226   3.028
+   12    6  4.0    -0.027   3.629   0.400   3.027
+   13    6  4.0    -0.035   3.454   0.295   3.022
+   14    6  4.0    -0.026   3.618   0.400   3.027
+   15    6  4.0    -0.065   3.548   0.230   3.025
+   16    6  4.0    -0.057   3.444   0.226   3.024
+   17    6  4.0    -0.060   3.341   0.230   3.021
+   18    6  4.0    -0.061   3.208   0.230   3.019
+   19    6  4.0    -0.064   3.502   0.076   3.984
+   20    1  1.0     0.083   0.911   0.003   0.994
+   21    1  1.0     0.069   0.906   0.003   0.994
+   22    1  1.0     0.085   0.906   0.003   0.994
+   23    1  1.0     0.077   0.901   0.003   0.994
+   24    1  1.0     0.074   0.900   0.003   0.994
+   25    1  1.0     0.052   0.831   0.003   0.993
+   26    1  1.0     0.054   0.830   0.003   0.993
+   27    1  1.0     0.051   0.831   0.003   0.993
+   28    1  1.0     0.059   0.941   0.040   0.993
+   29    1  1.0     0.086   1.095   0.041   0.994
+ computing Vecp ...
+ PTB H matrix iteration                      1  done. Now solving ...
+ S before filtering:
+   dimension                                     297
+   nonzero elements                            78338
+   sparsity                     0.888095319071750     
+   average elements per column                   263
+ S after filtering:
+   dimension                                     297
+   nonzero elements                            53466
+   sparsity                     0.606128626330647     
+   average elements per column                   180
+ H before filtering:
+   dimension                                     297
+   nonzero elements                            86064
+   sparsity                     0.975682753460531     
+   average elements per column                   289
+ H after filtering:
+   dimension                                     297
+   nonzero elements                            69344
+   sparsity                     0.786132934281082     
+   average elements per column                   233
+
+Total solve2                                   0.043591976 sec
+* sygvd solver                                 0.040966034 sec
+
+nel: 94, nel_calc:        94.00000000
+ nel in P=   94.0000000000001      required nel=                    94
+ idempotency deviation  2.614228278297048E-014  9.999999717180685E-010
+ Stupid simple implementation of the submatrix method:                     2                     2
+ number of submatrices=                    29
+ average sm dim=                   286
+ effort for full matrix ops=   26198073.0000000     
+ sums of efforts for submatrices=   685529061.000000     
+ ratio   26.1671559202083     
+ muiter                     1 mu  0.000000000000000E+000   215.561126001529      of                    94
+ muiter                     2 mu  -5.00000000000000       0.000000000000000E+000 of                    94
+ muiter                     3 mu  -2.50000000000000        46.1401339324057      of                    94
+ muiter                     4 mu  -1.25000000000000        122.440935963199      of                    94
+ muiter                     5 mu  -1.87500000000000        94.0079011519443      of                    94
+ muiter                     6 mu  -2.18750000000000        81.9231771812737      of                    94
+ muiter                     7 mu  -2.03125000000000        88.0301363050193      of                    94
+ muiter                     8 mu  -1.95312500000000        93.9763183772192      of                    94
+ muiter                     9 mu  -1.91406250000000        94.0051147421040      of                    94
+ muiter                    10 mu  -1.93359375000000        93.9763183772192      of                    94
+ muiter                    11 mu  -1.92382812500000        93.9807601441194      of                    94
+ muiter                    12 mu  -1.91894531250000        94.0051147421040      of                    94
+ muiter                    13 mu  -1.92138671875000        94.0049237558695      of                    94
+ muiter                    14 mu  -1.92260742187500        93.9807601441194      of                    94
+ muiter                    15 mu  -1.92199707031250        93.9807601441194      of                    94
+ muiter                    16 mu  -1.92169189453125        93.9807601441194      of                    94
+ iteration of chemical potential converged
+
+Submatrix                                      5.136016130 sec
+* submatrix stats                              0.000379086 sec
+* mu iter                                      5.135575771 sec
+* submatrix construction                       1.153782368 sec
+* submatrix eigendecomp                        0.889902592 sec
+* submatrix P                                  2.367603302 sec
+* submatrix Nel                                0.649501324 sec
+*                                              0.000000000 sec
+* submatrix return results                     0.017415285 sec
+*                                              0.000000000 sec
+*                                              0.000000000 sec
+
+ first elements Pref   1.36380319220701       0.496454355364957       0.221661759127833      -0.196373955920102      -0.216196771562078       0.888218219046214      -0.165715479732957      -0.147283755586316       0.104382983321952       0.766308303286187     
+ first elements P      1.36380319221019       0.496454355363236       0.221661759129014      -0.196373955900463      -0.216196771572387       0.888218219164325      -0.165715479701286      -0.147283755603634       0.104382983518260       0.766308303607689     
+ Sparsity of Pref:
+   dimension                                     297
+   nonzero elements                            87106
+   sparsity                     0.987495607024227     
+   average elements per column                   293
+ Sparsity of P:
+   dimension                                     297
+   nonzero elements                            85022
+   sparsity                     0.963869899896836     
+   average elements per column                   286
+ maximal deviation in density matrix  3.592198061872474E-002                 25495 -8.594528376766823E-003  2.732745224195792E-002
+ MSE of density matrix  3.175039159442996E-005
+ Tr(H Pref)=  -259.587435755967     
+ Tr(H P)=  -259.551009098698     
+ energy deviation abs(Tr(H P)-Tr(H Pref))=  3.642665726948735E-002
+ energy deviation per atom abs(Tr(H P)-Tr(H Pref))/n=  1.256091629982322E-003
+nel: 94, nel_calc:        93.97948034
+ nel in P=   93.9794803448128      required nel=                    94

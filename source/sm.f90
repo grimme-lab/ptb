@@ -125,15 +125,15 @@ contains
        allocate(kmeans_C(3,n))
        allocate(comb(n,ndim))
        allocate(ncomb(n))
-       do nsm=1,n !min(100,n)
+       do nsm=1,min(100,n)
          call clustering_kmeans(n,ndim,xyz,kmeans_c,kmeans_z,kmeans_work,H,S,aoat,nsm,ncomb,comb,effort_sms)
          print*,"kmeans",nsm,effort_sms
          if(effort_sms.lt.effort_min)then
            effort_min=effort_sms
            kmeans_z_opt(:)=kmeans_z(:)
            nsm_opt=nsm
-         else
-           exit
+!         else
+!           exit
          endif
        enddo
        nsm=nsm_opt

@@ -1,0 +1,38 @@
+ 
+       ==============================================
+       |                 P T B                      |
+       |                S.Grimme                    |
+       |          Universitaet Bonn, MCTC           |
+       ==============================================
+       Version 3.7, Do 28. Apr 14:28:45 CEST 2022
+ 
+       Cite work conducted with this code as
+       S. Grimme, M. Mueller, A. Hansen, unpublished.
+ 
+ filter  1.000000000000000E-005
+ ../../../../.atompara                                                                                                                                                                                                                                           
+          =========================
+          reading ... ../../../../systems/1yme.xyz
+          =========================
+ basis read done.
+ ncao                  46014
+ nsao                  43570
+ npr                  121029
+ basis setup done. Ndim                 43570
+ coreat                   2443
+ cncao                    2467
+ cnsao                    2467
+ cnpr                    14802
+ 
+ nalpha                   6754
+ nbeta                    6754
+ ntotal                  13508
+ nopen                       0
+cpu  time for startup and initial S   26.94 s
+wall time for startup and initial S   27.00 s
+               -----------------------
+               |      PTB  model      |
+               | SG, MM, AH 2020-2022 |
+               -----------------------
+ prop :                     1
+ PA setup with Mull-Loew partitioning   0.333333 ...

@@ -1,6 +1,7 @@
 filter=0.00001
 wd=`pwd`
-for col in full_matrix kmeans_r_heuristic atoms_columns single_columns;
+#for col in full_matrix kmeans_r_heuristic atoms_columns single_columns;
+for col in full_matrix kmeans_r_heuristic;
 do
   cd $wd
   for sys in `ls systems/*.xyz | sed "s/\.xyz//g" | sed "s/systems\///g"`;
