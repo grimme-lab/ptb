@@ -27,7 +27,7 @@ contains
         call random_number(svar)
         end subroutine
 
-   subroutine sm_stupid_simple(ndim,nelref,Hvec,Svec,Pvec,n,xyz,aoat)
+   subroutine sm_stupid_simple(ndim,nelref,Hvec,Svec,Pvec,n,xyz,aoat,submatrix_columns,submatrix_mode)
      integer,intent(in)     :: nelref
      integer,intent(in)     :: ndim
      real(wp),intent(in)    :: Hvec(:)
@@ -36,6 +36,8 @@ contains
      integer,intent(in)     :: n
      real(wp),intent(in)    :: xyz(3,n)
      integer,intent(in)     :: aoat(ndim)
+     integer,intent(in)     :: submatrix_columns
+     integer,intent(in)     :: submatrix_mode
 
      real(wp),allocatable :: H(:,:)
      real(wp),allocatable :: S(:,:)
@@ -62,15 +64,7 @@ contains
      type(tTimer) :: timer_sm
      integer(ik) :: info
 
-     logical :: tsingle=.false.
-     logical :: tatom=.false.
-     logical :: tclustering=.true.
-     logical :: tfull=.false.
-
-     logical :: tsign=.false.
-     logical :: tdiag=.true.
-
-     print*,"Stupid simple implementation of the submatrix method:"
+     print*,"Stupid simple implementation of the submatrix method:",submatrix_columns,submatrix_mode
 
      allocate(H(ndim,ndim))
      allocate(S(ndim,ndim))
@@ -85,15 +79,8 @@ contains
      call timer_sm%click(1, 'submatrix stats')
 
      nsm=0
-     if(tfull)then
-       nsm=1
-       allocate(comb(nsm,ndim))
-       allocate(ncomb(nsm))
-       ncomb(1)=ndim
-       do i=1,ndim
-         comb(1,i)=i
-       enddo
-     elseif(tsingle)then
+     if(submatrix_columns.eq.1)then
+       !columns as submatrices
        nsm=ndim
        allocate(comb(nsm,1))
        allocate(ncomb(nsm))
@@ -101,7 +88,35 @@ contains
        do i=1,ndim
          comb(i,1)=i
        enddo
-     elseif(tclustering)then
+     elseif(submatrix_columns.eq.2)then
+       !atoms as submatrices
+       allocate(comb(ndim,ndim))
+       allocate(ncomb(ndim))
+       ism=1
+       ncomb(ism)=1
+       comb(ism,ncomb(ism))=1
+
+       do i=2,ndim
+         if(aoat(i).eq.aoat(i-1))then
+            ncomb(ism)=ncomb(ism)+1
+            comb(ism,ncomb(ism))=i
+         else
+           ism=ism+1
+           ncomb(ism)=1
+           comb(ism,ncomb(ism))=i
+         endif
+       enddo
+       nsm=ism
+     elseif(submatrix_columns.eq.3)then
+       !full matrix
+       nsm=1
+       allocate(comb(nsm,ndim))
+       allocate(ncomb(nsm))
+       ncomb(1)=ndim
+       do i=1,ndim
+         comb(1,i)=i
+       enddo
+     elseif(submatrix_columns.eq.4)then
        !coordinate-based clustering with simple kmeans (alternative: metis)
        effort_min=huge(effort_min)
        allocate(kmeans_z(n))
@@ -127,24 +142,6 @@ contains
        deallocate(kmeans_z)
        deallocate(kmeans_work)
        deallocate(kmeans_C)
-     elseif(tatom)then
-       allocate(comb(ndim,ndim))
-       allocate(ncomb(ndim))
-       ism=1
-       ncomb(ism)=1
-       comb(ism,ncomb(ism))=1
-
-       do i=2,ndim
-         if(aoat(i).eq.aoat(i-1))then
-            ncomb(ism)=ncomb(ism)+1
-            comb(ism,ncomb(ism))=i
-         else
-           ism=ism+1
-           ncomb(ism)=1
-           comb(ism,ncomb(ism))=i
-         endif
-       enddo
-       nsm=ism
      else
        print*,"not implemented"
        stop
@@ -221,7 +218,7 @@ contains
           enddo
         enddo
         call timer_sm%click(3)
-        if(tsign)then
+        if(submatrix_mode.eq.1)then
           call timer_sm%click(4, 'submatrix orthogonalization')
           !Ortho
           call matrix_root(smdim,Ssm,sqrtinvSsm)
@@ -258,7 +255,7 @@ contains
           call la_gemm(sqrtinvSsm, Ssm, Hsm)
           call la_gemm(Hsm,sqrtinvSsm, Psm)
           call timer_sm%click(7)
-        elseif(tdiag)then
+        elseif(submatrix_mode.eq.2)then
           call timer_sm%click(4, 'submatrix eigendecomp')
           if(.not.allocated(eigdecomp))then
             allocate(eigdecomp(nsm))

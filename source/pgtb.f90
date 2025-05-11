@@ -615,7 +615,7 @@ contains
 !                 call print_matrix(ndim, P, 'Purified density matrix') 
 !              call check_density(ndim, P, S, nel) ! check if computed density matrix valid 
            elseif (pur%mode.eq.submatrix)then
-             call sm_stupid_simple(ndim,nel,Hmat,S,P,n,xyz,aoat)
+             call sm_stupid_simple(ndim,nel,Hmat,S,P,n,xyz,aoat,pur%submatrix_columns,pur%submatrix_mode)
            else
              print*,"mode",mode,"not implemented"
              stop

@@ -3,8 +3,16 @@ module purification_settings
 !   use cuda_, only: initialize_ctx
    implicit none
 
-   integer, parameter :: full = 0
-   integer, parameter :: submatrix = 1
+   integer, parameter :: full = 1
+   integer, parameter :: submatrix = 2
+   
+   integer, parameter :: single_columns = 1
+   integer, parameter :: atoms_columns = 2
+   integer, parameter :: full_matrix = 3
+   integer, parameter :: kmeans_r_heuristic = 4
+   
+   integer, parameter :: submatrix_sign = 1
+   integer, parameter :: submatrix_sygv = 2
 
    !> Different calculation types
    integer, parameter :: mcweeny = 1 ! Classical McWeeny purification
@@ -66,6 +74,10 @@ module purification_settings
       !> (internal) Number of electrons
       integer :: nel
 
+      !> submatrix modes mode
+      integer :: submatrix_mode = submatrix_sygv
+      integer :: submatrix_columns = atoms_columns
+
       type(tMetricSet) :: metric
       type(tChempotSet) :: chempot
    contains
@@ -120,6 +132,29 @@ contains
                case default
                   error stop 'Error: .PUR contains invalid type definition'
                end select
+            case('submatrix_columns')
+               select case(arg3)
+               case('single_columns')
+                  self%submatrix_columns = single_columns
+               case('atoms_columns')
+                  self%submatrix_columns = atoms_columns
+               case('full_matrix')
+                  self%submatrix_columns = full_matrix
+               case('kmeans_r_heuristic')
+                  self%submatrix_columns = kmeans_r_heuristic
+               case default
+                  error stop 'Error: .PUR contains invalid type definition'
+               end select
+            case('submatrix_mode')
+               select case(arg3)
+               case('submatrix_sign')
+                  self%submatrix_mode = submatrix_sign
+               case('submatrix_sygv')
+                  self%submatrix_mode = submatrix_sygv
+               case default
+                  error stop 'Error: .PUR contains invalid type definition'
+               end select
+
 
             case('type')
                select case(arg3)

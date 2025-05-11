@@ -1,2 +1,1 @@
-mode = submatrix
-check
+submatrix_column = full_matrix 
