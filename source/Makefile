@@ -13,7 +13,7 @@ MODULES= bascom.o parcom.o com.o thresholds.o cbascom.o mocom.o dftd4.o aescom.o
 
 CFILES= symmetry_i.o
 
-OBJS1 = matrix_ops.o kmpp.o sm.o metrics.o purification_settings.o norms.o  purification.o \
+OBJS1 = matrix_ops.o kmpp.o metrics.o sm.o purification_settings.o norms.o  purification.o \
 		 rdcoord.o readl.o asym.o elem.o readl2.o readline.o prmat.o  timing.o echo.o solve.o rdstvint.o \
        ints.o intpack.o pop.o rdmat.o fermi.o reorder.o bas.o occ.o dtrf2.o lin.o energy.o mrec.o \
        cma.o dtrf3.o drsp.o mlpop.o calcrab.o symmetry.o pgtb.o eeq.o ncoord.o prdipole.o itabrow.o \
