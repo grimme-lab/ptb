@@ -1,1 +1,5 @@
-submatrix_column = full_matrix 
+submatrix_columns = kmeans_r_heuristic
+!submatrix_columns = full_matrix
+submatrix_mode = submatrix_sygv
+mode = submatrix
+check

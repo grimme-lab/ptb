@@ -1,5 +1,5 @@
 set -e
-source /opt/intel/oneapi/setvars.sh
+#source /opt/intel/oneapi/setvars.sh
 cd source
 #make clean
 make

@@ -9,7 +9,10 @@ module sm
     integer :: ndim
     real(wp),allocatable :: U(:,:)
     real(wp),allocatable :: e(:)
+    real(wp),allocatable :: fe(:)
     real(wp),allocatable :: occ(:)
+    integer,allocatable :: map(:)
+    integer,allocatable :: imap(:)
   endtype
 
 contains
@@ -47,10 +50,11 @@ contains
      real(wp),allocatable :: sqrtinvSsm(:,:)
      real(wp),allocatable :: Psm(:,:)
      real(wp) :: effort_full, effort_sms, effort_min
-     integer,allocatable :: map(:)
-     integer,allocatable :: imap(:)
      integer,allocatable :: comb(:,:)
      integer,allocatable :: ncomb(:)
+     integer,allocatable :: itmp(:)
+     integer,allocatable :: tmp(:)
+     integer,allocatable :: st(:)
      
      integer,allocatable :: kmeans_z(:)
      integer,allocatable :: kmeans_z_opt(:)
@@ -63,14 +67,17 @@ contains
      real(wp) :: mua,mub,mu,nel
      type(tTimer) :: timer_sm
      integer(ik) :: info
+     logical :: finaliter
+     logical :: firstiter
 
      print*,"Stupid simple implementation of the submatrix method:",submatrix_columns,submatrix_mode
 
      allocate(H(ndim,ndim))
      allocate(S(ndim,ndim))
      allocate(P(ndim,ndim))
-     allocate(map(ndim))
-     allocate(imap(ndim))
+     allocate(itmp(ndim))
+     allocate(tmp(ndim))
+     allocate(st(ndim))
      
      call blowsym(ndim,Hvec,H)
      call blowsym(ndim,Svec,S)
@@ -125,7 +132,7 @@ contains
        allocate(kmeans_C(3,n))
        allocate(comb(n,ndim))
        allocate(ncomb(n))
-       do nsm=1,min(100,n)
+       do nsm=1,min(10,n)
          call clustering_kmeans(n,ndim,xyz,kmeans_c,kmeans_z,kmeans_work,H,S,aoat,nsm,ncomb,comb,effort_sms)
          print*,"kmeans",nsm,effort_sms
          if(effort_sms.lt.effort_min)then
@@ -160,16 +167,13 @@ contains
       do i=1,ndim
         do j=1,ncomb(ism)
          if(H(i,comb(ism,j)).gt.0.or.S(i,comb(ism,j)).gt.0.or.i.eq.comb(ism,j))then
-           map(ind+1)=i 
            ind=ind+1
            exit
          endif
         enddo
       enddo
       smdim=ind
-!      print*,ism,map(1:smdim)
       sumsmdims=sumsmdims+smdim
-!        print*,"submatrix",ism,"smdim=",smdim,"comb cols",ncomb(ism)
       effort_sms=effort_sms+real(smdim,kind=wp)**3
      enddo
      print*,"number of submatrices=",nsm
@@ -183,142 +187,188 @@ contains
      call timer_sm%click(2, 'mu iter')
      mua=-10
      mub=10
-     do muiter=1,20
+     firstiter=.true.
+     finaliter=.false.
+     allocate(eigdecomp(nsm))
+
+     do muiter=1,100
        mu=(mua+mub)/2
+
        nel=0
-       P(:,:)=0
+       if(finaliter)then
+         P(:,:)=0
+       endif
 
-       !single-column submatrix method
+       !submatrix method
        do ism=1,nsm
-        call timer_sm%click(3, 'submatrix construction')
-        !collect submatrix infos
-        ind=0
-        do i=1,ndim
-          do j=1,ncomb(ism)
-           if(H(i,comb(ism,j)).gt.0.or.S(i,comb(ism,j)).gt.0.or.i.eq.comb(ism,j))then
-             map(ind+1)=i 
-             imap(i)=ind+1
-             ind=ind+1
-             exit
-           endif
+        if(firstiter)then
+          call timer_sm%click(3, 'submatrix construction')
+          !collect submatrix infos
+          st(:)=0
+          do i=1,ndim
+            do j=1,ncomb(ism)
+             if(H(i,comb(ism,j)).gt.0.or.S(i,comb(ism,j)).gt.0.or.i.eq.comb(ism,j))then
+               st(i)=1
+               exit
+             endif
+            enddo
           enddo
-        enddo
-        smdim=ind
-        !print*,"submatrix",ism,"smdim=",smdim,"comb cols",ncomb(ism)
-
-        !build submatrices
-        allocate(Hsm(smdim,smdim))
-        allocate(Ssm(smdim,smdim))
-        allocate(Psm(smdim,smdim))
-        allocate(sqrtinvSsm(smdim,smdim))
-        do i=1,smdim
-          do j=1,smdim
-            Hsm(i,j)=H(map(i),map(j))    
-            Ssm(i,j)=S(map(i),map(j))    
-          enddo
-        enddo
-        call timer_sm%click(3)
-        if(submatrix_mode.eq.1)then
-          call timer_sm%click(4, 'submatrix orthogonalization')
-          !Ortho
-          call matrix_root(smdim,Ssm,sqrtinvSsm)
-  !        Hsm(:,:)=matmul(matmul(sqrtinvSsm,Hsm),sqrtinvSsm)
-          call la_gemm(sqrtinvSsm, Hsm, Psm)
-          call la_gemm(Psm,sqrtinvSsm, Hsm)
-          
-          call timer_sm%click(4)
-          call timer_sm%click(5, 'submatrix sign')
-          
-          do i=1,smdim
-            Hsm(i,i)=Hsm(i,i)-mu
-          enddo
-          !sign function
-          call matrix_sign(smdim,Hsm,Ssm)
-
-          call timer_sm%click(5)
-          call timer_sm%click(6, 'submatrix nel')
-
-          !electron number
-          do j=1,ncomb(ism)
-            k=imap(comb(ism,j))
-            nel=nel+(1.0D0-Ssm(k,k))
-          enddo
-
-          call timer_sm%click(6)
-          call timer_sm%click(7, 'submatrix P')
-          !compute Psm
-          Ssm(:,:)=-Ssm(:,:)
-          do i=1,smdim
-            Ssm(i,i)=1.0D0+Ssm(i,i)
-          enddo
-  !        Psm(:,:)=matmul(sqrtinvSsm,matmul(Ssm,sqrtinvSsm))
-          call la_gemm(sqrtinvSsm, Ssm, Hsm)
-          call la_gemm(Hsm,sqrtinvSsm, Psm)
-          call timer_sm%click(7)
-        elseif(submatrix_mode.eq.2)then
-          call timer_sm%click(4, 'submatrix eigendecomp')
-          if(.not.allocated(eigdecomp))then
-            allocate(eigdecomp(nsm))
-          endif
-          if(.not.allocated(eigdecomp(ism)%U))then
-            eigdecomp(ism)%ndim=smdim
-            allocate(eigdecomp(ism)%U(smdim,smdim))
-            allocate(eigdecomp(ism)%e(smdim))
-            allocate(eigdecomp(ism)%occ(smdim))
-            eigdecomp(ism)%U(:,:)=Hsm(:,:)
-            call la_sygvd(eigdecomp(ism)%U,Ssm,eigdecomp(ism)%e,INFO)
-          endif
-          call timer_sm%click(4)
-          call timer_sm%click(5, 'submatrix P')
-          do i=1,smdim
-            if(eigdecomp(ism)%e(i).lt.mu)then
-              eigdecomp(ism)%occ(i)=2
-            elseif(eigdecomp(ism)%e(i).eq.mu)then
-              eigdecomp(ism)%occ(i)=1
-            else
-              eigdecomp(ism)%occ(i)=0
+          smdim=0
+          do i=1,ndim
+            if(st(i).eq.1)then
+               tmp(smdim+1)=i 
+               itmp(i)=smdim+1
+               smdim=smdim+1
             endif
           enddo
-          call dmat(smdim,eigdecomp(ism)%occ,eigdecomp(ism)%U,Psm)
-          call timer_sm%click(5)
-          call timer_sm%click(6, 'submatrix Nel')
-          call la_gemm(Psm, Ssm, Hsm)
-          do j=1,ncomb(ism)
-            k=imap(comb(ism,j))
-            nel=nel+Hsm(k,k)
-          enddo
-          call timer_sm%click(6)
-        else
-          print*,"not implemented"
-          stop
-        endif
-        
-        call timer_sm%click(8, 'submatrix return results')
 
-        !put results in P
-        do j=1,ncomb(ism)
-          k=imap(comb(ism,j))
+          allocate(eigdecomp(ism)%map(smdim))
+          allocate(eigdecomp(ism)%imap(smdim))
+          eigdecomp(ism)%ndim=smdim
+          eigdecomp(ism)%map(1:smdim)=tmp(1:smdim)
+          eigdecomp(ism)%imap(1:smdim)=itmp(1:smdim)
+
+          !build submatrices
+          allocate(Hsm(smdim,smdim))
+          allocate(Ssm(smdim,smdim))
+          allocate(Psm(smdim,smdim))
+          !$OMP PARALLEL DO 
           do i=1,smdim
-            P(map(i),comb(ism,j))=Psm(i,k)
+            do j=1,smdim
+              Hsm(i,j)=H(eigdecomp(ism)%map(i),eigdecomp(ism)%map(j))    
+              Ssm(i,j)=S(eigdecomp(ism)%map(i),eigdecomp(ism)%map(j))    
+            enddo
           enddo
+          call timer_sm%click(3)
+          if(submatrix_mode.eq.1)then
+            print*,"submatrix_mode.eq.1 not implemented"
+            stop
+!            allocate(sqrtinvSsm(smdim,smdim))
+!            call timer_sm%click(4, 'submatrix orthogonalization')
+!            !Ortho
+!            call matrix_root(smdim,Ssm,sqrtinvSsm)
+!    !        Hsm(:,:)=matmul(matmul(sqrtinvSsm,Hsm),sqrtinvSsm)
+!            call la_gemm(sqrtinvSsm, Hsm, Psm)
+!            call la_gemm(Psm,sqrtinvSsm, Hsm)
+!            
+!            call timer_sm%click(4)
+!            call timer_sm%click(5, 'submatrix sign')
+!            
+!            do i=1,smdim
+!              Hsm(i,i)=Hsm(i,i)-mu
+!            enddo
+!            !sign function
+!            call matrix_sign(smdim,Hsm,Ssm)
+!
+!            call timer_sm%click(5)
+!            call timer_sm%click(6, 'submatrix nel')
+!
+!            !electron number
+!            do j=1,ncomb(ism)
+!              k=imap(comb(ism,j))
+!              nel=nel+(1.0D0-Ssm(k,k))
+!            enddo
+!
+!            call timer_sm%click(6)
+!            call timer_sm%click(7, 'submatrix P')
+!            !compute Psm
+!            Ssm(:,:)=-Ssm(:,:)
+!            do i=1,smdim
+!              Ssm(i,i)=1.0D0+Ssm(i,i)
+!            enddo
+!    !        Psm(:,:)=matmul(sqrtinvSsm,matmul(Ssm,sqrtinvSsm))
+!            call la_gemm(sqrtinvSsm, Ssm, Hsm)
+!            call la_gemm(Hsm,sqrtinvSsm, Psm)
+!            deallocate(sqrtinvSsm)
+!            call timer_sm%click(7)
+          elseif(submatrix_mode.eq.2)then
+            call timer_sm%click(4, 'submatrix eigendecomp')
+            allocate(eigdecomp(ism)%U(smdim,smdim))
+            allocate(eigdecomp(ism)%e(smdim))
+            allocate(eigdecomp(ism)%fe(smdim))
+            allocate(eigdecomp(ism)%occ(smdim))
+            eigdecomp(ism)%U(:,:)=Hsm(:,:)
+            Psm(:,:)=Ssm(:,:)
+            call la_sygvd(eigdecomp(ism)%U,Psm,eigdecomp(ism)%e,INFO)
+
+            call la_gemm(transpose(Ssm),eigdecomp(ism)%U, Psm)
+            eigdecomp(ism)%fe(:)=0
+            do j=1,smdim
+              do k=1,ncomb(ism)
+                i=eigdecomp(ism)%imap(comb(ism,k))
+                eigdecomp(ism)%fe(j)=eigdecomp(ism)%fe(j)+Psm(i,j)*eigdecomp(ism)%U(i,j)
+              enddo
+            enddo
+            call timer_sm%click(4)
+          else
+            print*,"not implemented submatrix_mode",submatrix_mode
+            stop
+          endif
+          deallocate(Hsm)
+          deallocate(Ssm)
+          deallocate(Psm)
+        endif 
+        call timer_sm%click(5, 'submatrix occ')
+        do i=1,smdim
+          if(eigdecomp(ism)%e(i).lt.mu)then
+            eigdecomp(ism)%occ(i)=2
+          elseif(eigdecomp(ism)%e(i).eq.mu)then
+            eigdecomp(ism)%occ(i)=1
+          else
+            eigdecomp(ism)%occ(i)=0
+          endif
         enddo
-        call timer_sm%click(8)
-        deallocate(Hsm)
-        deallocate(Ssm)
-        deallocate(sqrtinvSsm)
-        deallocate(Psm)
-       enddo
+        call timer_sm%click(5)
+        
+        call timer_sm%click(6, 'submatrix Nel')
+        !call dmat(smdim,eigdecomp(ism)%occ,eigdecomp(ism)%U,Psm)
+        !call la_gemm(Psm, Ssm, Hsm)
+        !do j=1,ncomb(ism)
+        !  k=imap(comb(ism,j))
+        !  nel=nel+Hsm(k,k)
+        !enddo
+        nel=nel+sum(eigdecomp(ism)%fe(:)*eigdecomp(ism)%occ(:))
+        call timer_sm%click(6)
+        
+        if(finaliter)then
+          allocate(Psm(smdim,smdim))
+          do i=1,smdim
+            do j=1,smdim
+              Psm(i,j)=P(eigdecomp(ism)%map(i),eigdecomp(ism)%map(j))    
+            enddo
+          enddo
+          !put results in P
+          call dmat(smdim,eigdecomp(ism)%occ,eigdecomp(ism)%U,Psm)
+          do j=1,ncomb(ism)
+            k=eigdecomp(ism)%imap(comb(ism,j))
+            do i=1,smdim
+              P(eigdecomp(ism)%map(i),comb(ism,j))=Psm(i,k)
+            enddo
+          enddo
+          deallocate(Psm)
+          call timer_sm%click(8)    
+        endif
+       
+       enddo !submatrix iteration
+       if(finaliter)then
+        exit
+       endif
+       
        print*,"muiter",muiter,"mu",mu,nel,"of",nelref
        if(abs(mua-mub).lt.1e-3.or.abs(nel-nelref).lt.1e-5)then
          print*,"iteration of chemical potential converged"
-         exit
+         finaliter=.true.
+         print*,"final iteration to get density matrix"
        endif
-       if(nel>nelref)then
-         mub=mu
-       else
-         mua=mu
+       if(.not.finaliter)then
+         if(nel>nelref)then
+           mub=mu
+         else
+           mua=mu
+         endif
        endif
-     enddo
+       firstiter=.false.
+     enddo !mu iteration
      call timer_sm%click(2)
      call timer_sm%finalize('Submatrix')
 
@@ -326,8 +376,6 @@ contains
      deallocate(H)
      deallocate(S)
      deallocate(P)
-     deallocate(map)
-     deallocate(imap)
      deallocate(ncomb)
      deallocate(comb)
      if(allocated(eigdecomp))then
@@ -335,10 +383,14 @@ contains
          if(allocated(eigdecomp(ism)%U))then
            deallocate(eigdecomp(ism)%U)
            deallocate(eigdecomp(ism)%e)
+           deallocate(eigdecomp(ism)%fe)
            deallocate(eigdecomp(ism)%occ)
+           deallocate(eigdecomp(ism)%map)
+           deallocate(eigdecomp(ism)%imap)
          endif
        enddo
        deallocate(eigdecomp)
+       deallocate(st,itmp,tmp)
      endif
    end subroutine
    subroutine matrix_sign(ndim,A,S)
