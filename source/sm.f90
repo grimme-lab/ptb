@@ -132,7 +132,7 @@ contains
        allocate(kmeans_C(3,n))
        allocate(comb(n,ndim))
        allocate(ncomb(n))
-       do nsm=1,min(10,n)
+       do nsm=1,min(20,n)
          call clustering_kmeans(n,ndim,xyz,kmeans_c,kmeans_z,kmeans_work,H,S,aoat,nsm,ncomb,comb,effort_sms)
          print*,"kmeans",nsm,effort_sms
          if(effort_sms.lt.effort_min)then
@@ -223,10 +223,10 @@ contains
           enddo
 
           allocate(eigdecomp(ism)%map(smdim))
-          allocate(eigdecomp(ism)%imap(smdim))
+          allocate(eigdecomp(ism)%imap(ndim))
           eigdecomp(ism)%ndim=smdim
           eigdecomp(ism)%map(1:smdim)=tmp(1:smdim)
-          eigdecomp(ism)%imap(1:smdim)=itmp(1:smdim)
+          eigdecomp(ism)%imap(1:ndim)=itmp(1:ndim)
 
           !build submatrices
           allocate(Hsm(smdim,smdim))
@@ -309,7 +309,7 @@ contains
           deallocate(Psm)
         endif 
         call timer_sm%click(5, 'submatrix occ')
-        do i=1,smdim
+        do i=1,eigdecomp(ism)%ndim
           if(eigdecomp(ism)%e(i).lt.mu)then
             eigdecomp(ism)%occ(i)=2
           elseif(eigdecomp(ism)%e(i).eq.mu)then
@@ -331,6 +331,7 @@ contains
         call timer_sm%click(6)
         
         if(finaliter)then
+          smdim=eigdecomp(ism)%ndim
           allocate(Psm(smdim,smdim))
           do i=1,smdim
             do j=1,smdim
