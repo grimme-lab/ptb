@@ -6,3 +6,5 @@
 .EDISP
 *.swp
 *.out
+*.pdf
+*.png
