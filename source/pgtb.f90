@@ -1566,9 +1566,7 @@ contains
             ij = ij + 1
             if(A(ij)>0)then
               colcnt(i)=colcnt(i)+1
-              colcnt(j)=colcnt(j)+1
               if(i.ne.j)then
-                colcnt(i)=colcnt(i)+1
                 colcnt(j)=colcnt(j)+1
               endif
             endif

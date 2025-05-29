@@ -28,8 +28,8 @@
  nbeta                    2048
  ntotal                   4096
  nopen                       0
-cpu  time for startup and initial S    4.23 s
-wall time for startup and initial S    4.00 s
+cpu  time for startup and initial S    3.24 s
+wall time for startup and initial S    3.00 s
                -----------------------
                |      PTB  model      |
                | SG, MM, AH 2020-2022 |
@@ -1579,360 +1579,307 @@ EEQ done. sum q :    0.000
  PTB H matrix iteration                      1  done. Now solving ...
  S before filtering:
    dimension                                   11776
-   nonzero elements                         16089280
-   sparsity                     0.116022178491257     
-   average elements per column                  1366
+   nonzero elements                          8045664
+   sparsity                     5.801847346112949E-002
+   average elements per column                   683
  S after filtering:
    dimension                                   11776
-   nonzero elements                          6791392
-   sparsity                     4.897373249940926E-002
-   average elements per column                   576
+   nonzero elements                          3395696
+   sparsity                     2.448686624970463E-002
+   average elements per column                   288
  H before filtering:
    dimension                                   11776
-   nonzero elements                        108783232
-   sparsity                     0.784451980446597     
-   average elements per column                  9237
+   nonzero elements                         54391616
+   sparsity                     0.392225990223299     
+   average elements per column                  4618
  H after filtering:
    dimension                                   11776
-   nonzero elements                         11012736
-   sparsity                     7.941446863185256E-002
-   average elements per column                   935
+   nonzero elements                          5506368
+   sparsity                     3.970723431592628E-002
+   average elements per column                   467
 
-Total solve2                                 111.508915901 sec
-* sygvd solver                               105.113716125 sec
+Total solve2                                  51.714012861 sec
+* sygvd solver                                48.345928907 sec
 
 nel: 4096, nel_calc:      4096.00000000
  nel in P=   4096.00000000001      required nel=                  4096
- idempotency deviation  1.358644002424220E-011  9.999999747378752E-005
+ idempotency deviation  1.564402199363130E-011  9.999999747378752E-005
  Stupid simple implementation of the submatrix method:                     4                     2
- kmeans                     1   1633027096576.00     
- kmeans                     2   1882497836800.00     
- kmeans                     3   1985192033384.00     
- kmeans                     4   1946600172516.00     
- kmeans                     5   1851214177006.00     
- kmeans                     6   1774837438027.00     
- kmeans                     7   1682954919374.00     
- kmeans                     8   1616377871583.00     
- kmeans                     9   1664075758855.00     
- kmeans                    10   1735124206900.00     
- kmeans                    11   1759175764412.00     
- kmeans                    12   1875184662562.00     
- kmeans                    13   1895257927602.00     
- kmeans                    14   1882367979599.00     
- kmeans                    15   1953554867896.00     
- kmeans                    16   1995193621804.00     
- kmeans                    17   1942785427479.00     
- kmeans                    18   2000573412725.00     
- kmeans                    19   2002933925268.00     
- kmeans                    20   2028929633729.00     
- kmeans                    21   2050368440756.00     
- kmeans                    22   2008677001159.00     
- kmeans                    23   2028037497859.00     
- kmeans                    24   2096531742070.00     
- kmeans                    25   2060574074899.00     
- kmeans                    26   2081493987014.00     
- kmeans                    27   2082544646781.00     
- kmeans                    28   2080930128109.00     
- kmeans                    29   2041303562073.00     
- kmeans                    30   2067966895369.00     
- kmeans                    31   2051596741338.00     
- kmeans                    32   2035139265248.00     
- kmeans                    33   1999135204928.00     
- kmeans                    34   2048119302395.00     
- kmeans                    35   2086458271312.00     
- kmeans                    36   2078792210017.00     
- kmeans                    37   2035060417864.00     
- kmeans                    38   2076663701112.00     
- kmeans                    39   2082955347904.00     
- kmeans                    40   2067093446378.00     
- kmeans                    41   2020066549623.00     
- kmeans                    42   2018654073422.00     
- kmeans                    43   2023845240626.00     
- kmeans                    44   2043182295590.00     
- kmeans                    45   2039622479005.00     
- kmeans                    46   2108675426620.00     
- kmeans                    47   2047509083481.00     
- kmeans                    48   2062638563703.00     
- kmeans                    49   2056035428321.00     
- kmeans                    50   2031221832067.00     
- kmeans                    51   2053318868102.00     
- kmeans                    52   2028178048674.00     
- kmeans                    53   2044755517576.00     
- kmeans                    54   2023417404299.00     
- kmeans                    55   2066397037906.00     
- kmeans                    56   2101601939950.00     
- kmeans                    57   2087287516620.00     
- kmeans                    58   2119744373860.00     
- kmeans                    59   2076678401786.00     
- kmeans                    60   2077877381472.00     
- kmeans                    61   2100050061437.00     
- kmeans                    62   2093839082458.00     
- kmeans                    63   2106039660647.00     
- kmeans                    64   2102081568533.00     
- kmeans                    65   2103123362891.00     
- kmeans                    66   2107969808083.00     
- kmeans                    67   2084498420452.00     
- kmeans                    68   2102252232081.00     
- kmeans                    69   2102247898063.00     
- kmeans                    70   2099583289655.00     
- kmeans                    71   2093307307636.00     
- kmeans                    72   2085779047020.00     
- kmeans                    73   2086093892398.00     
- kmeans                    74   2143168416839.00     
- kmeans                    75   2143651512470.00     
- kmeans                    76   2135683253172.00     
- kmeans                    77   2134016137006.00     
- kmeans                    78   2141860186573.00     
- kmeans                    79   2117221894377.00     
- kmeans                    80   2125084373458.00     
- kmeans                    81   2098135252362.00     
- kmeans                    82   2104643331167.00     
- kmeans                    83   2107591177788.00     
- kmeans                    84   2132379679812.00     
- kmeans                    85   2156781981043.00     
- kmeans                    86   2161247589501.00     
- kmeans                    87   2151072734277.00     
- kmeans                    88   2163068263281.00     
- kmeans                    89   2162920397667.00     
- kmeans                    90   2154039305657.00     
- kmeans                    91   2145626830747.00     
- kmeans                    92   2145569075610.00     
- kmeans                    93   2160391760550.00     
- kmeans                    94   2165722466051.00     
- kmeans                    95   2149552963191.00     
- kmeans                    96   2155706960740.00     
- kmeans                    97   2157797095212.00     
- kmeans                    98   2157566006235.00     
- kmeans                    99   2200543613286.00     
- kmeans                   100   2187930960177.00     
- number of submatrices=                     8
- average sm dim=                  5861
- effort for full matrix ops=   1633027096576.00     
- sums of efforts for submatrices=   1616377871583.00     
- ratio  0.989804685404236     
- muiter                     1 mu  0.000000000000000E+000   10318.6660526693      of                  4096
- muiter                     2 mu  -5.00000000000000       0.000000000000000E+000 of                  4096
- muiter                     3 mu  -2.50000000000000        1023.99996782496      of                  4096
- muiter                     4 mu  -1.25000000000000        4310.37331370269      of                  4096
- muiter                     5 mu  -1.87500000000000        4095.99987264034      of                  4096
- muiter                     6 mu  -1.56250000000000        4096.00596138294      of                  4096
- muiter                     7 mu  -1.71875000000000        4096.00007281984      of                  4096
- muiter                     8 mu  -1.79687500000000        4095.99996834415      of                  4096
- muiter                     9 mu  -1.75781250000000        4095.99999483208      of                  4096
- iteration of chemical potential converged
-
-Submatrix                                    473.757173061 sec
-* submatrix stats                             97.553587914 sec
-* mu iter                                    376.203285933 sec
-* submatrix construction                     109.399402857 sec
-* submatrix eigendecomp                      184.123507738 sec
-* submatrix P                                 38.280822992 sec
-* submatrix Nel                               36.039551973 sec
-*                                              0.000000000 sec
-* submatrix return results                     4.284491062 sec
-*                                              0.000000000 sec
-*                                              0.000000000 sec
-
- first elements Pref   1.40963250870232       0.547413767700018       0.248623585309816       0.141004932797104       0.162042106966530        1.02044271558739      -6.548004374866805E-003  4.962568505194962E-003  0.212479109346882       0.941115895604893     
- first elements P      1.40963250845503       0.547413767343142       0.248623584988974       0.141004932844132       0.162042106998213        1.02044271557243      -6.548004360505415E-003  4.962568488209490E-003  0.212479109337323       0.941115895531229     
- Sparsity of Pref:
-   dimension                                   11776
-   nonzero elements                        139271600
-   sparsity                      1.00430811285297     
-   average elements per column                 11826
- Sparsity of P:
-   dimension                                   11776
-   nonzero elements                         68722772
-   sparsity                     0.495570076435861     
-   average elements per column                  5835
- maximal deviation in density matrix  6.048333969834558E-004              38616397  0.000000000000000E+000 -6.048333969834558E-004
- MSE of density matrix  6.845920108495804E-011
- Tr(H Pref)=  -10395.0776649969     
- Tr(H P)=  -10395.0775689823     
- energy deviation abs(Tr(H P)-Tr(H Pref))=  9.601464626030065E-005
- energy deviation per atom abs(Tr(H P)-Tr(H Pref))/n=  6.250953532571657E-008
-nel: 4096, nel_calc:      4095.99998322
- nel in P=   4095.99998321561      required nel=                  4096
- idempotency deviation  0.157466210336758       9.999999747378752E-005
- Error: density matrix is not idempotent.
- PTB H matrix iteration                      2  done. Now solving ...
- S before filtering:
-   dimension                                   11776
-   nonzero elements                          6791392
-   sparsity                     4.897373249940926E-002
-   average elements per column                   576
- S after filtering:
-   dimension                                   11776
-   nonzero elements                          6791392
-   sparsity                     4.897373249940926E-002
-   average elements per column                   576
- H before filtering:
-   dimension                                   11776
-   nonzero elements                        107171752
-   sparsity                     0.772831359747903     
-   average elements per column                  9100
- H after filtering:
-   dimension                                   11776
-   nonzero elements                         14768520
-   sparsity                     0.106497982724628     
-   average elements per column                  1254
-
-Total solve2                                 115.227284908 sec
-* sygvd solver                               108.799093962 sec
-
-nel: 4096, nel_calc:      4096.00000000
- nel in P=   4096.00000000002      required nel=                  4096
- idempotency deviation  8.570495062341227E-012  9.999999747378752E-005
- Stupid simple implementation of the submatrix method:                     4                     2
- kmeans                     1   1633027096576.00     
- kmeans                     2   2184045370346.00     
- kmeans                     3   2413700080499.00     
- kmeans                     4   2533881152154.00     
- kmeans                     5   2533795102727.00     
- kmeans                     6   2506969682785.00     
- kmeans                     7   2467451592179.00     
- kmeans                     8   2428274289338.00     
- kmeans                     9   2531174262578.00     
- kmeans                    10   2627455393916.00     
- kmeans                    11   2693592031040.00     
- kmeans                    12   2864433777900.00     
- kmeans                    13   2899501868821.00     
- kmeans                    14   2918889602266.00     
- kmeans                    15   3054988424255.00     
- kmeans                    16   3095965019667.00     
- kmeans                    17   3037044873934.00     
- kmeans                    18   3151771612570.00     
- kmeans                    19   3153646418660.00     
- kmeans                    20   3205959968378.00     
- kmeans                    21   3286409322859.00     
- kmeans                    22   3255961867240.00     
- kmeans                    23   3291518640679.00     
- kmeans                    24   3382109051344.00     
- kmeans                    25   3340418377315.00     
- kmeans                    26   3397221103676.00     
- kmeans                    27   3409228110959.00     
- kmeans                    28   3409080509816.00     
- kmeans                    29   3354824744678.00     
- kmeans                    30   3374314309125.00     
- kmeans                    31   3363445912488.00     
- kmeans                    32   3357180423230.00     
- kmeans                    33   3389888789673.00     
- kmeans                    34   3416863922902.00     
- kmeans                    35   3503550588528.00     
- kmeans                    36   3472204234366.00     
- kmeans                    37   3445000026190.00     
- kmeans                    38   3484307948704.00     
- kmeans                    39   3490196726362.00     
- kmeans                    40   3475624233853.00     
- kmeans                    41   3443549775618.00     
- kmeans                    42   3453545448855.00     
- kmeans                    43   3464573328729.00     
- kmeans                    44   3503167898513.00     
- kmeans                    45   3506920016118.00     
- kmeans                    46   3588089101351.00     
- kmeans                    47   3518728484714.00     
- kmeans                    48   3559012490986.00     
- kmeans                    49   3544850330152.00     
- kmeans                    50   3549737542105.00     
- kmeans                    51   3565674772329.00     
- kmeans                    52   3583757153897.00     
- kmeans                    53   3637601835725.00     
- kmeans                    54   3606228484944.00     
- kmeans                    55   3650079115640.00     
- kmeans                    56   3715158405951.00     
- kmeans                    57   3635718548822.00     
- kmeans                    58   3698577472078.00     
- kmeans                    59   3704940418382.00     
- kmeans                    60   3714719741776.00     
- kmeans                    61   3767416544650.00     
- kmeans                    62   3761122094032.00     
- kmeans                    63   3806100467899.00     
- kmeans                    64   3787351700497.00     
- kmeans                    65   3795189857698.00     
- kmeans                    66   3813169330948.00     
- kmeans                    67   3788180242017.00     
- kmeans                    68   3831380105567.00     
- kmeans                    69   3817903528550.00     
- kmeans                    70   3827579187622.00     
- kmeans                    71   3834693152222.00     
- kmeans                    72   3802096383372.00     
- kmeans                    73   3810528372442.00     
- kmeans                    74   3928923678714.00     
- kmeans                    75   3931212267154.00     
- kmeans                    76   3913869199704.00     
- kmeans                    77   3907896486283.00     
- kmeans                    78   3934917005578.00     
- kmeans                    79   3918108561927.00     
- kmeans                    80   3947980767966.00     
- kmeans                    81   3911829879956.00     
- kmeans                    82   3945969815399.00     
- kmeans                    83   3941227616340.00     
- kmeans                    84   3966752638049.00     
- kmeans                    85   4021591237585.00     
- kmeans                    86   4036128083946.00     
- kmeans                    87   4029363149112.00     
- kmeans                    88   4030685172421.00     
- kmeans                    89   4028961285084.00     
- kmeans                    90   4014309937227.00     
- kmeans                    91   4014912070886.00     
- kmeans                    92   4024999381038.00     
- kmeans                    93   4066675693942.00     
- kmeans                    94   4089367755443.00     
- kmeans                    95   4060051700375.00     
- kmeans                    96   4065084994551.00     
- kmeans                    97   4076567444759.00     
- kmeans                    98   4079117292622.00     
- kmeans                    99   4153966208668.00     
- kmeans                   100   4140219835391.00     
+ kmeans                     1   15048544348.3198       9.561705589294434E-002
+ kmeans                     2   19135151509.7478       0.668241024017334     
+ kmeans                     3   20976666631.2818       0.887899875640869     
+ kmeans                    39   31675825308.0148       0.969415187835693     
+ kmeans                    35   30613269202.7219       0.972237110137939     
+ kmeans                    60   34403547584.3850       0.978857040405273     
+ kmeans                    53   33534497938.8590       0.993479013442993     
+ kmeans                    49   33175429414.2051        1.00598192214966     
+ kmeans                    64   35633804287.9157        1.00673007965088     
+ kmeans                    37   31400945411.8636        1.00884509086609     
+ kmeans                    62   34263488724.9049        1.01102709770203     
+ kmeans                    50   33050653152.6613        1.01623916625977     
+ kmeans                    58   34180825215.2908        1.01717710494995     
+ kmeans                    59   34411173864.7643        1.01904392242432     
+ kmeans                    36   31504369100.5135        1.02507805824280     
+ kmeans                    56   33459640352.0051        1.02672481536865     
+ kmeans                    54   34026199579.8619        1.02864480018616     
+ kmeans                    38   31904302283.0950        1.02938199043274     
+ kmeans                    51   33476519890.2626        1.03063678741455     
+ kmeans                    44   32696459245.0382        1.03143310546875     
+ kmeans                    61   34447638683.7814        1.03165197372437     
+ kmeans                    57   33888674511.6455        1.03176116943359     
+ kmeans                    46   33572036121.4027        1.03228998184204     
+ kmeans                    47   33235362346.3339        1.03255820274353     
+ kmeans                    42   32658041132.2752        1.03435993194580     
+ kmeans                    29   29745551738.1876        1.03481793403625     
+ kmeans                     4   21591995642.3340        1.03612017631531     
+ kmeans                    48   33261693797.5902        1.03637003898621     
+ kmeans                    52   33696900345.9918        1.03779602050781     
+ kmeans                    63   34960334790.8905        1.03880286216736     
+ kmeans                    55   33824203460.3944        1.03989601135254     
+ kmeans                    43   31908465783.6351        1.04085922241211     
+ kmeans                    40   32167759077.8565        1.04316091537476     
+ kmeans                    45   32328896087.9117        1.04378294944763     
+ kmeans                    33   30941032906.0838        1.04478502273560     
+ kmeans                    41   31981374533.2499        1.04719495773315     
+ kmeans                    30   30039879987.8929        1.04824805259705     
+ kmeans                    28   29964883354.5580        1.04885387420654     
+ kmeans                    34   31612938388.8574        1.05391407012939     
+ kmeans                    27   29759576263.1191        1.05433392524719     
+ kmeans                    31   30259174634.9824        1.05587387084961     
+ kmeans                    32   31097914959.2053        1.05692720413208     
+ kmeans                    25   28929902953.0800        1.06510114669800     
+ kmeans                    24   28688582481.4537        1.07484483718872     
+ kmeans                    26   30003137472.0154        1.08567810058594     
+ kmeans                    22   29018494494.7615        1.08839821815491     
+ kmeans                    23   29229969535.8725        1.09658098220825     
+ kmeans                    21   28383061983.2047        1.11179995536804     
+ kmeans                     5   22401083850.3601        1.12578606605530     
+ kmeans                    20   28277513910.8118        1.14668893814087     
+ kmeans                    18   27090582617.7962        1.15530610084534     
+ kmeans                    19   27572700349.2981        1.16122579574585     
+ kmeans                     6   21471682633.7191        1.16887307167053     
+ kmeans                    17   27250778514.1547        1.17476296424866     
+ kmeans                     7   21541692580.0002        1.19951701164246     
+ kmeans                    15   26289309839.5368        1.20484590530396     
+ kmeans                    16   26197894499.1478        1.21263718605042     
+ kmeans                    13   25329333474.4366        1.23674893379211     
+ kmeans                     9   22332181999.4735        1.23900389671326     
+ kmeans                    14   26034081160.2602        1.23951005935669     
+ kmeans                     8   21159501746.4668        1.25080680847168     
+ kmeans                    11   24716993379.0675        1.25592398643494     
+ kmeans                    12   24447064149.8378        1.26902389526367     
+ kmeans                    10   22646968302.0689        1.27958297729492     
  number of submatrices=                     1
  average sm dim=                 11776
- effort for full matrix ops=   1633027096576.00     
- sums of efforts for submatrices=   1633027096576.00     
+ effort for full matrix ops=   15048544348.3198     
+ sums of efforts for submatrices=   15048544348.3198     
  ratio   1.00000000000000     
- muiter                     1 mu  0.000000000000000E+000   10679.9021700423      of                  4096
+ sm                     1                 11776   47.9885401725769     
+ muiter                     1 mu  0.000000000000000E+000   11722.0000000000      of                  4096
  muiter                     2 mu  -5.00000000000000       0.000000000000000E+000 of                  4096
- muiter                     3 mu  -2.50000000000000        1024.00000000001      of                  4096
- muiter                     4 mu  -1.25000000000000        4306.00000000002      of                  4096
- muiter                     5 mu  -1.87500000000000        4096.00000000002      of                  4096
+ muiter                     3 mu  -2.50000000000000        1024.00000000000      of                  4096
+ muiter                     4 mu  -1.25000000000000        4312.00000000001      of                  4096
+ muiter                     5 mu  -1.87500000000000        4096.00000000001      of                  4096
  iteration of chemical potential converged
+ final iteration to get density matrix
 
-Submatrix                                    257.480859041 sec
-* submatrix stats                             86.175096989 sec
-* mu iter                                    171.304774046 sec
-* submatrix construction                      18.857983112 sec
-* submatrix eigendecomp                      112.738329887 sec
-* submatrix P                                 11.035830975 sec
-* submatrix Nel                               22.986459017 sec
+Submatrix                                     59.869376898 sec
+* alloc                                        1.109795094 sec
+* submatrix combination                        1.335034847 sec
+* submatrix stats                              0.031618118 sec
+* mu iter                                     57.087671041 sec
+* submatrix construction                       0.411720037 sec
+* submatrix matrix function                   52.264973879 sec
+* submatrix eigendecomp                       48.692777157 sec
+* submatrix fe                                 3.572105885 sec
+* submatrix occ                                0.000204086 sec
+* submatrix Nel                                0.000029802 sec
+* submatrix final iter                         4.035661936 sec
+* submatrix dealloc                            0.304980993 sec
 *                                              0.000000000 sec
-* submatrix return results                     4.264392138 sec
+*                                              0.000000000 sec
+*                                              0.000000000 sec
+*                                              0.000000000 sec
+*                                              0.000000000 sec
+*                                              0.000000000 sec
 *                                              0.000000000 sec
 *                                              0.000000000 sec
 
- first elements Pref   1.21066191772634       0.155772109821406       6.039680079859883E-002  0.138837807361808       0.122572695469435       0.974222124076978      -8.705059674118953E-003 -2.891834398059668E-003  0.174498400733468       0.907529456637288     
- first elements P      1.21066191772634       0.155772109821406       6.039680079859883E-002  0.138837807361808       0.122572695469435       0.974222124076978      -8.705059674118953E-003 -2.891834398059668E-003  0.174498400733468       0.907529456637288     
+ first elements Pref   1.40963250870232       0.547413767700024       0.248623585309819       0.141004932797101       0.162042106966530        1.02044271558739      -6.548004374869960E-003  4.962568505195368E-003  0.212479109346878       0.941115895604880     
+ first elements P      1.40963250870232       0.547413767700024       0.248623585309819       0.141004932797101       0.162042106966530        1.02044271558739      -6.548004374869960E-003  4.962568505195368E-003  0.212479109346878       0.941115895604880     
  Sparsity of Pref:
    dimension                                   11776
-   nonzero elements                        140055668
-   sparsity                      1.00996214320394     
-   average elements per column                 11893
+   nonzero elements                         69635854
+   sparsity                     0.502154445828472     
+   average elements per column                  5913
  Sparsity of P:
    dimension                                   11776
-   nonzero elements                        140055668
-   sparsity                      1.00996214320394     
-   average elements per column                 11893
- maximal deviation in density matrix  0.000000000000000E+000                     1   1.21066191772634        1.21066191772634     
+   nonzero elements                         69635854
+   sparsity                     0.502154445828472     
+   average elements per column                  5913
+ maximal deviation in density matrix  0.000000000000000E+000                     1   1.40963250870232        1.40963250870232     
  MSE of density matrix  0.000000000000000E+000
- Tr(H Pref)=  -9163.26080111480     
- Tr(H P)=  -9163.26080111480     
+ Tr(H Pref)=  -10395.0776649970     
+ Tr(H P)=  -10395.0776649970     
  energy deviation abs(Tr(H P)-Tr(H Pref))=  0.000000000000000E+000
  energy deviation per atom abs(Tr(H P)-Tr(H Pref))/n=  0.000000000000000E+000
 nel: 4096, nel_calc:      4096.00000000
- nel in P=   4096.00000000002      required nel=                  4096
- idempotency deviation  8.570495062341227E-012  9.999999747378752E-005
+ nel in P=   4096.00000000001      required nel=                  4096
+ idempotency deviation  1.564402199363130E-011  9.999999747378752E-005
+ PTB H matrix iteration                      2  done. Now solving ...
+ S before filtering:
+   dimension                                   11776
+   nonzero elements                          3395696
+   sparsity                     2.448686624970463E-002
+   average elements per column                   288
+ S after filtering:
+   dimension                                   11776
+   nonzero elements                          3395696
+   sparsity                     2.448686624970463E-002
+   average elements per column                   288
+ H before filtering:
+   dimension                                   11776
+   nonzero elements                         53585882
+   sparsity                     0.386415723140839     
+   average elements per column                  4550
+ H after filtering:
+   dimension                                   11776
+   nonzero elements                          7384258
+   sparsity                     5.324897694001802E-002
+   average elements per column                   627
+
+Total solve2                                  51.170549154 sec
+* sygvd solver                                47.820604086 sec
+
+nel: 4096, nel_calc:      4096.00000000
+ nel in P=   4096.00000000003      required nel=                  4096
+ idempotency deviation  1.123295721846759E-011  9.999999747378752E-005
+ Stupid simple implementation of the submatrix method:                     4                     2
+ kmeans                     1   15048544348.3198       3.489398956298828E-002
+ kmeans                     2   21603210373.4863       0.490571975708008     
+ kmeans                     3   25182595548.4490       0.683574914932251     
+ kmeans                     4   27035548207.0328       0.828001976013184     
+ kmeans                    35   48766422442.4780       0.913603067398071     
+ kmeans                    39   49902383203.1312       0.937167882919312     
+ kmeans                    49   52208698919.8620       0.952756881713867     
+ kmeans                    37   48804667782.6509       0.952864885330200     
+ kmeans                    36   48869820895.5115       0.955312013626099     
+ kmeans                    62   56081583888.0824       0.955862998962402     
+ kmeans                    50   53267316302.9767       0.958827018737793     
+ kmeans                    60   55911028820.0693       0.960357904434204     
+ kmeans                    53   54334688066.1920       0.961292028427124     
+ kmeans                    58   55867247018.7756       0.961301088333130     
+ kmeans                    29   46236425320.1536       0.965553998947144     
+ kmeans                    38   49455724744.8217       0.968578100204468     
+ kmeans                    44   51624892154.6865       0.968637943267822     
+ kmeans                    51   53242501185.9096       0.968863964080811     
+ kmeans                    64   56849252625.1368       0.969267129898071     
+ kmeans                    28   45368930129.9729       0.971266984939575     
+ kmeans                    59   55524589166.7188       0.972058057785034     
+ kmeans                     5   28418746249.8600       0.972926855087280     
+ kmeans                    56   55626678269.8283       0.972754955291748     
+ kmeans                    31   46367902853.3952       0.975986003875732     
+ kmeans                    32   46786841360.3654       0.977286100387573     
+ kmeans                    40   49823381052.9270       0.979300022125244     
+ kmeans                    48   52412062962.9137       0.980053186416626     
+ kmeans                    55   54592521583.8360       0.981637001037598     
+ kmeans                    47   51813987328.4116       0.982036113739014     
+ kmeans                    52   53976323476.6117       0.982660055160522     
+ kmeans                    30   46492957491.8399       0.983274936676025     
+ kmeans                    46   52934441903.0397       0.984480857849121     
+ kmeans                    43   51505884234.6444       0.985357046127319     
+ kmeans                    42   50475051913.8250       0.987850904464722     
+ kmeans                    33   47288767681.5897       0.988552808761597     
+ kmeans                    22   42080058096.0936       0.988653182983398     
+ kmeans                    41   50693533805.1089       0.989569902420044     
+ kmeans                    25   43846786630.1431       0.990511894226074     
+ kmeans                    34   47719886390.2280       0.991332054138184     
+ kmeans                    27   45700449949.3734       0.991570949554443     
+ kmeans                    57   55662392123.2599       0.991997003555298     
+ kmeans                    54   53282236495.0777       0.993324995040894     
+ kmeans                    45   51830958811.4807       0.994999885559082     
+ kmeans                    61   56224389638.0210       0.995129108428955     
+ kmeans                    24   43853747369.5817        1.00007104873657     
+ kmeans                    63   57557042132.6177        1.00210905075073     
+ kmeans                    26   43436963923.4973        1.00780797004700     
+ kmeans                    23   42257584020.2513        1.00802111625671     
+ kmeans                     6   28651553773.6545        1.01331686973572     
+ kmeans                    21   40929335869.3959        1.02262902259827     
+ kmeans                    20   41277668745.1734        1.04608106613159     
+ kmeans                    18   40049045633.3618        1.04741096496582     
+ kmeans                     7   29374494555.6753        1.05255603790283     
+ kmeans                    19   40669787365.7641        1.05429005622864     
+ kmeans                    17   38826847770.8226        1.07239699363708     
+ kmeans                    16   39219279736.6931        1.08549499511719     
+ kmeans                    15   37449747213.3002        1.09016704559326     
+ kmeans                    14   38218214640.5797        1.09941291809082     
+ kmeans                     8   31745945698.3450        1.09958815574646     
+ kmeans                     9   31922222458.5031        1.12000393867493     
+ kmeans                    11   34676613800.7420        1.12145185470581     
+ kmeans                    13   36536570450.0436        1.12219500541687     
+ kmeans                    12   35434740147.8838        1.13030695915222     
+ kmeans                    10   32843929300.2700        1.13044881820679     
+ number of submatrices=                     1
+ average sm dim=                 11776
+ effort for full matrix ops=   15048544348.3198     
+ sums of efforts for submatrices=   15048544348.3198     
+ ratio   1.00000000000000     
+ sm                     1                 11776   47.5764079093933     
+ muiter                     1 mu  0.000000000000000E+000   11928.0000000000      of                  4096
+ muiter                     2 mu  -5.00000000000000       0.000000000000000E+000 of                  4096
+ muiter                     3 mu  -2.50000000000000        1024.00000000000      of                  4096
+ muiter                     4 mu  -1.25000000000000        4306.00000000001      of                  4096
+ muiter                     5 mu  -1.87500000000000        4096.00000000001      of                  4096
+ iteration of chemical potential converged
+ final iteration to get density matrix
+
+Submatrix                                     59.231284142 sec
+* alloc                                        1.116328955 sec
+* submatrix combination                        1.181771040 sec
+* submatrix stats                              0.024012089 sec
+* mu iter                                     56.728134155 sec
+* submatrix construction                       0.383014917 sec
+* submatrix matrix function                   51.870860815 sec
+* submatrix eigendecomp                       48.303241014 sec
+* submatrix fe                                 3.567505121 sec
+* submatrix occ                                0.000209808 sec
+* submatrix Nel                                0.000030994 sec
+* submatrix final iter                         4.103466034 sec
+* submatrix dealloc                            0.180756092 sec
+*                                              0.000000000 sec
+*                                              0.000000000 sec
+*                                              0.000000000 sec
+*                                              0.000000000 sec
+*                                              0.000000000 sec
+*                                              0.000000000 sec
+*                                              0.000000000 sec
+*                                              0.000000000 sec
+
+ first elements Pref   1.21066245523405       0.155771340208148       6.039661571417577E-002  0.138837835498526       0.122572655816374       0.974222741474940      -8.704945875790312E-003 -2.891835918661568E-003  0.174498443692745       0.907529960641567     
+ first elements P      1.21066245523405       0.155771340208148       6.039661571417577E-002  0.138837835498526       0.122572655816374       0.974222741474940      -8.704945875790312E-003 -2.891835918661568E-003  0.174498443692745       0.907529960641567     
+ Sparsity of Pref:
+   dimension                                   11776
+   nonzero elements                         70027604
+   sparsity                     0.504979413037940     
+   average elements per column                  5946
+ Sparsity of P:
+   dimension                                   11776
+   nonzero elements                         70027604
+   sparsity                     0.504979413037940     
+   average elements per column                  5946
+ maximal deviation in density matrix  0.000000000000000E+000                     1   1.21066245523405        1.21066245523405     
+ MSE of density matrix  0.000000000000000E+000
+ Tr(H Pref)=  -9163.29832698879     
+ Tr(H P)=  -9163.29832698879     
+ energy deviation abs(Tr(H P)-Tr(H Pref))=  0.000000000000000E+000
+ energy deviation per atom abs(Tr(H P)-Tr(H Pref))/n=  0.000000000000000E+000
+nel: 4096, nel_calc:      4096.00000000
+ nel in P=   4096.00000000003      required nel=                  4096
+ idempotency deviation  1.123295721846759E-011  9.999999747378752E-005
  frontier MO occupations   :   2.0000  2.0000  2.0000  2.0000  2.0000  2.0000  2.0000  2.0000  2.0000  2.0000  0.0000  0.0000
- (shifted) level energies  :  -0.3571 -0.3565 -0.3538 -0.3520 -0.3509 -0.3476 -0.3467 -0.3447 -0.3435 -0.3406 -0.0531 -0.0338
- gaps (1st,2nd, eV)        :    11.818    7.822
- D4 dispersion energy      :     -3.797265
+ (shifted) level energies  :  -0.3571 -0.3565 -0.3538 -0.3520 -0.3510 -0.3476 -0.3467 -0.3447 -0.3436 -0.3406 -0.0531 -0.0338
+ gaps (1st,2nd, eV)        :    11.818    7.821
+ D4 dispersion energy      :     -3.797267
 
      ------  PTB results ------
   # element  Z   pop.                shell populations
@@ -1951,7 +1898,7 @@ nel: 4096, nel_calc:      4096.00000000
  13     O   6.0  6.0519       1.011  0.338  3.473  1.189  0.040
  14     O   6.0  6.0756       1.017  0.337  3.471  1.212  0.039
  15     O   6.0  5.9884       1.009  0.330  3.460  1.151  0.039
- 16     O   6.0  6.0783       1.014  0.341  3.471  1.213  0.040
+ 16     O   6.0  6.0782       1.014  0.341  3.471  1.213  0.040
  17     O   6.0  6.0753       1.012  0.337  3.471  1.215  0.040
  18     O   6.0  6.0581       1.015  0.335  3.473  1.197  0.039
  19     O   6.0  6.0967       1.013  0.341  3.462  1.241  0.039
@@ -2157,7 +2104,7 @@ nel: 4096, nel_calc:      4096.00000000
 219     O   6.0  6.0526       1.014  0.338  3.468  1.193  0.040
 220     O   6.0  5.9378       1.011  0.318  3.467  1.103  0.038
 221     O   6.0  5.9754       1.011  0.322  3.468  1.137  0.038
-222     O   6.0  6.1099       1.012  0.351  3.468  1.239  0.041
+222     O   6.0  6.1099       1.012  0.351  3.467  1.239  0.041
 223     O   6.0  6.1160       1.019  0.345  3.452  1.259  0.041
 224     O   6.0  5.9900       1.011  0.329  3.468  1.144  0.038
 225     O   6.0  6.1177       1.016  0.345  3.474  1.244  0.039
@@ -2174,8 +2121,8 @@ nel: 4096, nel_calc:      4096.00000000
 236     O   6.0  5.9490       1.002  0.322  3.467  1.122  0.036
 237     O   6.0  6.1100       1.012  0.346  3.467  1.244  0.040
 238     O   6.0  6.0832       1.008  0.343  3.464  1.229  0.038
-239     O   6.0  6.1175       1.014  0.344  3.479  1.242  0.039
-240     O   6.0  6.1020       1.008  0.343  3.478  1.235  0.038
+239     O   6.0  6.1175       1.014  0.344  3.478  1.242  0.039
+240     O   6.0  6.1021       1.008  0.343  3.478  1.235  0.038
 241     O   6.0  6.0699       1.014  0.337  3.465  1.215  0.039
 242     O   6.0  5.9921       1.009  0.331  3.469  1.145  0.038
 243     O   6.0  6.0461       1.011  0.337  3.469  1.190  0.039
@@ -2287,16 +2234,16 @@ nel: 4096, nel_calc:      4096.00000000
 349     O   6.0  6.0341       1.009  0.333  3.478  1.176  0.038
 350     O   6.0  6.0032       1.010  0.329  3.463  1.163  0.038
 351     O   6.0  6.0548       1.013  0.336  3.477  1.191  0.038
-352     O   6.0  5.9898       1.009  0.329  3.463  1.151  0.039
+352     O   6.0  5.9897       1.009  0.329  3.463  1.151  0.039
 353     O   6.0  6.0628       1.015  0.336  3.486  1.187  0.039
 354     O   6.0  6.1043       1.019  0.344  3.468  1.234  0.040
 355     O   6.0  6.1271       1.017  0.348  3.470  1.252  0.040
 356     O   6.0  6.0459       1.006  0.337  3.470  1.195  0.038
 357     O   6.0  6.0688       1.009  0.338  3.464  1.221  0.037
-358     O   6.0  6.0465       1.009  0.334  3.467  1.199  0.038
+358     O   6.0  6.0465       1.009  0.334  3.466  1.199  0.038
 359     O   6.0  6.1226       1.021  0.343  3.455  1.264  0.040
 360     O   6.0  6.0508       1.011  0.336  3.468  1.198  0.038
-361     O   6.0  6.1243       1.011  0.347  3.475  1.252  0.040
+361     O   6.0  6.1244       1.011  0.347  3.475  1.252  0.040
 362     O   6.0  6.1351       1.023  0.347  3.457  1.266  0.041
 363     O   6.0  6.0386       1.014  0.331  3.481  1.174  0.039
 364     O   6.0  6.0560       1.015  0.333  3.484  1.186  0.038
@@ -2314,7 +2261,7 @@ nel: 4096, nel_calc:      4096.00000000
 376     O   6.0  6.0490       1.014  0.334  3.482  1.180  0.038
 377     O   6.0  6.0892       1.017  0.344  3.462  1.226  0.040
 378     O   6.0  6.0940       1.013  0.342  3.469  1.230  0.040
-379     O   6.0  6.0479       1.015  0.333  3.467  1.194  0.039
+379     O   6.0  6.0478       1.015  0.333  3.467  1.194  0.039
 380     O   6.0  6.0540       1.011  0.335  3.475  1.196  0.038
 381     O   6.0  6.0152       1.007  0.325  3.455  1.190  0.039
 382     O   6.0  6.1556       1.020  0.353  3.462  1.280  0.041
@@ -2374,7 +2321,7 @@ nel: 4096, nel_calc:      4096.00000000
 436     O   6.0  6.1305       1.019  0.344  3.478  1.250  0.040
 437     O   6.0  5.9899       1.010  0.321  3.466  1.154  0.038
 438     O   6.0  6.0783       1.016  0.341  3.463  1.218  0.040
-439     O   6.0  6.0240       1.010  0.333  3.477  1.165  0.038
+439     O   6.0  6.0241       1.010  0.333  3.477  1.165  0.038
 440     O   6.0  6.1247       1.019  0.348  3.456  1.260  0.041
 441     O   6.0  6.0403       1.011  0.332  3.479  1.180  0.038
 442     O   6.0  6.0596       1.012  0.339  3.474  1.195  0.040
@@ -2414,7 +2361,7 @@ nel: 4096, nel_calc:      4096.00000000
 476     O   6.0  6.0430       1.005  0.334  3.475  1.192  0.037
 477     O   6.0  5.9569       1.010  0.319  3.466  1.125  0.037
 478     O   6.0  6.0512       1.016  0.336  3.460  1.201  0.039
-479     O   6.0  6.1017       1.015  0.344  3.467  1.236  0.040
+479     O   6.0  6.1018       1.015  0.344  3.467  1.236  0.040
 480     O   6.0  6.0821       1.015  0.340  3.468  1.220  0.039
 481     O   6.0  6.0636       1.012  0.335  3.470  1.207  0.039
 482     O   6.0  5.9862       1.015  0.324  3.470  1.139  0.038
@@ -2430,7 +2377,7 @@ nel: 4096, nel_calc:      4096.00000000
 492     O   6.0  5.9943       1.014  0.329  3.465  1.148  0.038
 493     O   6.0  6.0451       1.011  0.335  3.457  1.204  0.038
 494     O   6.0  6.1458       1.020  0.350  3.458  1.277  0.041
-495     O   6.0  5.9911       1.014  0.325  3.469  1.145  0.038
+495     O   6.0  5.9912       1.014  0.325  3.469  1.145  0.038
 496     O   6.0  6.0607       1.015  0.333  3.486  1.188  0.039
 497     O   6.0  6.0259       1.009  0.330  3.469  1.180  0.039
 498     O   6.0  5.9925       1.011  0.325  3.468  1.150  0.038
@@ -2450,7 +2397,7 @@ nel: 4096, nel_calc:      4096.00000000
 512     O   6.0  6.1194       1.015  0.351  3.461  1.254  0.040
 513     H   1.0  1.0025       0.535  0.093  0.374
 514     H   1.0  0.9592       0.547  0.096  0.317
-515     H   1.0  0.9983       0.536  0.093  0.369
+515     H   1.0  0.9982       0.536  0.093  0.369
 516     H   1.0  1.0006       0.533  0.095  0.373
 517     H   1.0  0.9789       0.545  0.093  0.341
 518     H   1.0  0.9849       0.542  0.094  0.348
@@ -2483,7 +2430,7 @@ nel: 4096, nel_calc:      4096.00000000
 545     H   1.0  0.9469       0.552  0.089  0.306
 546     H   1.0  0.9450       0.549  0.093  0.303
 547     H   1.0  0.9554       0.546  0.095  0.314
-548     H   1.0  0.9571       0.549  0.094  0.315
+548     H   1.0  0.9572       0.549  0.094  0.315
 549     H   1.0  0.9465       0.553  0.090  0.304
 550     H   1.0  0.9911       0.541  0.096  0.354
 551     H   1.0  1.0016       0.535  0.094  0.373
@@ -2527,7 +2474,7 @@ nel: 4096, nel_calc:      4096.00000000
 589     H   1.0  0.9486       0.545  0.095  0.309
 590     H   1.0  0.9559       0.544  0.096  0.317
 591     H   1.0  0.9781       0.539  0.094  0.346
-592     H   1.0  0.9625       0.546  0.096  0.320
+592     H   1.0  0.9626       0.546  0.096  0.320
 593     H   1.0  0.9642       0.545  0.093  0.326
 594     H   1.0  0.9557       0.546  0.098  0.312
 595     H   1.0  1.0014       0.540  0.088  0.373
@@ -2760,7 +2707,7 @@ nel: 4096, nel_calc:      4096.00000000
 822     H   1.0  0.9420       0.554  0.085  0.304
 823     H   1.0  0.9500       0.548  0.097  0.305
 824     H   1.0  0.9593       0.546  0.095  0.318
-825     H   1.0  1.0135       0.535  0.089  0.389
+825     H   1.0  1.0136       0.535  0.089  0.389
 826     H   1.0  1.0190       0.535  0.091  0.393
 827     H   1.0  0.9511       0.544  0.092  0.315
 828     H   1.0  0.9830       0.539  0.094  0.350
@@ -2794,7 +2741,7 @@ nel: 4096, nel_calc:      4096.00000000
 856     H   1.0  0.9385       0.555  0.078  0.306
 857     H   1.0  0.9909       0.545  0.090  0.356
 858     H   1.0  0.9879       0.541  0.097  0.350
-859     H   1.0  1.0301       0.536  0.085  0.409
+859     H   1.0  1.0302       0.536  0.085  0.409
 860     H   1.0  0.9540       0.556  0.085  0.313
 861     H   1.0  0.9749       0.544  0.092  0.339
 862     H   1.0  1.0282       0.526  0.092  0.410
@@ -2803,7 +2750,7 @@ nel: 4096, nel_calc:      4096.00000000
 865     H   1.0  0.9635       0.545  0.090  0.328
 866     H   1.0  0.9443       0.555  0.082  0.307
 867     H   1.0  0.9418       0.547  0.091  0.303
-868     H   1.0  0.9508       0.549  0.091  0.312
+868     H   1.0  0.9509       0.549  0.091  0.312
 869     H   1.0  0.9490       0.554  0.086  0.309
 870     H   1.0  1.0187       0.530  0.087  0.402
 871     H   1.0  0.9455       0.550  0.092  0.303
@@ -2934,7 +2881,7 @@ nel: 4096, nel_calc:      4096.00000000
 996     H   1.0  1.0215       0.527  0.090  0.405
 997     H   1.0  1.0118       0.535  0.091  0.385
 998     H   1.0  0.9550       0.552  0.096  0.307
-999     H   1.0  0.9510       0.549  0.091  0.311
+999     H   1.0  0.9509       0.549  0.091  0.311
 ***     H   1.0  0.9381       0.552  0.080  0.306
 ***     H   1.0  0.9510       0.545  0.084  0.322
 ***     H   1.0  0.9292       0.549  0.079  0.301
@@ -2987,7 +2934,7 @@ nel: 4096, nel_calc:      4096.00000000
 ***     H   1.0  1.0102       0.536  0.093  0.381
 ***     H   1.0  0.9666       0.552  0.097  0.318
 ***     H   1.0  0.9318       0.555  0.073  0.304
-***     H   1.0  0.9322       0.557  0.070  0.305
+***     H   1.0  0.9321       0.557  0.070  0.305
 ***     H   1.0  1.0158       0.528  0.096  0.392
 ***     H   1.0  0.9958       0.532  0.094  0.369
 ***     H   1.0  0.9483       0.533  0.096  0.320
@@ -3001,7 +2948,7 @@ nel: 4096, nel_calc:      4096.00000000
 ***     H   1.0  0.9507       0.551  0.088  0.312
 ***     H   1.0  0.9538       0.548  0.089  0.317
 ***     H   1.0  0.9627       0.547  0.089  0.326
-***     H   1.0  0.9667       0.554  0.088  0.324
+***     H   1.0  0.9666       0.554  0.088  0.324
 ***     H   1.0  0.9942       0.539  0.093  0.362
 ***     H   1.0  0.9887       0.544  0.096  0.349
 ***     H   1.0  1.0044       0.542  0.083  0.379
@@ -3019,7 +2966,7 @@ nel: 4096, nel_calc:      4096.00000000
 ***     H   1.0  0.9551       0.553  0.095  0.307
 ***     H   1.0  0.9941       0.543  0.091  0.361
 ***     H   1.0  0.9440       0.544  0.093  0.307
-***     H   1.0  1.0213       0.528  0.090  0.403
+***     H   1.0  1.0212       0.528  0.090  0.403
 ***     H   1.0  1.0034       0.538  0.095  0.371
 ***     H   1.0  0.9841       0.543  0.095  0.346
 ***     H   1.0  0.9354       0.552  0.081  0.302
@@ -3057,7 +3004,7 @@ nel: 4096, nel_calc:      4096.00000000
 ***     H   1.0  0.9868       0.538  0.089  0.360
 ***     H   1.0  1.0005       0.537  0.090  0.374
 ***     H   1.0  0.9960       0.548  0.085  0.363
-***     H   1.0  0.9635       0.547  0.083  0.333
+***     H   1.0  0.9634       0.547  0.083  0.333
 ***     H   1.0  0.9328       0.548  0.085  0.300
 ***     H   1.0  0.9417       0.554  0.083  0.304
 ***     H   1.0  0.9902       0.543  0.089  0.358
@@ -3170,7 +3117,7 @@ nel: 4096, nel_calc:      4096.00000000
 ***     H   1.0  0.9938       0.542  0.090  0.362
 ***     H   1.0  0.9529       0.558  0.083  0.312
 ***     H   1.0  1.0380       0.532  0.088  0.418
-***     H   1.0  0.9549       0.553  0.089  0.314
+***     H   1.0  0.9550       0.553  0.089  0.314
 ***     H   1.0  0.9451       0.554  0.086  0.305
 ***     H   1.0  0.9783       0.544  0.099  0.335
 ***     H   1.0  0.9402       0.547  0.092  0.302
@@ -3191,7 +3138,7 @@ nel: 4096, nel_calc:      4096.00000000
 ***     H   1.0  0.9548       0.554  0.090  0.311
 ***     H   1.0  0.9892       0.545  0.081  0.363
 ***     H   1.0  0.9936       0.535  0.093  0.366
-***     H   1.0  0.9536       0.548  0.098  0.308
+***     H   1.0  0.9535       0.548  0.098  0.308
 ***     H   1.0  0.9667       0.550  0.088  0.328
 ***     H   1.0  1.0408       0.531  0.087  0.423
 ***     H   1.0  1.0286       0.529  0.092  0.408
@@ -3244,7 +3191,7 @@ nel: 4096, nel_calc:      4096.00000000
 ***     H   1.0  1.0358       0.526  0.094  0.415
 ***     H   1.0  1.0251       0.537  0.092  0.396
 ***     H   1.0  1.0161       0.536  0.091  0.390
-***     H   1.0  1.0114       0.539  0.091  0.382
+***     H   1.0  1.0115       0.539  0.091  0.382
 ***     H   1.0  1.0130       0.538  0.091  0.384
 ***     H   1.0  0.9898       0.539  0.094  0.357
 ***     H   1.0  0.9813       0.541  0.094  0.347
@@ -3254,7 +3201,7 @@ nel: 4096, nel_calc:      4096.00000000
 ***     H   1.0  0.9544       0.546  0.097  0.312
 ***     H   1.0  0.9766       0.548  0.097  0.332
 ***     H   1.0  1.0129       0.538  0.094  0.381
-***     H   1.0  0.9511       0.553  0.093  0.306
+***     H   1.0  0.9512       0.553  0.093  0.306
 ***     H   1.0  0.9884       0.541  0.091  0.356
 ***     H   1.0  1.0147       0.535  0.094  0.386
 ***     H   1.0  0.9781       0.541  0.095  0.343
@@ -3280,7 +3227,7 @@ nel: 4096, nel_calc:      4096.00000000
 ***     H   1.0  0.9421       0.552  0.087  0.303
 ***     H   1.0  0.9595       0.547  0.094  0.319
 ***     H   1.0  0.9535       0.547  0.097  0.310
-***     H   1.0  0.9884       0.538  0.090  0.360
+***     H   1.0  0.9884       0.538  0.091  0.360
 ***     H   1.0  0.9548       0.551  0.091  0.313
 ***     H   1.0  0.9533       0.551  0.098  0.304
 ***     H   1.0  0.9706       0.543  0.098  0.330
@@ -3318,7 +3265,7 @@ nel: 4096, nel_calc:      4096.00000000
 ***     H   1.0  0.9800       0.551  0.082  0.347
 ***     H   1.0  0.9634       0.549  0.089  0.325
 ***     H   1.0  0.9491       0.550  0.094  0.304
-***     H   1.0  0.9772       0.549  0.093  0.336
+***     H   1.0  0.9773       0.549  0.093  0.336
 ***     H   1.0  0.9964       0.541  0.089  0.366
 ***     H   1.0  1.0250       0.529  0.091  0.405
 ***     H   1.0  0.9860       0.538  0.097  0.350
@@ -3346,7 +3293,7 @@ nel: 4096, nel_calc:      4096.00000000
 ***     H   1.0  0.9338       0.548  0.084  0.302
 ***     H   1.0  0.9675       0.549  0.096  0.323
 ***     H   1.0  1.0149       0.540  0.090  0.385
-***     H   1.0  1.0174       0.537  0.091  0.389
+***     H   1.0  1.0173       0.537  0.091  0.389
 ***     H   1.0  0.9907       0.547  0.093  0.351
 ***     H   1.0  0.9884       0.539  0.095  0.354
 ***     H   1.0  0.9727       0.547  0.096  0.329
@@ -3362,7 +3309,7 @@ nel: 4096, nel_calc:      4096.00000000
 ***     H   1.0  0.9239       0.548  0.077  0.299
 ***     H   1.0  1.0179       0.533  0.094  0.391
 ***     H   1.0  0.9790       0.543  0.095  0.341
-***     H   1.0  0.9941       0.541  0.087  0.366
+***     H   1.0  0.9940       0.541  0.087  0.366
 ***     H   1.0  0.9575       0.555  0.086  0.316
 ***     H   1.0  0.9928       0.533  0.092  0.367
 ***     H   1.0  0.9529       0.543  0.096  0.315
@@ -3378,7 +3325,7 @@ nel: 4096, nel_calc:      4096.00000000
 ***     H   1.0  0.9920       0.540  0.097  0.355
 ***     H   1.0  0.9665       0.546  0.102  0.318
 ***     H   1.0  0.9570       0.544  0.101  0.312
-***     H   1.0  0.9492       0.551  0.093  0.305
+***     H   1.0  0.9491       0.551  0.093  0.305
 ***     H   1.0  0.9466       0.548  0.099  0.300
 ***     H   1.0  0.9811       0.546  0.095  0.340
 ***     H   1.0  0.9900       0.541  0.094  0.355
@@ -3407,7 +3354,7 @@ nel: 4096, nel_calc:      4096.00000000
 ***     H   1.0  0.9360       0.554  0.079  0.303
 ***     H   1.0  0.9579       0.548  0.086  0.323
 ***     H   1.0  0.9402       0.550  0.088  0.302
-***     H   1.0  0.9930       0.541  0.085  0.367
+***     H   1.0  0.9931       0.541  0.085  0.367
 ***     H   1.0  0.9743       0.544  0.094  0.336
 ***     H   1.0  0.9622       0.548  0.092  0.322
 ***     H   1.0  0.9673       0.538  0.096  0.334
@@ -3853,7 +3800,7 @@ nel: 4096, nel_calc:      4096.00000000
    377  O   2.044    H 1266 1.076    H 1265 1.018
    378  O   2.063    H 1268 1.073    H 1267 1.036
    379  O   2.026    H 1269 1.058    H 1270 0.999
-   380  O   1.997    H 1271 1.030    H 1272 1.024
+   380  O   1.996    H 1271 1.030    H 1272 1.024
    381  O   2.016    H 1273 1.061    H 1274 0.997
    382  O   2.015    H 1275 1.077    H 1276 0.975
    383  O   2.067    H 1277 1.063    H 1278 1.029
@@ -3917,7 +3864,7 @@ nel: 4096, nel_calc:      4096.00000000
    441  O   1.992    H 1393 1.033    H 1394 1.022
    442  O   2.087    H 1396 1.074    H 1395 1.058
    443  O   1.994    H 1398 1.034    H 1397 1.024
-   444  O   2.066    H 1399 1.063    H 1400 1.037
+   444  O   2.066    H 1399 1.063    H 1400 1.038
    445  O   2.001    H 1402 1.037    H 1401 1.035
    446  O   2.000    H 1404 1.069    H 1403 0.994
    447  O   2.098    H 1406 1.063    H 1405 1.051
@@ -4873,7 +4820,7 @@ nel: 4096, nel_calc:      4096.00000000
   1397  H   1.035    O  443 1.024
   1398  H   1.026    O  443 1.034
   1399  H   1.056    O  444 1.063
-  1400  H   1.041    O  444 1.037
+  1400  H   1.041    O  444 1.038
   1401  H   1.019    O  445 1.035
   1402  H   1.037    O  445 1.037
   1403  H   1.009    O  446 0.994
@@ -5011,8 +4958,8 @@ nel: 4096, nel_calc:      4096.00000000
   1535  H   1.037    O  512 1.030
   1536  H   1.026    O  512 1.026
 dipole moment  X         Y          Z
-      -44.954472      -59.830041      -21.714129  total     (au/Debye)      :    77.9233   198.0655
+      -44.954257      -59.830195      -21.714165  total     (au/Debye)      :    77.9233   198.0655
 second moment  X^2       Y^2        Z^2
-     4556.768621     4949.123269     3377.973625  average   (au)            :  4294.6218
-cpu  time for all    1 d  6 h 15 m 51.7 s
-wall time for all    0 d  0 h 22 m  5.0 s
+     4556.753545     4949.127248     3377.976111  average   (au)            :  4294.6190
+cpu  time for all    5 h 37 m 20.6 s
+wall time for all    0 h  6 m 21.0 s

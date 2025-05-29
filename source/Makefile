@@ -32,9 +32,9 @@ CCFLAGS = -O -DLINUX
 ifeq ($(OSTYPE),LINUXI)
   FC = ifx
   CC  = icx
-  LINKER = $(FC) -g -O -qopenmp  -I$(MKLROOT)/include -qmkl-ilp64=parallel -check bounds
-  LIBS = -lpthread -lm -lstdc++ -qmkl-ilp64=parallel 
-  FFLAGS = -O3 -align array64byte -i8 -march=core-avx2 -mcmodel=large -heap-arrays -warn interfaces -g  -traceback -check bounds  -no-wrap-margin
+  LINKER = $(FC) -g -O -qopenmp -I$(MKLROOT)/include -qmkl-ilp64=parallel #-check bounds
+  LIBS = -lpthread -lm -lstdc++ -qmkl-ilp64=parallel
+  FFLAGS = -O3 -align array64byte -i8 -march=core-avx2 -mcmodel=large -heap-arrays -warn interfaces -g -no-wrap-margin -qopenmp  -traceback #-check bounds
 
   CCFLAGS = -O -DLINUX
 else ifeq ($(OSTYPE),LINUXL)

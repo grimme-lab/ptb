@@ -4,6 +4,7 @@ module sm
    use gtb_lapack_eig, only : la_syevd,la_sygvd
    use gtb_la, only: la_gemm, la_symm
    use timer, only : tTimer
+   use omp_lib, only: omp_get_wtime
    implicit none
   type :: eigdecomp_type
     integer :: ndim
@@ -64,13 +65,15 @@ contains
      type(eigdecomp_type),allocatable :: eigdecomp(:)
 
      integer :: ism,i,j,k,ind,smdim,muiter,nsm,sumsmdims,nsm_opt
-     real(wp) :: mua,mub,mu,nel
+     real(wp) :: mua,mub,mu,nel,t0,t1
      type(tTimer) :: timer_sm
      integer(ik) :: info
      logical :: finaliter
      logical :: firstiter
 
      print*,"Stupid simple implementation of the submatrix method:",submatrix_columns,submatrix_mode
+     call timer_sm%new(20)
+     call timer_sm%click(1, 'alloc')
 
      allocate(H(ndim,ndim))
      allocate(S(ndim,ndim))
@@ -82,8 +85,8 @@ contains
      call blowsym(ndim,Hvec,H)
      call blowsym(ndim,Svec,S)
 
-     call timer_sm%new(10)
-     call timer_sm%click(1, 'submatrix stats')
+     call timer_sm%click(1)
+     call timer_sm%click(2, 'submatrix combination')
 
      nsm=0
      if(submatrix_columns.eq.1)then
@@ -132,17 +135,21 @@ contains
        allocate(kmeans_C(3,n))
        allocate(comb(n,ndim))
        allocate(ncomb(n))
-       do nsm=1,min(20,n)
+       !$OMP PARALLEL DO private(t0,t1,kmeans_c,kmeans_z,kmeans_work,effort_sms,ncomb,comb)
+       do nsm=1,min(64,n)
+         t0=omp_get_wtime()
          call clustering_kmeans(n,ndim,xyz,kmeans_c,kmeans_z,kmeans_work,H,S,aoat,nsm,ncomb,comb,effort_sms)
-         print*,"kmeans",nsm,effort_sms
+         t1=omp_get_wtime()
+         print*,"kmeans",nsm,effort_sms,t1-t0
          if(effort_sms.lt.effort_min)then
+           !$OMP Critical
            effort_min=effort_sms
            kmeans_z_opt(:)=kmeans_z(:)
            nsm_opt=nsm
-!         else
-!           exit
+           !$OMP end Critical
          endif
        enddo
+       !$OMP end PARALLEL DO 
        nsm=nsm_opt
        call clustering_kmeans(n,ndim,xyz,kmeans_c,kmeans_z,kmeans_work,H,S,aoat,nsm,ncomb,comb,effort_sms)
 
@@ -153,13 +160,10 @@ contains
        print*,"not implemented"
        stop
      endif
-
-!     do ism=1,nsm
-!       print*,"comb",ism,comb(ism,1:ncomb(ism))
-!     enddo
-
+     call timer_sm%click(2)
+     call timer_sm%click(3, 'submatrix stats')
      !collect submatrix infos
-     effort_full=real(ndim,kind=wp)**3
+     effort_full=real(ndim,kind=wp)**2.5D0
      effort_sms=0
      sumsmdims=0
      do ism=1,nsm
@@ -174,17 +178,16 @@ contains
       enddo
       smdim=ind
       sumsmdims=sumsmdims+smdim
-      effort_sms=effort_sms+real(smdim,kind=wp)**3
+      effort_sms=effort_sms+real(smdim,kind=wp)**2.5D0
      enddo
      print*,"number of submatrices=",nsm
      print*,"average sm dim=",sumsmdims/nsm
      print*,"effort for full matrix ops=",effort_full
      print*,"sums of efforts for submatrices=",effort_sms
      print*,"ratio",effort_sms/effort_full
-     call timer_sm%click(1)
-
+     call timer_sm%click(3)
      
-     call timer_sm%click(2, 'mu iter')
+     call timer_sm%click(4, 'mu iter')
      mua=-10
      mub=10
      firstiter=.true.
@@ -202,9 +205,10 @@ contains
        !submatrix method
        do ism=1,nsm
         if(firstiter)then
-          call timer_sm%click(3, 'submatrix construction')
+          call timer_sm%click(5, 'submatrix construction')
           !collect submatrix infos
           st(:)=0
+          !$OMP PARALLEL DO Private(j)
           do i=1,ndim
             do j=1,ncomb(ism)
              if(H(i,comb(ism,j)).gt.0.or.S(i,comb(ism,j)).gt.0.or.i.eq.comb(ism,j))then
@@ -213,6 +217,7 @@ contains
              endif
             enddo
           enddo
+          !$OMP end PARALLEL DO 
           smdim=0
           do i=1,ndim
             if(st(i).eq.1)then
@@ -232,14 +237,15 @@ contains
           allocate(Hsm(smdim,smdim))
           allocate(Ssm(smdim,smdim))
           allocate(Psm(smdim,smdim))
-          !$OMP PARALLEL DO 
+          !$OMP PARALLEL DO private(j)
           do i=1,smdim
             do j=1,smdim
               Hsm(i,j)=H(eigdecomp(ism)%map(i),eigdecomp(ism)%map(j))    
               Ssm(i,j)=S(eigdecomp(ism)%map(i),eigdecomp(ism)%map(j))    
             enddo
           enddo
-          call timer_sm%click(3)
+          call timer_sm%click(5)
+          call timer_sm%click(6, 'submatrix matrix function')
           if(submatrix_mode.eq.1)then
             print*,"submatrix_mode.eq.1 not implemented"
             stop
@@ -282,33 +288,37 @@ contains
 !            deallocate(sqrtinvSsm)
 !            call timer_sm%click(7)
           elseif(submatrix_mode.eq.2)then
-            call timer_sm%click(4, 'submatrix eigendecomp')
+            call timer_sm%click(7, 'submatrix eigendecomp')
             allocate(eigdecomp(ism)%U(smdim,smdim))
             allocate(eigdecomp(ism)%e(smdim))
             allocate(eigdecomp(ism)%fe(smdim))
             allocate(eigdecomp(ism)%occ(smdim))
             eigdecomp(ism)%U(:,:)=Hsm(:,:)
             Psm(:,:)=Ssm(:,:)
+            t0=omp_get_wtime()
             call la_sygvd(eigdecomp(ism)%U,Psm,eigdecomp(ism)%e,INFO)
+            t1=omp_get_wtime()
+            print*,"sm",ism,smdim,t1-t0
+            call timer_sm%click(7)
 
-            call la_gemm(transpose(Ssm),eigdecomp(ism)%U, Psm)
+            call timer_sm%click(8, 'submatrix fe')
+            call la_gemm(Ssm,eigdecomp(ism)%U, Psm)
             eigdecomp(ism)%fe(:)=0
-            do j=1,smdim
-              do k=1,ncomb(ism)
-                i=eigdecomp(ism)%imap(comb(ism,k))
-                eigdecomp(ism)%fe(j)=eigdecomp(ism)%fe(j)+Psm(i,j)*eigdecomp(ism)%U(i,j)
-              enddo
+            do k=1,ncomb(ism)
+              i=eigdecomp(ism)%imap(comb(ism,k))
+              eigdecomp(ism)%fe(:)=eigdecomp(ism)%fe(:)+Psm(i,:)*eigdecomp(ism)%U(i,:)
             enddo
-            call timer_sm%click(4)
+            call timer_sm%click(8)
           else
             print*,"not implemented submatrix_mode",submatrix_mode
             stop
           endif
+          call timer_sm%click(6)
           deallocate(Hsm)
           deallocate(Ssm)
           deallocate(Psm)
         endif 
-        call timer_sm%click(5, 'submatrix occ')
+        call timer_sm%click(9, 'submatrix occ')
         do i=1,eigdecomp(ism)%ndim
           if(eigdecomp(ism)%e(i).lt.mu)then
             eigdecomp(ism)%occ(i)=2
@@ -318,9 +328,9 @@ contains
             eigdecomp(ism)%occ(i)=0
           endif
         enddo
-        call timer_sm%click(5)
+        call timer_sm%click(9)
         
-        call timer_sm%click(6, 'submatrix Nel')
+        call timer_sm%click(10, 'submatrix Nel')
         !call dmat(smdim,eigdecomp(ism)%occ,eigdecomp(ism)%U,Psm)
         !call la_gemm(Psm, Ssm, Hsm)
         !do j=1,ncomb(ism)
@@ -328,9 +338,10 @@ contains
         !  nel=nel+Hsm(k,k)
         !enddo
         nel=nel+sum(eigdecomp(ism)%fe(:)*eigdecomp(ism)%occ(:))
-        call timer_sm%click(6)
+        call timer_sm%click(10)
         
         if(finaliter)then
+          call timer_sm%click(11, 'submatrix final iter')
           smdim=eigdecomp(ism)%ndim
           allocate(Psm(smdim,smdim))
           do i=1,smdim
@@ -347,7 +358,7 @@ contains
             enddo
           enddo
           deallocate(Psm)
-          call timer_sm%click(8)    
+          call timer_sm%click(11)
         endif
        
        enddo !submatrix iteration
@@ -370,9 +381,9 @@ contains
        endif
        firstiter=.false.
      enddo !mu iteration
-     call timer_sm%click(2)
-     call timer_sm%finalize('Submatrix')
+     call timer_sm%click(4)
 
+     call timer_sm%click(12, 'submatrix dealloc')
      call packsym(ndim,P,Pvec)
      deallocate(H)
      deallocate(S)
@@ -393,6 +404,8 @@ contains
        deallocate(eigdecomp)
        deallocate(st,itmp,tmp)
      endif
+     call timer_sm%click(12)
+     call timer_sm%finalize('Submatrix')
    end subroutine
    subroutine matrix_sign(ndim,A,S)
      integer,intent(in) :: ndim
@@ -496,7 +509,7 @@ contains
          enddo
        enddo
        smdim=ind
-       effort_sms=effort_sms+real(smdim,kind=wp)**3
+       effort_sms=effort_sms+real(smdim,kind=wp)**2.5D0
      enddo
    end subroutine
 end module

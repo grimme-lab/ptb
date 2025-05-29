@@ -1,0 +1,4 @@
+mode = submatrix
+check
+submatrix_mode = submatrix_sygv
+submatrix_columns = kmeans_r_heuristic 

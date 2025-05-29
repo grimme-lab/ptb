@@ -28,8 +28,8 @@
  nbeta                     512
  ntotal                   1024
  nopen                       0
-cpu  time for startup and initial S    1.26 s
-wall time for startup and initial S    2.00 s
+cpu  time for startup and initial S    1.05 s
+wall time for startup and initial S    1.00 s
                -----------------------
                |      PTB  model      |
                | SG, MM, AH 2020-2022 |
@@ -427,68 +427,80 @@ EEQ done. sum q :    0.000
  PTB H matrix iteration                      1  done. Now solving ...
  S before filtering:
    dimension                                    3456
-   nonzero elements                          4775648
-   sparsity                     0.399838713134431     
-   average elements per column                  1381
+   nonzero elements                          2388208
+   sparsity                     0.199951506772977     
+   average elements per column                   691
  S after filtering:
    dimension                                    3456
-   nonzero elements                          2504860
-   sparsity                     0.209718136466907     
-   average elements per column                   724
+   nonzero elements                          1252430
+   sparsity                     0.104859068233453     
+   average elements per column                   362
  H before filtering:
    dimension                                    3456
-   nonzero elements                         12051572
-   sparsity                      1.00901176965449     
-   average elements per column                  3487
+   nonzero elements                          6025786
+   sparsity                     0.504505884827246     
+   average elements per column                  1743
  H after filtering:
    dimension                                    3456
-   nonzero elements                          5388732
-   sparsity                     0.451168860918210     
-   average elements per column                  1559
+   nonzero elements                          2694366
+   sparsity                     0.225584430459105     
+   average elements per column                   779
 
-Total solve2                                   4.071936846 sec
-* sygvd solver                                 3.818446875 sec
+Total solve2                                   2.107284784 sec
+* sygvd solver                                 1.956021070 sec
 
 nel: 1024, nel_calc:      1024.00000000
  nel in P=   1024.00000000000      required nel=                  1024
- idempotency deviation  1.038253426917553E-012  9.999999747378752E-005
+ idempotency deviation  6.693790622703047E-013  9.999999747378752E-005
  Stupid simple implementation of the submatrix method:                     3                     2
  number of submatrices=                     1
  average sm dim=                  3456
- effort for full matrix ops=   41278242816.0000     
- sums of efforts for submatrices=   41278242816.0000     
+ effort for full matrix ops=   702157169.291010     
+ sums of efforts for submatrices=   702157169.291010     
  ratio   1.00000000000000     
- muiter                     1 mu  0.000000000000000E+000   2331.30013688467      of                  1024
+ sm                     1                  3456   2.08723306655884     
+ muiter                     1 mu  0.000000000000000E+000   2976.00000000000      of                  1024
  muiter                     2 mu  -5.00000000000000       0.000000000000000E+000 of                  1024
- muiter                     3 mu  -2.50000000000000        462.000000000002      of                  1024
+ muiter                     3 mu  -2.50000000000000        462.000000000000      of                  1024
  muiter                     4 mu  -1.25000000000000        1224.00000000000      of                  1024
  muiter                     5 mu  -1.87500000000000        1024.00000000000      of                  1024
  iteration of chemical potential converged
+ final iteration to get density matrix
 
-Submatrix                                      7.484598160 sec
-* submatrix stats                              0.000647068 sec
-* mu iter                                      7.483693838 sec
-* submatrix construction                       1.472283125 sec
-* submatrix eigendecomp                        4.211615086 sec
-* submatrix P                                  0.739495754 sec
-* submatrix Nel                                0.482230902 sec
+Submatrix                                      2.958509922 sec
+* alloc                                        0.099931002 sec
+* submatrix combination                        0.000027895 sec
+* submatrix stats                              0.000370026 sec
+* mu iter                                      2.826299906 sec
+* submatrix construction                       0.257895947 sec
+* submatrix matrix function                    2.309104919 sec
+* submatrix eigendecomp                        2.151470900 sec
+* submatrix fe                                 0.157557964 sec
+* submatrix occ                                0.000107050 sec
+* submatrix Nel                                0.000024080 sec
+* submatrix final iter                         0.220107079 sec
+* submatrix dealloc                            0.031716108 sec
 *                                              0.000000000 sec
-* submatrix return results                     0.406786919 sec
+*                                              0.000000000 sec
+*                                              0.000000000 sec
+*                                              0.000000000 sec
+*                                              0.000000000 sec
+*                                              0.000000000 sec
 *                                              0.000000000 sec
 *                                              0.000000000 sec
 
- first elements Pref   1.32369296821676       0.446877863039302       0.199174988311007       0.119033115741790       0.108268921075834        1.13380750970395       0.231773574949093       0.217686386432892      -9.611327442316860E-002   1.00020325511338     
- first elements P      1.32369296821676       0.446877863039302       0.199174988311007       0.119033115741790       0.108268921075834        1.13380750970395       0.231773574949093       0.217686386432892      -9.611327442316860E-002   1.00020325511338     
+ first elements Pref   1.32369296821676       0.446877863039299       0.199174988311006       0.119033115741787       0.108268921075834        1.13380750970395       0.231773574949094       0.217686386432893      -9.611327442316538E-002   1.00020325511338     
+ first elements P      1.32369296821676       0.446877863039299       0.199174988311006       0.119033115741787       0.108268921075834        1.13380750970395       0.231773574949094       0.217686386432893      -9.611327442316538E-002   1.00020325511338     
  Sparsity of Pref:
    dimension                                    3456
-   nonzero elements                         11930652
-   sparsity                     0.998887803819444     
-   average elements per column                  3452
+   nonzero elements                          5965326
+   sparsity                     0.499443901909722     
+   average elements per column                  1726
  Sparsity of P:
    dimension                                    3456
-   nonzero elements                         11930652
-   sparsity                     0.998887803819444     
-   average elements per column                  3452
+   nonzero elements                          5965326
+   sparsity                     0.499443901909722     
+   average elements per column                  1726
  maximal deviation in density matrix  0.000000000000000E+000                     1   1.32369296821676        1.32369296821676     
  MSE of density matrix  0.000000000000000E+000
  Tr(H Pref)=  -2734.37861279596     
@@ -497,85 +509,97 @@ Submatrix                                      7.484598160 sec
  energy deviation per atom abs(Tr(H P)-Tr(H Pref))/n=  0.000000000000000E+000
 nel: 1024, nel_calc:      1024.00000000
  nel in P=   1024.00000000000      required nel=                  1024
- idempotency deviation  1.038253426917553E-012  9.999999747378752E-005
+ idempotency deviation  6.693790622703047E-013  9.999999747378752E-005
  PTB H matrix iteration                      2  done. Now solving ...
  S before filtering:
    dimension                                    3456
-   nonzero elements                          2504860
-   sparsity                     0.209718136466907     
-   average elements per column                   724
+   nonzero elements                          1252430
+   sparsity                     0.104859068233453     
+   average elements per column                   362
  S after filtering:
    dimension                                    3456
-   nonzero elements                          2504860
-   sparsity                     0.209718136466907     
-   average elements per column                   724
+   nonzero elements                          1252430
+   sparsity                     0.104859068233453     
+   average elements per column                   362
  H before filtering:
    dimension                                    3456
-   nonzero elements                         11781852
-   sparsity                     0.986429599086934     
-   average elements per column                  3409
+   nonzero elements                          5890922
+   sparsity                     0.493214464645490     
+   average elements per column                  1704
  H after filtering:
    dimension                                    3456
-   nonzero elements                          4880388
-   sparsity                     0.408608016653807     
-   average elements per column                  1412
+   nonzero elements                          2440194
+   sparsity                     0.204304008326903     
+   average elements per column                   706
 
-Total solve2                                   4.096662998 sec
-* sygvd solver                                 3.841441870 sec
+Total solve2                                   2.267256021 sec
+* sygvd solver                                 2.113580942 sec
 
 nel: 1024, nel_calc:      1024.00000000
  nel in P=   1024.00000000000      required nel=                  1024
- idempotency deviation  1.381854767873621E-012  9.999999747378752E-005
+ idempotency deviation  1.063132153383654E-012  9.999999747378752E-005
  Stupid simple implementation of the submatrix method:                     3                     2
  number of submatrices=                     1
  average sm dim=                  3456
- effort for full matrix ops=   41278242816.0000     
- sums of efforts for submatrices=   41278242816.0000     
+ effort for full matrix ops=   702157169.291010     
+ sums of efforts for submatrices=   702157169.291010     
  ratio   1.00000000000000     
- muiter                     1 mu  0.000000000000000E+000   2459.40159684119      of                  1024
+ sm                     1                  3456   1.90390110015869     
+ muiter                     1 mu  0.000000000000000E+000   3062.00000000000      of                  1024
  muiter                     2 mu  -5.00000000000000       0.000000000000000E+000 of                  1024
  muiter                     3 mu  -2.50000000000000        214.000000000001      of                  1024
  muiter                     4 mu  -1.25000000000000        1198.00000000000      of                  1024
  muiter                     5 mu  -1.87500000000000        1024.00000000000      of                  1024
  iteration of chemical potential converged
+ final iteration to get density matrix
 
-Submatrix                                      6.913975954 sec
-* submatrix stats                              0.000842810 sec
-* mu iter                                      6.912896872 sec
-* submatrix construction                       1.484158039 sec
-* submatrix eigendecomp                        3.680794001 sec
-* submatrix P                                  0.707900286 sec
-* submatrix Nel                                0.460038662 sec
+Submatrix                                      2.746472120 sec
+* alloc                                        0.096812010 sec
+* submatrix combination                        0.000009060 sec
+* submatrix stats                              0.000366211 sec
+* mu iter                                      2.630214930 sec
+* submatrix construction                       0.243700981 sec
+* submatrix matrix function                    2.126451015 sec
+* submatrix eigendecomp                        1.966063976 sec
+* submatrix fe                                 0.160310984 sec
+* submatrix occ                                0.000090837 sec
+* submatrix Nel                                0.000024319 sec
+* submatrix final iter                         0.220639944 sec
+* submatrix dealloc                            0.018919945 sec
 *                                              0.000000000 sec
-* submatrix return results                     0.407051563 sec
+*                                              0.000000000 sec
+*                                              0.000000000 sec
+*                                              0.000000000 sec
+*                                              0.000000000 sec
+*                                              0.000000000 sec
 *                                              0.000000000 sec
 *                                              0.000000000 sec
 
- first elements Pref   1.29623107814936       0.221648824709425       8.565948272488906E-002  0.121389164720233       0.105000572418879        1.11159253217634       0.239877118464282       0.209185955872703      -9.273245501479135E-002  0.985673332576171     
- first elements P      1.29623107814936       0.221648824709425       8.565948272488906E-002  0.121389164720233       0.105000572418879        1.11159253217634       0.239877118464282       0.209185955872703      -9.273245501479135E-002  0.985673332576171     
+ first elements Pref   1.29623026293661       0.221650047959274       8.565982522995703E-002  0.121388981966236       0.105000565702416        1.11159201651184       0.239876586036565       0.209185896311760      -9.273251965294575E-002  0.985673027034924     
+ first elements P      1.29623026293661       0.221650047959274       8.565982522995703E-002  0.121388981966236       0.105000565702416        1.11159201651184       0.239876586036565       0.209185896311760      -9.273251965294575E-002  0.985673027034924     
  Sparsity of Pref:
    dimension                                    3456
-   nonzero elements                         11959272
-   sparsity                      1.00128399884259     
-   average elements per column                  3460
+   nonzero elements                          5979648
+   sparsity                     0.500643004115226     
+   average elements per column                  1730
  Sparsity of P:
    dimension                                    3456
-   nonzero elements                         11959272
-   sparsity                      1.00128399884259     
-   average elements per column                  3460
- maximal deviation in density matrix  0.000000000000000E+000                     1   1.29623107814936        1.29623107814936     
+   nonzero elements                          5979648
+   sparsity                     0.500643004115226     
+   average elements per column                  1730
+ maximal deviation in density matrix  0.000000000000000E+000                     1   1.29623026293661        1.29623026293661     
  MSE of density matrix  0.000000000000000E+000
- Tr(H Pref)=  -2337.99879519413     
- Tr(H P)=  -2337.99879519413     
+ Tr(H Pref)=  -2337.97310169519     
+ Tr(H P)=  -2337.97310169519     
  energy deviation abs(Tr(H P)-Tr(H Pref))=  0.000000000000000E+000
  energy deviation per atom abs(Tr(H P)-Tr(H Pref))/n=  0.000000000000000E+000
 nel: 1024, nel_calc:      1024.00000000
  nel in P=   1024.00000000000      required nel=                  1024
- idempotency deviation  1.381854767873621E-012  9.999999747378752E-005
+ idempotency deviation  1.063132153383654E-012  9.999999747378752E-005
  frontier MO occupations   :   2.0000  2.0000  2.0000  2.0000  2.0000  2.0000  2.0000  2.0000  2.0000  2.0000  0.0000  0.0000
- (shifted) level energies  :  -0.3386 -0.3373 -0.3362 -0.3355 -0.3351 -0.3318 -0.3309 -0.3301 -0.3287 -0.3255  0.0442  0.0455
+ (shifted) level energies  :  -0.3386 -0.3372 -0.3362 -0.3354 -0.3351 -0.3318 -0.3309 -0.3301 -0.3287 -0.3255  0.0443  0.0455
  gaps (1st,2nd, eV)        :     9.659   10.061
- D4 dispersion energy      :     -2.048027
+ D4 dispersion energy      :     -2.048030
 
      ------  PTB results ------
   # element  Z   pop.                shell populations
@@ -589,13 +613,13 @@ nel: 1024, nel_calc:      1024.00000000
   8     C   4.0  4.0167       0.546  0.230  2.108  0.674  0.458
   9     C   4.0  4.0504       0.555  0.253  2.183  0.776  0.282
  10     C   4.0  4.0070       0.561  0.256  2.127  0.774  0.289
- 11     C   4.0  4.0667       0.533  0.259  2.149  0.798  0.327
+ 11     C   4.0  4.0668       0.533  0.259  2.149  0.798  0.327
  12     C   4.0  4.0767       0.569  0.271  2.183  0.850  0.204
  13     H   1.0  0.9516       0.663  0.145  0.143
  14     H   1.0  0.9576       0.663  0.149  0.146
  15     H   1.0  0.9601       0.658  0.157  0.145
  16     H   1.0  0.9613       0.661  0.158  0.142
- 17     H   1.0  0.9613       0.658  0.159  0.144
+ 17     H   1.0  0.9614       0.658  0.159  0.144
  18     H   1.0  0.9637       0.666  0.155  0.143
  19     H   1.0  0.9556       0.675  0.150  0.131
  20     H   1.0  0.9566       0.673  0.153  0.130
@@ -609,7 +633,7 @@ nel: 1024, nel_calc:      1024.00000000
  28     C   4.0  4.1025       0.530  0.254  2.195  0.813  0.310
  29     C   4.0  4.0573       0.558  0.253  2.182  0.783  0.281
  30     C   4.0  4.0183       0.549  0.229  2.089  0.683  0.469
- 31     C   4.0  4.0374       0.554  0.251  2.163  0.776  0.293
+ 31     C   4.0  4.0375       0.554  0.251  2.163  0.776  0.293
  32     C   4.0  4.0127       0.548  0.230  2.106  0.667  0.462
  33     C   4.0  4.0527       0.556  0.253  2.190  0.769  0.285
  34     C   4.0  4.0055       0.566  0.257  2.114  0.777  0.291
@@ -709,15 +733,15 @@ nel: 1024, nel_calc:      1024.00000000
 128     C   4.0  4.0213       0.546  0.231  2.110  0.671  0.464
 129     C   4.0  4.0394       0.557  0.253  2.180  0.768  0.281
 130     C   4.0  4.0175       0.563  0.255  2.127  0.781  0.293
-131     C   4.0  4.0746       0.536  0.265  2.158  0.791  0.324
+131     C   4.0  4.0747       0.536  0.265  2.158  0.791  0.324
 132     C   4.0  4.0814       0.574  0.273  2.178  0.850  0.206
-133     H   1.0  0.9459       0.667  0.143  0.136
+133     H   1.0  0.9460       0.667  0.143  0.136
 134     H   1.0  0.9439       0.664  0.143  0.137
-135     H   1.0  0.9556       0.659  0.151  0.146
+135     H   1.0  0.9557       0.659  0.151  0.146
 136     H   1.0  0.9606       0.663  0.155  0.143
 137     H   1.0  0.9576       0.658  0.156  0.144
 138     H   1.0  0.9700       0.669  0.161  0.140
-139     H   1.0  0.9448       0.674  0.141  0.130
+139     H   1.0  0.9448       0.674  0.142  0.130
 140     H   1.0  0.9530       0.676  0.144  0.133
 141     H   1.0  0.9409       0.671  0.138  0.131
 142     H   1.0  0.9808       0.527  0.110  0.343
@@ -758,7 +782,7 @@ nel: 1024, nel_calc:      1024.00000000
 177     C   4.0  4.0562       0.558  0.252  2.186  0.773  0.287
 178     C   4.0  4.0036       0.566  0.257  2.116  0.774  0.291
 179     C   4.0  4.0864       0.541  0.267  2.156  0.786  0.336
-180     C   4.0  4.0872       0.574  0.272  2.181  0.856  0.206
+180     C   4.0  4.0872       0.574  0.272  2.180  0.856  0.206
 181     H   1.0  0.9540       0.671  0.146  0.137
 182     H   1.0  0.9431       0.668  0.139  0.137
 183     H   1.0  0.9507       0.661  0.146  0.143
@@ -786,7 +810,7 @@ nel: 1024, nel_calc:      1024.00000000
 205     H   1.0  0.9494       0.671  0.145  0.134
 206     H   1.0  0.9445       0.668  0.139  0.138
 207     H   1.0  0.9571       0.660  0.150  0.147
-208     H   1.0  0.9640       0.663  0.156  0.145
+208     H   1.0  0.9641       0.663  0.156  0.145
 209     H   1.0  0.9594       0.659  0.157  0.143
 210     H   1.0  0.9709       0.671  0.158  0.142
 211     H   1.0  0.9555       0.676  0.147  0.132
@@ -950,7 +974,7 @@ nel: 1024, nel_calc:      1024.00000000
 369     C   4.0  4.0471       0.561  0.256  2.170  0.777  0.283
 370     C   4.0  4.0196       0.566  0.256  2.126  0.778  0.294
 371     C   4.0  4.0707       0.535  0.260  2.152  0.790  0.334
-372     C   4.0  4.0735       0.576  0.274  2.168  0.850  0.205
+372     C   4.0  4.0736       0.576  0.274  2.168  0.850  0.205
 373     H   1.0  0.9499       0.666  0.148  0.136
 374     H   1.0  0.9582       0.669  0.149  0.140
 375     H   1.0  0.9632       0.660  0.155  0.148
@@ -1088,7 +1112,7 @@ nel: 1024, nel_calc:      1024.00000000
    121  O   2.213    C  126 1.083    C  131 1.017
    122  O   2.145    C  128 1.090    H  142 1.003
    123  C   3.964    C  127 1.441    C  125 1.418    C  124 1.008    C  128 0.067
-   124  C   4.038    C  130 1.031    C  123 1.008    H  133 0.977    H  134 0.973
+   124  C   4.038    C  130 1.031    C  123 1.008    H  133 0.978    H  134 0.973
    125  C   3.955    C  126 1.438    C  123 1.418    H  135 0.983    C  129 0.068
    126  C   3.976    C  125 1.438    C  128 1.351    O  121 1.083    C  127 0.066
    127  C   3.952    C  129 1.447    C  123 1.441    H  136 0.981    C  126 0.066
@@ -1097,7 +1121,7 @@ nel: 1024, nel_calc:      1024.00000000
    130  C   3.912    C  132 1.942    C  124 1.031    H  138 0.982
    131  C   3.942    O  121 1.017    H  141 0.989    H  139 0.984    H  140 0.983
    132  C   3.927    C  130 1.942    H  144 0.992    H  143 0.986
-   133  H   1.004    C  124 0.977
+   133  H   1.004    C  124 0.978
    134  H   0.994    C  124 0.973
    135  H   1.018    C  125 0.983
    136  H   1.011    C  127 0.981
@@ -1136,7 +1160,7 @@ nel: 1024, nel_calc:      1024.00000000
    169  O   2.248    C  174 1.122    C  179 1.004
    170  O   2.158    C  176 1.082    H  190 1.024
    171  C   3.985    C  173 1.442    C  175 1.430    C  172 1.008    C  176 0.064
-   172  C   4.045    C  178 1.017    C  171 1.008    H  181 0.988    H  182 0.985
+   172  C   4.046    C  178 1.017    C  171 1.008    H  181 0.988    H  182 0.985
    173  C   3.956    C  171 1.442    C  174 1.390    H  183 0.977    C  177 0.065
    174  C   3.995    C  173 1.390    C  176 1.350    O  169 1.122    C  175 0.067
    175  C   3.966    C  177 1.466    C  171 1.430    H  184 0.978    C  174 0.067
@@ -1213,7 +1237,7 @@ nel: 1024, nel_calc:      1024.00000000
    246  C   3.983    C  245 1.438    C  248 1.334    O  241 1.095    C  247 0.065
    247  C   3.949    C  243 1.448    C  249 1.445    H  256 0.977    C  246 0.065
    248  C   3.960    C  249 1.438    C  246 1.334    O  242 1.095    C  243 0.066
-   249  C   3.934    C  247 1.445    C  248 1.438    H  257 0.981    C  245 0.066
+   249  C   3.934    C  247 1.445    C  248 1.438    H  257 0.980    C  245 0.066
    250  C   3.917    C  252 1.948    C  244 1.005    H  258 0.984
    251  C   3.955    O  241 1.017    H  261 0.986    H  260 0.986    H  259 0.979
    252  C   3.914    C  250 1.948    H  263 0.994    H  264 0.988
@@ -1221,7 +1245,7 @@ nel: 1024, nel_calc:      1024.00000000
    254  H   1.003    C  244 0.988
    255  H   1.025    C  245 0.982
    256  H   1.016    C  247 0.977
-   257  H   1.017    C  249 0.981
+   257  H   1.017    C  249 0.980
    258  H   1.042    C  250 0.984
    259  H   0.980    C  251 0.979
    260  H   0.995    C  251 0.986
@@ -1350,8 +1374,8 @@ nel: 1024, nel_calc:      1024.00000000
    383  H   1.038    C  372 0.994
    384  H   1.017    C  372 0.989
 dipole moment  X         Y          Z
-       -3.556633       -1.198192        2.022484  total     (au/Debye)      :     4.2633    10.8365
+       -3.556614       -1.198319        2.022465  total     (au/Debye)      :     4.2633    10.8365
 second moment  X^2       Y^2        Z^2
-      886.272929      795.484492      810.770895  average   (au)            :   830.8428
-cpu  time for all    1 h 12 m 29.8 s
-wall time for all    0 h  0 m 51.0 s
+      886.282316      795.491160      810.777850  average   (au)            :   830.8504
+cpu  time for all   18 m 31.4 s
+wall time for all    0 m 24.0 s
