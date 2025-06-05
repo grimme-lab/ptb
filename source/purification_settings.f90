@@ -1,7 +1,18 @@
 module purification_settings
    use gtb_accuracy, only: wp
-   use cuda_, only: initialize_ctx
+!   use cuda_, only: initialize_ctx
    implicit none
+
+   integer, parameter :: full = 1
+   integer, parameter :: submatrix = 2
+   
+   integer, parameter :: single_columns = 1
+   integer, parameter :: atoms_columns = 2
+   integer, parameter :: full_matrix = 3
+   integer, parameter :: kmeans_r_heuristic = 4
+   
+   integer, parameter :: submatrix_sign = 1
+   integer, parameter :: submatrix_sygv = 2
 
    !> Different calculation types
    integer, parameter :: mcweeny = 1 ! Classical McWeeny purification
@@ -42,10 +53,11 @@ module purification_settings
    end type
 
    type :: tPurificationSet
+      !> calculation mode
+      integer :: mode = full
 
       !> Purification type
       integer :: type = sign_diagonalization
-      
       
       !> Purification cycles in itertive methods
       integer :: cycles = 40
@@ -55,9 +67,16 @@ module purification_settings
 
       !> Development mode (calculate solve2 as well and divergence between results)
       logical :: dev = .true.
+      
+      !> Check against numerical exact reference
+      logical :: check = .false.
 
       !> (internal) Number of electrons
       integer :: nel
+
+      !> submatrix modes mode
+      integer :: submatrix_mode = submatrix_sygv
+      integer :: submatrix_columns = atoms_columns
 
       type(tMetricSet) :: metric
       type(tChempotSet) :: chempot
@@ -104,6 +123,39 @@ contains
             select case(arg1)
    
             ! get purification type !
+            case('mode')
+               select case(arg3)
+               case('full')
+                  self%mode = full
+               case('submatrix')
+                  self%mode = submatrix
+               case default
+                  error stop 'Error: .PUR contains invalid type definition'
+               end select
+            case('submatrix_columns')
+               select case(arg3)
+               case('single_columns')
+                  self%submatrix_columns = single_columns
+               case('atoms_columns')
+                  self%submatrix_columns = atoms_columns
+               case('full_matrix')
+                  self%submatrix_columns = full_matrix
+               case('kmeans_r_heuristic')
+                  self%submatrix_columns = kmeans_r_heuristic
+               case default
+                  error stop 'Error: .PUR contains invalid type definition'
+               end select
+            case('submatrix_mode')
+               select case(arg3)
+               case('submatrix_sign')
+                  self%submatrix_mode = submatrix_sign
+               case('submatrix_sygv')
+                  self%submatrix_mode = submatrix_sygv
+               case default
+                  error stop 'Error: .PUR contains invalid type definition'
+               end select
+
+
             case('type')
                select case(arg3)
                case('mcweeny')
@@ -153,7 +205,8 @@ contains
             select case(arg1)
             case('dev')
                self%dev = .true.
-
+            case('check')
+               self%check=.true.
             case('iterative_inversion')
                self%metric%iterative= .true.
 
@@ -166,7 +219,7 @@ contains
 
    subroutine print_settings(self, out)
 
-      use cuda_, only: ctx
+!      use cuda_, only: ctx
       use metrics, only: thrs
 
       !> Purification settings holder
@@ -182,6 +235,14 @@ contains
 
       write(out,'(2x,a)') "__SETTINGS__" 
       write(out,'(2x,a)') "__general__"
+      write(out,'(2x,a,6x)',advance='no') "Calculation mode :            "
+      selectcase(self%type)
+      case(full)
+         write(out,'(a)') 'Full matrix'
+      case(submatrix)
+         write(out,'(a)') 'Submatrix method'
+      endselect
+
       write(out,'(2x,a,6x)',advance='no') "Purification type:            "
       selectcase(self%type)
       case(mcweeny)
@@ -199,7 +260,7 @@ contains
             if (self%prlvl > 0) &
          write(out,'(2x,a, 8x, i0)') 'Iteration Cycles:           ', self%cycles
       endselect
-      write(out,'(2x,a,5x,L1)') "CUDA support:                  ", allocated(ctx)
+!      write(out,'(2x,a,5x,L1)') "CUDA support:                  ", allocated(ctx)
       if(self%prlvl > 1) then
          write(out,'(2x,a,5x,L1)') "Development Mode:              ", self%dev
       endif

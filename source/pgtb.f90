@@ -22,13 +22,14 @@
 !        read(1,*) shell_resp(1:10,j,1)  ! 131-140
 !        read(1,*) shell_resp(1:10,j,2)  ! 141-150
 module pgtb_
-   use purification_settings, only : tPurificationSet
+   use purification_settings !, only : tPurificationSet
    use metrics
+   use sm
    implicit none
 
 contains
 
-   subroutine pgtb(pr,prop,n,ndim,nel,nopen,homo,at,chrg,xyz,z,rab, &
+   subroutine pgtb(pr,prop,n,ndim,nel,nopen,homo,at,chrg,filter,xyz,z,rab, &
    &               pnt,norm,S,D,efield,S1,S2,psh,pa,&
    &               P,H,eps,wbo,dip,alp, pur)
       use iso_fortran_env, only : wp => real64
@@ -54,12 +55,13 @@ contains
       integer, intent(in)    :: homo               ! as the name says...
       integer, intent(in)    :: at(n)              ! ordinal number of atoms
       real(wp),intent(in)    :: chrg               ! system charge
+      real(wp),intent(in)    :: filter             ! sparsity filtering
       real(wp),intent(in)    :: xyz(3,n)           ! coordinates (not used)
       real(wp),intent(in)    :: z(n)               ! nuclear charges
       real(wp),intent(in)    :: rab(n*(n+1)/2)     ! distances
       real(wp),intent(in)    :: pnt(3)             ! property reference point
       real(wp),intent(in)    :: norm(ndim)         ! SAO normalization factors
-      real(wp),intent(in)    :: S(ndim*(ndim+1)/2) ! exact overlap maxtrix in SAO
+      real(wp),intent(inout) :: S(ndim*(ndim+1)/2) ! exact overlap maxtrix in SAO
       real(wp),intent(in)    :: D(ndim*(ndim+1)/2,3)!dipole integrals
       real(wp),intent(in)    :: efield(3)          ! electric field
       type(tPurificationSet), allocatable, optional :: pur
@@ -210,7 +212,7 @@ contains
       scfpar(6) =  glob_par(13)  ! iter1 two-center
       scfpar(7) =  1.0d0 !glob_par(18)  ! gamscal in onescf
       scfpar(8) =  glob_par(12)  ! gpol in onescf
-      call twoscf(pr,prop,n,ndim,nel,nopen,homo,at,xyz,z,rab,cns,S,SS,Vecp,Hdiag,focc,&
+      call twoscf(pr,prop,n,ndim,nel,nopen,homo,at,filter,xyz,z,rab,cns,S,SS,Vecp,Hdiag,focc,&
          norm,pnt,eT,scfpar,S1,S2,psh,pa,P,H,ves0,gab,eps,U, pur)
 
    !! ------------------------------------------------------------------------
@@ -340,7 +342,7 @@ contains
    !  set up and diag the H matrix twice
    !! ------------------------------------------------------------------------
 
-   subroutine twoscf(pr,prop,n,ndim,nel,nopen,homo,at,xyz,z,rab,cn,S,SS,Vecp,Hdiag,focc,&
+   subroutine twoscf(pr,prop,n,ndim,nel,nopen,homo,at,filter,xyz,z,rab,cn,S,SS,Vecp,Hdiag,focc,&
       norm,pnt,eT,scfpar,S1,S2,psh,pa,P,Hmat,ves,gab,eps,U,pur)
       use iso_fortran_env, only : wp => real64, stdout => output_unit
       use bascom
@@ -362,11 +364,12 @@ contains
       integer, intent(in)    :: nopen                 ! number of open shells
       integer, intent(in)    :: homo                  ! as the name says...
       integer, intent(in)    :: at(n)                 ! ordinal number of atoms
+      real(wp),intent(in)    :: filter                ! sparsity filtering
       real(wp),intent(in)    :: xyz(3,n)              ! coordinates
       real(wp),intent(in)    :: z(n)                  ! nuclear charges
       real(wp),intent(in)    :: rab(n*(n+1)/2)        ! distances
       real(wp),intent(in)    :: cn(n)                 ! CN
-      real(wp),intent(in)    :: S(ndim*(ndim+1)/2)    ! exact overlap maxtrix in SAO
+      real(wp),intent(inout) :: S(ndim*(ndim+1)/2)    ! exact overlap maxtrix in SAO
       real(wp),intent(inout)    :: SS(ndim*(ndim+1)/2)   ! scaled overlap maxtrix in SAO
       real(wp),intent(in)    :: Vecp(ndim*(ndim+1)/2) ! ECP ints
       real(wp),intent(in)    :: Hdiag(ndim)           ! diagonal of H0
@@ -399,9 +402,11 @@ contains
       real(wp) :: xiter(2),yiter(2),ziter(2),ssh,gap1,gap2
       real(wp) :: t0,t1,w0,w1
       real(wp), allocatable :: SSS(:)
+      real(wp), allocatable :: Pref(:)
       real(wp), allocatable :: vs(:),vd(:,:),vq(:,:)
       real(wp), allocatable :: gq(:),xab(:),scal(:,:)
       real(wp), dimension(ndim*(ndim+1)/2) :: P2
+      real(wp) :: etr,etr_ref
 
    !  special overlap matrix for XC term
       call modbas(n,at,2)
@@ -553,11 +558,30 @@ contains
    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
    ! done
    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-         if(pr)write(*,*) 'PTB H matrix iteration ',iter, ' done. Now diag ...'
+         if(pr)write(*,*) 'PTB H matrix iteration ',iter, ' done. Now solving ...'
 
    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
    !  solve
    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+         !filtering of matrices
+         if(filter>0)then
+            print*,"S before filtering:"
+            call analyse_matrix_sym(S,ndim)     
+            call filter_matrix_sym(S,ndim,filter)     
+            print*,"S after filtering:"
+            call analyse_matrix_sym(S,ndim)     
+
+            print*,"H before filtering:"
+            call analyse_matrix_sym(Hmat,ndim)     
+            call filter_matrix_sym(Hmat,ndim,filter)     
+            print*,"H after filtering:"
+            call analyse_matrix_sym(Hmat,ndim)     
+         else
+            print*,"S:"
+            call analyse_matrix_sym(S,ndim)     
+            print*,"H:"
+            call analyse_matrix_sym(Hmat,ndim)     
+         endif
          mode = iter
          if(iter.eq.2.and.prop.eq.4) mode = 3     ! stda write
          if(iter.eq.2.and.prop.eq.5) mode = 4     ! TM write
@@ -568,38 +592,55 @@ contains
 
          ! Normal diagonalization !
          if (.not. allocated(pur)) then
+            call adjust_thresholds(ndim, P)
             call solve2(mode,ndim,nel,nopen,homo,eT,focc,Hmat,S,P,eps,U,fail) 
             call check_density(ndim, P, S, nel) ! check if computed density matrix valid 
-
-         ! Purification !
+            if(fail) stop 'diag error'
          else
 
-            call adjust_thresholds(ndim, P)
-            call check_sparsity(pur%prlvl,ndim, Hmat)
-            stop
-            if (pur%dev) then ! perform diagonalization in development regime
-               write(stdout, '(a,1x,a,1x,a)') repeat('*', 40),'Solve',repeat('*',40)
-               call solve2(mode,ndim,nel,nopen,homo,eT,focc,Hmat,S,P,eps,U,fail) 
-               call check_density(ndim, P, S, nel) ! check if computed density matrix valid
-               if (debug .or.  pr > 0) &
-                  call print_matrix(ndim, P, 'PTB density matrix') 
-               write(stdout, '(a)') repeat('*', 87)
-            endif
-
-            
-            pur%nel = nel ! save number of electrons
-            call pur%print(stdout)
-            call purification(pur, ndim, Hmat, S, P2)
-            if (debug .or.  pr > 0) &
-               call print_matrix(ndim, P2, 'Purified density matrix') 
-            call check_density(ndim, P2, S, nel) ! check if computed density matrix valid 
-            if (pur%dev) then ! perform diagonalization in development regime
-               call analyze_results(ndim, P, P2, S, Hmat, n, pur%prlvl)
-            endif
-
+           ! Purification !
+           if(pur%check)then
+             allocate(Pref(ndim*(ndim+1)/2))
+             call adjust_thresholds(ndim, Pref)
+             call solve2(mode,ndim,nel,nopen,homo,eT,focc,Hmat,S,Pref,eps,U,fail) 
+             call check_density(ndim, Pref, S, nel) ! check if computed density matrix valid 
+             if(fail) stop 'diag error'
+           endif
+           if(pur%mode.eq.full)then 
+!              call adjust_thresholds(ndim, P)
+!              pur%nel = nel ! save number of electrons
+!              call pur%print(stdout)
+!              call purification(pur, ndim, Hmat, S, P)
+!              if (debug .or.  pr > 0) &
+!                 call print_matrix(ndim, P, 'Purified density matrix') 
+!              call check_density(ndim, P, S, nel) ! check if computed density matrix valid 
+           elseif (pur%mode.eq.submatrix)then
+             call sm_stupid_simple(ndim,nel,Hmat,S,P,n,xyz,aoat,pur%submatrix_columns,pur%submatrix_mode)
+           else
+             print*,"mode",mode,"not implemented"
+             stop
+           endif
+           if(pur%check)then
+             print*,"first elements Pref",Pref(1:10)
+             print*,"first elements P   ",P(1:10)
+             print*,"Sparsity of Pref:"
+             call analyse_matrix_sym(Pref,ndim)
+             print*,"Sparsity of P:"
+             call analyse_matrix_sym(P,ndim) 
+             print*,"maximal deviation in density matrix",maxval(abs(P-Pref)),maxloc(abs(P-Pref)),P(maxloc(abs(P-Pref))),Pref(maxloc(abs(P-Pref)))
+             print*,"MSE of density matrix",sum((P-Pref)**2)/(real(n*(n-1)/2,kind=wp))
+             etr_ref=band_structure(ndim,Pref,Hmat)
+             etr=band_structure(ndim,P,Hmat)
+             print*,"Tr(H Pref)=",etr_ref
+             print*,"Tr(H P)=",etr
+             print*,"energy deviation abs(Tr(H P)-Tr(H Pref))=",etr-etr_ref
+             print*,"energy deviation per atom abs(Tr(H P)-Tr(H Pref))/n=",(etr-etr_ref)/n
+             deallocate(Pref)
+!             stop
+           endif
          endif
-         
-         if(fail) stop 'diag error'
+         call check_density(ndim, P, S, nel) ! check if computed density matrix valid 
+           
 
          if(iter.eq.1) gap1 = (eps(homo+1)-eps(homo))*au2ev
          if(iter.eq.2.and.pr)then
@@ -1067,6 +1108,7 @@ contains
          call timer_scf%click(1, 'sygvd solver')
          call blowsym(ndim,H,U)
          call la_sygvd(U,sdum,e,INFO)
+!         print*,e
    
          call timer_scf%click(1)
       
@@ -1485,5 +1527,54 @@ contains
          enddo
       enddo
 
+   end
+
+   subroutine filter_matrix_sym(A,n,filter)
+      use iso_fortran_env, only : wp => real64
+      implicit none
+   !! ------------------------------------------------------------------------
+   !  Input
+   !! ------------------------------------------------------------------------
+      real(wp), intent(inout) :: A(:)         ! matrix
+      integer , intent(in)    :: n            ! dimension
+      real(wp), intent(in)    :: filter       ! filter threshold
+      integer  :: i,j
+
+      do i=1,n*(n+1)/2
+        if(abs(A(i)).lt.filter)then
+          A(i)=0
+        endif
+      enddo
+   end
+   subroutine analyse_matrix_sym(A,n)
+      use iso_fortran_env, only : wp => real64
+      implicit none
+   !! ------------------------------------------------------------------------
+   !  Input
+   !! ------------------------------------------------------------------------
+      real(wp), intent(inout) :: A(:)         ! matrix
+      integer , intent(in)    :: n            ! dimension
+      integer  :: i,j,ij
+      integer,allocatable :: colcnt(:)
+
+      allocate(colcnt(n))
+      colcnt(:)=0
+      
+      ij = 0
+      do i=1,n
+         do j=1,i
+            ij = ij + 1
+            if(A(ij)>0)then
+              colcnt(i)=colcnt(i)+1
+              if(i.ne.j)then
+                colcnt(j)=colcnt(j)+1
+              endif
+            endif
+         enddo
+      enddo
+      print*,"  dimension                  ",n
+      print*,"  nonzero elements           ",sum(colcnt)
+      print*,"  sparsity                   ",sum(colcnt)/(real(n,kind=wp))**2
+      print*,"  average elements per column",sum(colcnt)/n
    end
 end module pgtb_

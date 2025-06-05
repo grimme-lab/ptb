@@ -19,3 +19,7 @@ git clone https://github.com/grimme-lab/ptb.git
 cd source
 ```
 You can the build the project via `make`.
+
+## Running
+### Submatrix
+Example: to run the system ADACAT with charge 0, and the matrix filtering value 0.0001, run `bash build_and_run.sh ADACAT 0 0.0001`.

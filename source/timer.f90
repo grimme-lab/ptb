@@ -194,12 +194,19 @@ contains
       write(*,'(a)')
       do i =0, self%n
          call convert_time(self%wall_time(i), days, hours, mins, seconds)
+!         if (i .eq. 0) then
+!            write(*,'(a, 3x, i5," d, ",i2," h, ",i2," min, ",f12.9," sec")') &
+!               & self%tag(i), days, hours, mins,seconds
+!         else
+!            write(*,'("* ", a, 1x, i5," d, ",i2," h, ",i2," min, ",f12.9," sec")') &
+!               & self%tag(i), days, hours, mins,seconds
+!         endif
          if (i .eq. 0) then
-            write(*,'(a, 3x, i5," d, ",i2," h, ",i2," min, ",f12.9," sec")') &
-               & self%tag(i), days, hours, mins,seconds
+            write(*,'(a, 3x, f15.9," sec")') &
+               & self%tag(i), self%wall_time(i)
          else
-            write(*,'("* ", a, 1x, i5," d, ",i2," h, ",i2," min, ",f12.9," sec")') &
-               & self%tag(i), days, hours, mins,seconds
+            write(*,'("* ", a, 1x, f15.9," sec")') &
+               & self%tag(i), self%wall_time(i)
          endif
       enddo
 

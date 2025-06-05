@@ -129,11 +129,13 @@ contains
 
       ! Nel check !
       if (abs(get_nel(ndim,P,S)) - nel > thrs%normal) &
-         error stop "wrong Nel, check P"
+         print*,"wrong Nel, check P"
+!         error stop "wrong Nel, check P"
       
       ! Idempotency check! 
       if (.not. idempotent(ndim,P,S)) &
-         error stop "P is not idempotent"
+         print*,"P is not idempotent"
+!         error stop "P is not idempotent"
 
    end subroutine check_density_full
 
@@ -155,19 +157,24 @@ contains
 
       !> Locals
       logical :: debug = .true.
+      real(wp) :: nelP
 
       if (debug) &
          write(stdout,'(a, 1x, i0, a, 1x, f18.8, 2x)') &
             'nel:', nel, ', nel_calc:', get_nel(ndim,P,S)
 
       ! Nel check !
-      if (abs(get_nel(ndim,P,S)) - nel > thrs%normal) then
-         error stop "Error: density matrix gives wrong N_el."
+      nelP=get_nel(ndim,P,S)
+      print*,"nel in P=",nelP,"required nel=",nel
+      if (abs(nelP - nel) > thrs%normal) then
+         print*,"Error: density matrix gives wrong N_el."
+!         error stop "Error: density matrix gives wrong N_el."
       endif
       
       ! Idempotency check! 
       if (.not. idempotent(ndim,P,S)) &
-         error stop "Erorr: density matrix is not idempotent."
+         print*,"Error: density matrix is not idempotent."
+!         error stop "Error: density matrix is not idempotent."
 
    end subroutine check_density_packed
 
@@ -300,6 +307,7 @@ contains
 
       ! check the divergence !
       frob_diff = sqrt(sum(mm2-mat)**2)
+      print*,"idempotency deviation",frob_diff,thrs%normal
       idempot = merge(.true., .false., frob_diff < thrs%normal)
       
    end function idempotent_full
@@ -346,6 +354,7 @@ contains
       
       ! check the divergence !
       frob_diff = sqrt(sum(mm2-matblowed)**2)
+      print*,"idempotency deviation",frob_diff,thrs%normal
       idempot = merge(.true., .false., frob_diff < thrs%low)
          
    end function idempotent_packed

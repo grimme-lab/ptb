@@ -1,6 +1,6 @@
 module gtb_lapack_eig
-   use accel_lib
-   use cuda_, only: ctx
+!   use accel_lib
+!   use cuda_, only: ctx
    use gtb_accuracy, only: ik, sp, dp, i4
    use iso_fortran_env, only: stdout =>  output_unit
   implicit none
@@ -286,14 +286,14 @@ contains
       if (present(uplo)) upl = uplo
       n = size(a, 2)
 
-      if (allocated(ctx)) then
-         if (show) &
-            write(stdout, '(3x, a)') 'Lapack: cuda_ssygvd'
-         call cuda_ssygvd(ctx, n, a, b, w, err)
-
-         if (err /= 0) &
-            error stop 'Error: cuda_ssygvd failed'
-      else
+!      if (allocated(ctx)) then
+!         if (show) &
+!            write(stdout, '(3x, a)') 'Lapack: cuda_ssygvd'
+!         call cuda_ssygvd(ctx, n, a, b, w, err)
+!
+!         if (err /= 0) &
+!            error stop 'Error: cuda_ssygvd failed'
+!      else
          if (show) &
             write(stdout, '(3x, a)') 'Lapack: ssygvd'
 
@@ -310,7 +310,8 @@ contains
          allocate(work(lwork))
          allocate(iwork(liwork))
          call la_sygvd(ityp, job, upl, n, a, n, b, n, w, work, lwork, iwork, liwork, info)
-      endif
+         deallocate(work, iwork)
+!      endif
    
    end subroutine la_sygvd_rsp
 
@@ -354,14 +355,14 @@ contains
       if (present(uplo)) upl = uplo
       n = size(a, 2)
 
-      if (allocated(ctx)) then
-         if (show) &
-            write(stdout, '(3x, a)') 'Lapack: cuda_dsygvd'
-         call cuda_dsygvd(ctx, n, a, b, w, err)
-
-         if (err /= 0) &
-            error stop 'Error: cuda_dsygvd failed'
-      else
+!      if (allocated(ctx)) then
+!         if (show) &
+!            write(stdout, '(3x, a)') 'Lapack: cuda_dsygvd'
+!         call cuda_dsygvd(ctx, n, a, b, w, err)
+!
+!         if (err /= 0) &
+!            error stop 'Error: cuda_dsygvd failed'
+!      else
          if (show) &
             write(stdout, '(3x, a)') 'Lapack: dsygvd'
 
@@ -378,8 +379,9 @@ contains
          allocate(work(lwork))
          allocate(iwork(liwork))
          call la_sygvd(ityp, job, upl, n, a, n, b, n, w, work, lwork, iwork, liwork, info)
+         deallocate(work, iwork)
       
-      endif
+!      endif
 
    end subroutine la_sygvd_rdp
 
@@ -418,14 +420,14 @@ contains
       if (present(uplo)) upl = uplo
       n = size(a, 2)
 
-      if (allocated(ctx)) then
-         if (show) &
-            write(stdout, '(3x, a)') 'Lapack: cuda_ssyevd'
-         call cuda_ssyevd(ctx, n, a, w, err)
-
-         if (err /= 0) &
-            error stop 'Error: cuda_ssyevd failed.'
-      else
+!      if (allocated(ctx)) then
+!         if (show) &
+!            write(stdout, '(3x, a)') 'Lapack: cuda_ssyevd'
+!         call cuda_ssyevd(ctx, n, a, w, err)
+!
+!         if (err /= 0) &
+!            error stop 'Error: cuda_ssyevd failed.'
+!      else
          if (show) &
             write(stdout, '(3x, a)') 'Lapack: ssyevd'
 
@@ -442,8 +444,9 @@ contains
          allocate(work(lwork))
          allocate(iwork(liwork))
          call la_syevd(job, upl, n, a, n, w, work, lwork, iwork, liwork, info)
+         deallocate(work, iwork)
          
-      endif
+!      endif
 
    end subroutine la_syevd_rsp
 
@@ -480,14 +483,14 @@ contains
       if (present(uplo)) upl = uplo
       n = size(a, 2)
 
-      if (allocated(ctx)) then
-         if (show) &
-            write(stdout, '(3x, a)') 'Lapack: cuda_dsyevd'
-         call cuda_dsyevd(ctx, n, a, w, err)
-
-         if (err /= 0) &
-            error stop 'Error: cuda_dsyevd failed.'
-      else
+!      if (allocated(ctx)) then
+!         if (show) &
+!            write(stdout, '(3x, a)') 'Lapack: cuda_dsyevd'
+!         call cuda_dsyevd(ctx, n, a, w, err)
+!
+!         if (err /= 0) &
+!            error stop 'Error: cuda_dsyevd failed.'
+!      else
          if (show) &
             write(stdout, '(3x, a)') 'Lapack: dsyevd'
 
@@ -500,13 +503,14 @@ contains
          call la_syevd(job, upl, n, a, n, w, work, lwork, iwork, liwork, info)
          
          lwork = idint(work(1))
+         !print*,"lwork",lwork
          liwork = iwork(1)
          deallocate(work, iwork)
          allocate(work(lwork))
          allocate(iwork(liwork))
          call la_syevd(job, upl, n, a, n, w, work, lwork, iwork, liwork, info)
-
-      endif
+         deallocate(work, iwork)
+!      endif
 
    end subroutine la_syevd_rdp
 

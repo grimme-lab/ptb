@@ -3,3 +3,8 @@
 *_genmod*
 *.o
 *.mod
+.EDISP
+*.swp
+*.out
+*.pdf
+*.png

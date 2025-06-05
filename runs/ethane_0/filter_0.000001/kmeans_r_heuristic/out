@@ -1,0 +1,269 @@
+ 
+       ==============================================
+       |                 P T B                      |
+       |                S.Grimme                    |
+       |          Universitaet Bonn, MCTC           |
+       ==============================================
+       Version 3.7, Do 28. Apr 14:28:45 CEST 2022
+ 
+       Cite work conducted with this code as
+       S. Grimme, M. Mueller, A. Hansen, unpublished.
+ 
+ filter  1.000000000000000E-006
+ ../../../../.atompara                                                                                                                                                                                                                                           
+          =========================
+          reading ... ../../../../systems/ethane.xyz
+          =========================
+ basis read done.
+ ncao                     58
+ nsao                     56
+ npr                     156
+ basis setup done. Ndim                    56
+ coreat                      2
+ cncao                       2
+ cnsao                       2
+ cnpr                       12
+ 
+ nalpha                      7
+ nbeta                       7
+ ntotal                     14
+ nopen                       0
+cpu  time for startup and initial S    0.03 s
+wall time for startup and initial S    0.00 s
+               -----------------------
+               |      PTB  model      |
+               | SG, MM, AH 2020-2022 |
+               -----------------------
+ prop :                     1
+ PA setup with Mull-Loew partitioning   0.333333 ...
+ done.
+EEQ done. sum q :   -0.000
+    atom   Zeff  qEEQ  mod   srCN   noHCN   CN(EEQ)
+    1    6  4.0    -0.081   3.974   0.405   4.014
+    2    6  4.0    -0.081   3.974   0.405   4.014
+    3    1  1.0     0.027   1.026   0.004   1.005
+    4    1  1.0     0.027   1.026   0.004   1.005
+    5    1  1.0     0.027   1.026   0.004   1.005
+    6    1  1.0     0.027   1.026   0.004   1.005
+    7    1  1.0     0.027   1.026   0.004   1.005
+    8    1  1.0     0.027   1.026   0.004   1.005
+ computing Vecp ...
+ PTB H matrix iteration                      1  done. Now solving ...
+ S before filtering:
+   dimension                                      56
+   nonzero elements                             1424
+   sparsity                     0.454081632653061     
+   average elements per column                    25
+ S after filtering:
+   dimension                                      56
+   nonzero elements                             1416
+   sparsity                     0.451530612244898     
+   average elements per column                    25
+ H before filtering:
+   dimension                                      56
+   nonzero elements                             1402
+   sparsity                     0.447066326530612     
+   average elements per column                    25
+ H after filtering:
+   dimension                                      56
+   nonzero elements                             1234
+   sparsity                     0.393494897959184     
+   average elements per column                    22
+
+Total solve2                                   0.007389069 sec
+* sygvd solver                                 0.006444931 sec
+
+nel: 14, nel_calc:        14.00000000
+ nel in P=   14.0000000000000      required nel=                    14
+ idempotency deviation  8.556523545255601E-016  9.999999717180685E-010
+ Stupid simple implementation of the submatrix method:                     4                     2
+ kmeans                     4   93870.7005193846       2.408027648925781E-005
+ kmeans                     1   23467.6751298462       5.006790161132812E-006
+ kmeans                     8   187741.401038769       2.598762512207031E-005
+ kmeans                     3   70403.0253895385       4.196166992187500E-005
+ kmeans                     5   117338.375649231       2.884864807128906E-005
+ kmeans                     2   46935.3502596923       2.002716064453125E-005
+ kmeans                     6   140806.050779077       1.215934753417969E-005
+ kmeans                     7   164273.725908923       7.152557373046875E-006
+ number of submatrices=                     1
+ average sm dim=                    56
+ effort for full matrix ops=   23467.6751298462     
+ sums of efforts for submatrices=   23467.6751298462     
+ ratio   1.00000000000000     
+ sm                     1                    56  2.898931503295898E-003
+ muiter                     1 mu  0.000000000000000E+000   44.0000000000000      of                    14
+ muiter                     2 mu  -5.00000000000000       0.000000000000000E+000 of                    14
+ muiter                     3 mu  -2.50000000000000        8.00000000000000      of                    14
+ muiter                     4 mu  -1.25000000000000        20.0000000000000      of                    14
+ muiter                     5 mu  -1.87500000000000        14.0000000000000      of                    14
+ iteration of chemical potential converged
+ final iteration to get density matrix
+
+Submatrix                                      0.006894827 sec
+* alloc                                        0.000019073 sec
+* submatrix combination                        0.000445843 sec
+* submatrix stats                              0.000015020 sec
+* mu iter                                      0.006364107 sec
+* submatrix construction                       0.002393007 sec
+* submatrix matrix function                    0.003417969 sec
+* submatrix eigendecomp                        0.002929211 sec
+* submatrix fe                                 0.000470161 sec
+* submatrix occ                                0.000019789 sec
+* submatrix Nel                                0.000022888 sec
+* submatrix final iter                         0.000417948 sec
+* submatrix dealloc                            0.000011921 sec
+*                                              0.000000000 sec
+*                                              0.000000000 sec
+*                                              0.000000000 sec
+*                                              0.000000000 sec
+*                                              0.000000000 sec
+*                                              0.000000000 sec
+*                                              0.000000000 sec
+*                                              0.000000000 sec
+
+ first elements Pref  0.852798590418983       0.155626534419862       3.397016775534622E-002  1.053010380617479E-002 -2.470225810428694E-002  0.556312971095261       2.331798893536909E-007  6.080583638026590E-007 -6.589618735735056E-007  0.437030673191400     
+ first elements P     0.852798590418983       0.155626534419862       3.397016775534622E-002  1.053010380617479E-002 -2.470225810428694E-002  0.556312971095261       2.331798893536909E-007  6.080583638026590E-007 -6.589618735735056E-007  0.437030673191400     
+ Sparsity of Pref:
+   dimension                                      56
+   nonzero elements                             1462
+   sparsity                     0.466198979591837     
+   average elements per column                    26
+ Sparsity of P:
+   dimension                                      56
+   nonzero elements                             1462
+   sparsity                     0.466198979591837     
+   average elements per column                    26
+ maximal deviation in density matrix  0.000000000000000E+000                     1  0.852798590418983       0.852798590418983     
+ MSE of density matrix  0.000000000000000E+000
+ Tr(H Pref)=  -37.8816377334298     
+ Tr(H P)=  -37.8816377334298     
+ energy deviation abs(Tr(H P)-Tr(H Pref))=  0.000000000000000E+000
+ energy deviation per atom abs(Tr(H P)-Tr(H Pref))/n=  0.000000000000000E+000
+nel: 14, nel_calc:        14.00000000
+ nel in P=   14.0000000000000      required nel=                    14
+ idempotency deviation  8.556523545255601E-016  9.999999717180685E-010
+ PTB H matrix iteration                      2  done. Now solving ...
+ S before filtering:
+   dimension                                      56
+   nonzero elements                             1416
+   sparsity                     0.451530612244898     
+   average elements per column                    25
+ S after filtering:
+   dimension                                      56
+   nonzero elements                             1416
+   sparsity                     0.451530612244898     
+   average elements per column                    25
+ H before filtering:
+   dimension                                      56
+   nonzero elements                             1338
+   sparsity                     0.426658163265306     
+   average elements per column                    23
+ H after filtering:
+   dimension                                      56
+   nonzero elements                             1206
+   sparsity                     0.384566326530612     
+   average elements per column                    21
+
+Total solve2                                   0.003263950 sec
+* sygvd solver                                 0.002769947 sec
+
+nel: 14, nel_calc:        14.00000000
+ nel in P=   14.0000000000000      required nel=                    14
+ idempotency deviation  1.569806161146395E-016  9.999999717180685E-010
+ Stupid simple implementation of the submatrix method:                     4                     2
+ kmeans                     1   23467.6751298462       3.099441528320312E-006
+ kmeans                     5   117338.375649231       1.215934753417969E-005
+ kmeans                     8   187741.401038769       1.406669616699219E-005
+ kmeans                     7   164273.725908923       9.059906005859375E-006
+ kmeans                     3   70403.0253895385       5.006790161132812E-006
+ kmeans                     4   93870.7005193846       6.580352783203125E-005
+ kmeans                     6   140806.050779077       6.985664367675781E-005
+ kmeans                     2   46935.3502596923       7.486343383789062E-005
+ number of submatrices=                     1
+ average sm dim=                    56
+ effort for full matrix ops=   23467.6751298462     
+ sums of efforts for submatrices=   23467.6751298462     
+ ratio   1.00000000000000     
+ sm                     1                    56  2.892971038818359E-003
+ muiter                     1 mu  0.000000000000000E+000   44.0000000000000      of                    14
+ muiter                     2 mu  -5.00000000000000       0.000000000000000E+000 of                    14
+ muiter                     3 mu  -2.50000000000000        2.00000000000000      of                    14
+ muiter                     4 mu  -1.25000000000000        16.0000000000000      of                    14
+ muiter                     5 mu  -1.87500000000000        14.0000000000000      of                    14
+ iteration of chemical potential converged
+ final iteration to get density matrix
+
+Submatrix                                      0.004684925 sec
+* alloc                                        0.000019073 sec
+* submatrix combination                        0.000208139 sec
+* submatrix stats                              0.000013828 sec
+* mu iter                                      0.004408121 sec
+* submatrix construction                       0.000465870 sec
+* submatrix matrix function                    0.003400087 sec
+* submatrix eigendecomp                        0.002914906 sec
+* submatrix fe                                 0.000467062 sec
+* submatrix occ                                0.000019789 sec
+* submatrix Nel                                0.000016212 sec
+* submatrix final iter                         0.000424147 sec
+* submatrix dealloc                            0.000005960 sec
+*                                              0.000000000 sec
+*                                              0.000000000 sec
+*                                              0.000000000 sec
+*                                              0.000000000 sec
+*                                              0.000000000 sec
+*                                              0.000000000 sec
+*                                              0.000000000 sec
+*                                              0.000000000 sec
+
+ first elements Pref  0.539527759240201      -1.213438148985697E-002  1.531562361105262E-002  3.622089108600517E-002 -3.459920572010158E-002  0.570853513263670      -8.731930048773226E-007  2.757436207219849E-007 -5.484590276636062E-008  0.462566655148489     
+ first elements P     0.539527759240201      -1.213438148985697E-002  1.531562361105262E-002  3.622089108600517E-002 -3.459920572010158E-002  0.570853513263670      -8.731930048773226E-007  2.757436207219849E-007 -5.484590276636062E-008  0.462566655148489     
+ Sparsity of Pref:
+   dimension                                      56
+   nonzero elements                             1510
+   sparsity                     0.481505102040816     
+   average elements per column                    26
+ Sparsity of P:
+   dimension                                      56
+   nonzero elements                             1510
+   sparsity                     0.481505102040816     
+   average elements per column                    26
+ maximal deviation in density matrix  0.000000000000000E+000                     1  0.539527759240201       0.539527759240201     
+ MSE of density matrix  0.000000000000000E+000
+ Tr(H Pref)=  -31.6627797040186     
+ Tr(H P)=  -31.6627797040186     
+ energy deviation abs(Tr(H P)-Tr(H Pref))=  0.000000000000000E+000
+ energy deviation per atom abs(Tr(H P)-Tr(H Pref))/n=  0.000000000000000E+000
+nel: 14, nel_calc:        14.00000000
+ nel in P=   14.0000000000000      required nel=                    14
+ idempotency deviation  1.569806161146395E-016  9.999999717180685E-010
+ frontier MO occupations   :   2.0000  2.0000  2.0000  2.0000  2.0000  2.0000  2.0000  0.0000  0.0000
+ (shifted) level energies  :  -1.0638 -0.7387 -0.6859 -0.6859 -0.5041 -0.4008 -0.4008  0.1479  0.2354
+ gaps (1st,2nd, eV)        :    23.860   14.933
+ D4 dispersion energy      :     -0.013853
+
+     ------  PTB results ------
+  # element  Z   pop.                shell populations
+  1     C   4.0  4.2233       0.490  0.214  2.324  0.677  0.518
+  2     C   4.0  4.2233       0.490  0.214  2.324  0.677  0.518
+  3     H   1.0  0.9256       0.659  0.129  0.137
+  4     H   1.0  0.9256       0.659  0.129  0.137
+  5     H   1.0  0.9256       0.659  0.129  0.137
+  6     H   1.0  0.9256       0.659  0.129  0.137
+  7     H   1.0  0.9256       0.659  0.129  0.137
+  8     H   1.0  0.9256       0.659  0.129  0.137
+ largest Wiberg (=(PS)*(SP)) bond orders for each atom
+           total WBO             WBO to atom > 0.05 ...
+     1  C   4.116    C    2 1.241    H    3 0.931    H    5 0.931    H    4 0.931
+     2  C   4.116    C    1 1.241    H    8 0.931    H    6 0.931    H    7 0.931
+     3  H   1.014    C    1 0.931    H    8 0.053
+     4  H   1.014    C    1 0.931    H    7 0.053
+     5  H   1.014    C    1 0.931    H    6 0.053
+     6  H   1.014    C    2 0.931    H    5 0.053
+     7  H   1.014    C    2 0.931    H    4 0.053
+     8  H   1.014    C    2 0.931    H    3 0.053
+dipole moment  X         Y          Z
+        0.000001        0.000001       -0.000000  total     (au/Debye)      :     0.0000     0.0000
+second moment  X^2       Y^2        Z^2
+       13.301500       10.268275       10.268258  average   (au)            :    11.2793
+cpu  time for all    4.05 s
+wall time for all    0.00 s
