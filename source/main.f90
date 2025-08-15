@@ -546,7 +546,7 @@ program gTB
    do i=1,n
       ns = bas_nsh(at(i))
       floats(1:ns)=psh(1:ns,i)
-      write(*,'(i3,5x,a2,f5.1,f8.4,5x,10f7.3,5x)') i,asym(at(i)),z(i),q(i),floats(1:ns)
+      write(*,'(i5,5x,a2,f5.1,f8.4,5x,10f7.3,5x)') i,asym(at(i)),z(i),q(i),floats(1:ns)
    enddo
    if(molcount.gt.1) write(*,*) 'CT cal',fragchrg
    call prwbo(n,at,wbo)
